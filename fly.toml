@@ -1,0 +1,30 @@
+app = "gamma-lms"
+primary_region = "ord"  # Chicago - closest to your users
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false        # Keep running for Realtime
+  auto_start_machines = true
+  min_machines_running = 2          # Always have 2 instances
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 500
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 2048                  # 2GB RAM for audio processing
+
+[env]
+  NEXT_PUBLIC_SITE_URL = "https://mygenesisdigitalassetstraining.com"
+
+[mounts]
+  source = "audio_cache"
+  destination = "/app/cache"
