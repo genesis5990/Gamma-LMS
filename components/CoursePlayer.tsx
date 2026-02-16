@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import { Slide, Progress } from '@/types';
 
 interface CoursePlayerProps {
@@ -18,7 +18,7 @@ export function CoursePlayer({ courseId, slides, initialProgress = [] }: CourseP
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createPagesBrowserClient(), []);
   
   const currentSlideData = slides.find(s => s.slide_number === currentSlide);
   const progressMap = new Map(initialProgress.map(p => [p.slide_number, p]));

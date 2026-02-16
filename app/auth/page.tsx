@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useMemo } from 'react';
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -10,7 +10,8 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   
-  const supabase = createClient();
+  // Initialize client lazily inside component
+  const supabase = useMemo(() => createPagesBrowserClient(), []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
