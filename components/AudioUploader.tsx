@@ -42,7 +42,7 @@ export function AudioUploader({ courseId, slides }: AudioUploaderProps) {
       });
       
       if (response.ok) {
-        setUploadedSlides(prev => new Set([...prev, slideNumber]));
+        setUploadedSlides(prev => new Set(Array.from(prev).concat(slideNumber)));
       } else {
         const error = await response.json();
         alert(`Upload failed: ${error.error}`);
