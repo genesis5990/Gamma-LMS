@@ -4,25 +4,22 @@ import { cookies } from 'next/headers';
 export function createClient() {
   const cookieStore = cookies();
 
-  return createPagesServerClient({
+  // For App Router, we need to use the cookie store differently
+  // The old auth-helpers-nextjs expects req/res for Pages Router
+  // We'll create a minimal mock for the App Router context
+  const req = {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: any) {
-        try {
-          cookieStore.set({ name, value, ...options });
-        } catch (error) {
-          // Handle middleware context
-        }
-      },
-      remove(name: string, options: any) {
-        try {
-          cookieStore.set({ name, value: '', ...options });
-        } catch (error) {
-          // Handle middleware context
-        }
+      get: (name: string) => {
+        const cookie = cookieStore.get(name);
+        return cookie ? { value: cookie.value } : undefined;
       },
     },
-  });
+  } as any;
+
+  const res = {
+    setHeader: () => {},
+    getHeader: () => {},
+  } as any;
+
+  return createPagesServerClient({ req, res });
 }
