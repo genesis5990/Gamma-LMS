@@ -3,11 +3,22 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Initialize Perplexity client using OpenAI SDK (OpenAI-compatible API)
-const perplexity = new OpenAI({
-  apiKey: process.env.PERPLEXITY_API_KEY,
-  baseURL: 'https://api.perplexity.ai',
-});
+// Lazy initialization - only create client when needed
+let perplexity: OpenAI | null = null;
+
+function getPerplexityClient(): OpenAI {
+  if (!perplexity) {
+    const apiKey = process.env.PERPLEXITY_API_KEY;
+    if (!apiKey) {
+      throw new Error('PERPLEXITY_API_KEY environment variable is missing');
+    }
+    perplexity = new OpenAI({
+      apiKey,
+      baseURL: 'https://api.perplexity.ai',
+    });
+  }
+  return perplexity;
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,8 +32,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Initialize Perplexity client
+    const client = getPerplexityClient();
+
     // Use Perplexity to generate course structure
-    const response = await perplexity.chat.completions.create({
+    const response = await client.chat.completions.create({
       model: 'llama-3.1-sonar-large-128k-online',
       messages: [
         {
@@ -118,7 +132,7 @@ function extractTitle(text: string): string | null {
 // Helper to extract description from AI response
 function extractDescription(text: string): string {
   // Look for "Description:" or first paragraph after title
-  const descMatch = text.match(/(?:Description:)\s*(.+?)(?=\n\n|Slide 1:)/is);
+  const descMatch = text.match(/(?:Description:)\s*([\s\S]+?)(?=\n\n|Slide 1:)/i);
   if (descMatch) {
     return descMatch[1].trim().substring(0, 500);
   }
