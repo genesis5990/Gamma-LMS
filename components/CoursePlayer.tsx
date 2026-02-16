@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { Slide, Progress } from '@/types';
 
 interface CoursePlayerProps {
@@ -17,22 +18,27 @@ export function CoursePlayer({ courseId, slides, initialProgress = [] }: CourseP
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const supabase = useMemo(() => createPagesBrowserClient(), []);
+  
+  // Initialize Supabase only on client side
+  useEffect(() => {
+    setSupabase(createPagesBrowserClient());
+  }, []);
   
   const currentSlideData = slides.find(s => s.slide_number === currentSlide);
   const progressMap = new Map(initialProgress.map(p => [p.slide_number, p]));
   
   // Load audio when slide changes
   useEffect(() => {
-    if (currentSlideData?.audio_path) {
+    if (currentSlideData?.audio_path && supabase) {
       loadAudio(currentSlideData.audio_path);
     } else {
       setAudioUrl(null);
       setProgress(0);
       setCurrentTime(0);
     }
-  }, [currentSlide, currentSlideData]);
+  }, [currentSlide, currentSlideData, supabase]);
   
   const loadAudio = async (path: string) => {
     setLoading(true);
@@ -91,6 +97,7 @@ export function CoursePlayer({ courseId, slides, initialProgress = [] }: CourseP
   };
   
   const saveProgress = async (slideNum: number, position: number, completed: boolean = false) => {
+    if (!supabase) return;
     const slide = slides.find(s => s.slide_number === slideNum);
     if (!slide) return;
     
@@ -129,13 +136,14 @@ export function CoursePlayer({ courseId, slides, initialProgress = [] }: CourseP
   
   // Auto-save progress every 5 seconds
   useEffect(() => {
+    if (!isPlaying || !supabase) return;
     const interval = setInterval(() => {
-      if (isPlaying && audioRef.current) {
+      if (audioRef.current) {
         saveProgress(currentSlide, audioRef.current.currentTime);
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [isPlaying, currentSlide]);
+  }, [isPlaying, currentSlide, supabase]);
   
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -178,14 +186,14 @@ export function CoursePlayer({ courseId, slides, initialProgress = [] }: CourseP
                   <button 
                     onClick={() => rewind(10)} 
                     className="p-2 bg-gray-600 rounded hover:bg-gray-500"
-                    disabled={loading}
+                    disabled={loading || !supabase}
                   >
                     -10s
                   </button>
                   <button 
                     onClick={restartSlide} 
                     className="p-2 bg-gray-600 rounded hover:bg-gray-500"
-                    disabled={loading}
+                    disabled={loading || !supabase}
                   >
                     ↻
                   </button>

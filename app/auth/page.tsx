@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -9,12 +10,17 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   
-  // Initialize client lazily inside component
-  const supabase = useMemo(() => createPagesBrowserClient(), []);
+  // Initialize Supabase only on client side
+  useEffect(() => {
+    setSupabase(createPagesBrowserClient());
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) return;
+    
     setLoading(true);
     setMessage('');
     
@@ -110,7 +116,7 @@ export default function AuthPage() {
           
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {loading ? 'Processing...' : isSignUp ? 'Create Account' : 'Sign In'}
