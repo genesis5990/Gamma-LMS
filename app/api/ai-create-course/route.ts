@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Initialize Perplexity client (OpenAI-compatible)
+// Initialize Perplexity client using OpenAI SDK (OpenAI-compatible API)
 const perplexity = new OpenAI({
   apiKey: process.env.PERPLEXITY_API_KEY,
   baseURL: 'https://api.perplexity.ai',
