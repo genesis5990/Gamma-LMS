@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { EnrollmentButton } from '@/components/EnrollmentButton';
 import { Course, Enrollment } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   const supabase = createServerComponentClient({ cookies });
   

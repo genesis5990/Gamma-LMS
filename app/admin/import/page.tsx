@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { GammaImporter } from '@/components/GammaImporter';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminImportPage() {
   const supabase = createServerComponentClient({ cookies });
   
