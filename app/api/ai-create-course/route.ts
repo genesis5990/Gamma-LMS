@@ -1,49 +1,13 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import OpenAI from 'openai';
 
-// Gamma MCP tool definition
-const gammaCreateTool = {
-  description: 'Create a new Gamma presentation with AI-generated content',
-  parameters: {
-    type: 'object',
-    properties: {
-      title: {
-        type: 'string',
-        description: 'The title of the presentation'
-      },
-      description: {
-        type: 'string',
-        description: 'Description of what the presentation should cover'
-      },
-      format: {
-        type: 'string',
-        enum: ['presentation', 'document', 'webpage'],
-        description: 'The format of the content'
-      },
-      numberOfSlides: {
-        type: 'number',
-        description: 'Number of slides to generate (5-20 recommended)'
-      },
-      textDensity: {
-        type: 'string',
-        enum: ['brief', 'medium', 'extensive'],
-        description: 'How much text per slide'
-      },
-      tone: {
-        type: 'string',
-        description: 'Tone of the content (professional, casual, educational, etc.)'
-      },
-      theme: {
-        type: 'string',
-        description: 'Visual theme/style for the presentation'
-      }
-    },
-    required: ['title', 'description', 'format']
-  }
-};
+// Initialize Perplexity client (OpenAI-compatible)
+const perplexity = new OpenAI({
+  apiKey: process.env.PERPLEXITY_API_KEY,
+  baseURL: 'https://api.perplexity.ai',
+});
 
 export async function POST(req: Request) {
   try {
@@ -57,29 +21,46 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Use AI to generate course structure
-    const { text, toolCalls } = await generateText({
-      model: openai('gpt-4'),
-      tools: {
-        gamma_create: gammaCreateTool
-      },
-      prompt: `Create a comprehensive ${numSlides}-slide educational course about "${topic}".
-      
+    // Use Perplexity to generate course structure
+    const response = await perplexity.chat.completions.create({
+      model: 'llama-3.1-sonar-large-128k-online',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert course creator who designs engaging educational content. Create well-structured courses with clear learning objectives.'
+        },
+        {
+          role: 'user',
+          content: `Create a comprehensive ${numSlides}-slide educational course about "${topic}".
+
 Requirements:
-- Format: presentation
-- Text density: ${textDensity}
+- Format: Presentation slides
+- Text density: ${textDensity} (brief = bullet points, medium = paragraphs, extensive = detailed explanations)
 - Tone: ${tone}
 - Target audience: Online learners
 
-Generate the course outline and structure.`,
-      maxToolRoundtrips: 1
+Please provide:
+1. A compelling course title
+2. A brief description (2-3 sentences)
+3. An outline with ${numSlides} slide titles/topics
+
+Format the outline as:
+Slide 1: [Title]
+Slide 2: [Title]
+etc.`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
     });
+
+    const generatedText = response.choices[0]?.message?.content || '';
 
     // Extract the AI-generated content
     const generatedContent = {
-      title: topic,
-      description: text.substring(0, 500),
-      slides: parseSlidesFromAIResponse(text, numSlides)
+      title: extractTitle(generatedText) || topic,
+      description: extractDescription(generatedText),
+      slides: parseSlidesFromAIResponse(generatedText, numSlides)
     };
 
     // Create course in Supabase
@@ -114,7 +95,7 @@ Generate the course outline and structure.`,
     return NextResponse.json({
       success: true,
       courseId: course.id,
-      message: `AI course "${topic}" created with ${numSlides} slides. Upload slide images and audio to complete.`,
+      message: `AI course "${generatedContent.title}" created with ${numSlides} slides. Upload slide images and audio to complete.`,
       outline: generatedContent.slides
     });
 
@@ -127,26 +108,47 @@ Generate the course outline and structure.`,
   }
 }
 
+// Helper to extract title from AI response
+function extractTitle(text: string): string | null {
+  // Look for "Title:" or first line
+  const titleMatch = text.match(/(?:Title:|Course Title:)\s*(.+)/i) || text.match(/^(.+)$/m);
+  return titleMatch ? titleMatch[1].trim() : null;
+}
+
+// Helper to extract description from AI response
+function extractDescription(text: string): string {
+  // Look for "Description:" or first paragraph after title
+  const descMatch = text.match(/(?:Description:)\s*(.+?)(?=\n\n|Slide 1:)/is);
+  if (descMatch) {
+    return descMatch[1].trim().substring(0, 500);
+  }
+  // Fallback: use first 500 characters
+  return text.substring(0, 500).replace(/\n/g, ' ');
+}
+
 // Helper to parse slide content from AI response
 function parseSlidesFromAIResponse(text: string, numSlides: number): string[] {
   const slides: string[] = [];
   
   // Try to extract slide titles/content
   const lines = text.split('\n');
-  let currentSlide = 0;
   
   for (const line of lines) {
     // Look for slide indicators ("Slide 1:", "1.", etc.)
     const slideMatch = line.match(/^(?:Slide\s*)?(\d+)[:.\-]\s*(.+)/i);
-    if (slideMatch && currentSlide < numSlides) {
-      slides.push(slideMatch[2].trim());
-      currentSlide++;
+    if (slideMatch) {
+      const slideNum = parseInt(slideMatch[1]);
+      if (slideNum <= numSlides) {
+        slides[slideNum - 1] = slideMatch[2].trim();
+      }
     }
   }
   
   // Fill remaining slots with generic titles
-  while (slides.length < numSlides) {
-    slides.push(`Slide ${slides.length + 1}`);
+  for (let i = 0; i < numSlides; i++) {
+    if (!slides[i]) {
+      slides[i] = `Slide ${i + 1}`;
+    }
   }
   
   return slides.slice(0, numSlides);
