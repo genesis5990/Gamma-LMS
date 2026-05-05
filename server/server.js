@@ -22,7 +22,7 @@ const RESERVED = new Set([
   'assets', 'favicon.ico', 'robots.txt', 'sitemap.xml',
   'auth.js', 'config.js', 'tenant.js', 'course_data.json',
   'course.html', 'admin.html', 'index.html', 'courses.html', 'admin-requests.html',
-  'verify', 'health', 'api', 'courses'
+  'verify', 'health', 'api', 'courses', 'preview'
 ]);
 
 // Slugs are URL-safe lowercase: a-z 0-9 - (3-40 chars).
@@ -449,6 +449,19 @@ app.get(/^\/verify(?:\/([0-9a-f]{64}))?\/?$/, (_req, res) => {
 app.get('/courses', (_req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(PUBLIC_DIR, 'courses.html'));
+});
+
+// =====================================================================
+// Preview routes — auth-less content review pages.
+// Serves a standalone viewer for an authored course JSON. No DB writes,
+// no enrollment, no progress. The /preview/* directory is also reachable
+// via express.static below for sibling assets (the .course.json and CSS),
+// but we add an explicit route for the bare slug so /preview/le-field-tactics
+// (no .html) resolves cleanly.
+// =====================================================================
+app.get('/preview/le-field-tactics', (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'preview', 'le-field-tactics.html'));
 });
 
 // =====================================================================

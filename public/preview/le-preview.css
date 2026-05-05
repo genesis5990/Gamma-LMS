@@ -1,0 +1,228 @@
+/* le-preview.css — styles for classes referenced in the LE Field Tactics
+ * course HTML payload that aren't in the live tenant-themes.css yet.
+ *
+ * Palette is the Deconflict navy theme. These selectors are NOT scoped to a
+ * tenant attribute because the preview page sets data-tenant="deconflict" and
+ * this stylesheet is preview-only.
+ */
+
+:root {
+  --le-bg:        #060A16;
+  --le-card:      #0F1729;
+  --le-fg:        #FFFFFF;
+  --le-fg-muted:  #C6C6C9;
+  --le-accent:    #3B82F6;
+  --le-border:    #1F2937;
+  --le-safe:      #10B981;
+  --le-warn:      #F59E0B;
+  --le-danger:    #EF4444;
+}
+
+/* ===== Callouts =========================================================== */
+.lesson-card .callout {
+  background: #0c1322;
+  border: 1px solid var(--le-border);
+  border-left: 4px solid var(--le-accent);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 16px 0;
+  color: var(--le-fg);
+}
+.lesson-card .callout p:last-child { margin-bottom: 0; }
+.lesson-card .callout ul:last-child { margin-bottom: 0; }
+
+.lesson-card .callout.callout-warn {
+  border-left-color: var(--le-warn);
+  background: #1d1607;
+}
+.lesson-card .callout.callout-warn strong { color: #fcd34d; }
+
+.lesson-card .callout.callout-danger {
+  border-left-color: var(--le-danger);
+  background: #1e0a0a;
+}
+.lesson-card .callout.callout-danger strong { color: #fca5a5; }
+
+.lesson-card .callout.callout-success {
+  border-left-color: var(--le-safe);
+  background: #062018;
+}
+.lesson-card .callout.callout-success strong { color: #6ee7b7; }
+
+/* ===== Compare cards (two-column comparison) ============================== */
+.lesson-card .compare-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 18px 0;
+}
+@media (max-width: 720px) {
+  .lesson-card .compare-cards { grid-template-columns: 1fr; }
+}
+
+.lesson-card .compare-card {
+  background: var(--le-card);
+  border: 1px solid var(--le-border);
+  border-top: 4px solid var(--le-accent);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+.lesson-card .compare-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  letter-spacing: .3px;
+}
+.lesson-card .compare-card p { margin: 0 0 10px; }
+.lesson-card .compare-card ul { margin: 6px 0 10px 18px; }
+.lesson-card .compare-card p:last-child { margin-bottom: 0; }
+
+.lesson-card .compare-card.compare-safe {
+  border-top-color: var(--le-safe);
+  background: linear-gradient(180deg, #07271c 0%, #0F1729 60%);
+}
+.lesson-card .compare-card.compare-safe h3 { color: #6ee7b7; }
+
+.lesson-card .compare-card.compare-danger {
+  border-top-color: var(--le-danger);
+  background: linear-gradient(180deg, #2a0c0c 0%, #0F1729 60%);
+}
+.lesson-card .compare-card.compare-danger h3 { color: #fca5a5; }
+
+/* ===== Badge panel (labelled sidebar callout) ============================= */
+.lesson-card .badge-panel {
+  background: #0c1322;
+  border: 1px solid var(--le-border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 16px 0;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.lesson-card .badge-panel .badge-label {
+  display: inline-block;
+  background: var(--le-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ===== Code/pre blocks inside lesson-card ================================= */
+.lesson-card pre {
+  background: #0a1020;
+  border: 1px solid var(--le-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--le-fg);
+}
+.lesson-card code {
+  background: rgba(59, 130, 246, .12);
+  color: #93c5fd;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.lesson-card pre code { background: transparent; color: inherit; padding: 0; }
+
+/* ===== Preview banner ===================================================== */
+.preview-banner {
+  background: #1d1607;
+  border-bottom: 1px solid var(--le-warn);
+  color: #fcd34d;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px 16px;
+  font-weight: 700;
+}
+
+/* ===== Quiz / knowledge check (preview-local) ============================= */
+.kc-block {
+  background: #0c1322;
+  border: 1px solid var(--le-border);
+  border-left: 4px solid var(--le-accent);
+  border-radius: 8px;
+  padding: 22px 24px;
+  margin: 22px 0;
+}
+.kc-block h2 { margin-top: 0; }
+.kc-block .kc-meta {
+  font-size: 12px; color: var(--le-fg-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+.kc-q { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--le-border); }
+.kc-q:last-of-type { border-bottom: 0; }
+.kc-q .stem { font-weight: 600; margin-bottom: 10px; }
+.kc-q .opts { list-style: none; padding: 0; margin: 0; }
+.kc-q .opts li { margin: 0 0 6px; }
+.kc-q .opts label {
+  display: flex; gap: 10px; padding: 10px 14px;
+  background: #0a1020;
+  border: 1px solid var(--le-border);
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1.45;
+  color: var(--le-fg);
+  align-items: flex-start;
+}
+.kc-q .opts label:hover { border-color: var(--le-accent); }
+.kc-q .opts input { margin-top: 4px; }
+
+.kc-q.graded .opts label { cursor: default; }
+.kc-q.graded .opts label.is-correct {
+  border-color: var(--le-safe);
+  background: rgba(16, 185, 129, .08);
+}
+.kc-q.graded .opts label.is-wrong-chosen {
+  border-color: var(--le-danger);
+  background: rgba(239, 68, 68, .08);
+}
+
+.kc-q .feedback {
+  display: none;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.kc-q.graded.correct .feedback {
+  display: block;
+  background: rgba(16, 185, 129, .12);
+  color: #6ee7b7;
+}
+.kc-q.graded.incorrect .feedback {
+  display: block;
+  background: rgba(239, 68, 68, .12);
+  color: #fca5a5;
+}
+.kc-q .feedback .ref { display: block; margin-top: 4px; font-style: italic; opacity: .9; }
+
+.kc-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.kc-result {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.kc-result.pass {
+  background: rgba(16, 185, 129, .12);
+  border: 1px solid var(--le-safe);
+  color: #6ee7b7;
+}
+.kc-result.fail {
+  background: rgba(239, 68, 68, .12);
+  border: 1px solid var(--le-danger);
+  color: #fca5a5;
+}

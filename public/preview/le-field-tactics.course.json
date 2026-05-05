@@ -1,0 +1,917 @@
+{
+  "id": "le-field-tactics",
+  "title": "Cryptocurrency & Digital Assets: Field Tactics for Law Enforcement",
+  "description": "Practical field skills for patrol officers and detectives to recognize, seize, and document cryptocurrency evidence on the street.",
+  "audience": "Patrol Officers, Detectives, First-Line Supervisors",
+  "prerequisites": "None",
+  "pass_threshold": 0.8,
+  "order": 1,
+  "includes_disclaimer": true,
+  "modules": [
+    {
+      "id": "module-0",
+      "title": "Welcome & Disclosure",
+      "lessons": [
+        {
+          "id": "0.1",
+          "title": "Course Disclosure & Scope",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Welcome to Cryptocurrency &amp; Digital Assets: Field Tactics for Law Enforcement</h2>\n<p>This course is designed for patrol officers, detectives, and first-line supervisors who encounter cryptocurrency and digital assets in the field. No prior technical background is required.</p>\n<h3>Learning Outcome</h3>\n<p>Upon completion, officers will be able to:</p>\n<ul>\n  <li>Identify the digital assets most commonly linked to criminal activity.</li>\n  <li>Connect those assets to specific criminal topologies — from street scams to cartel laundering.</li>\n  <li>Lawfully seize and preserve digital evidence, including hardware wallets and seed phrases.</li>\n  <li>Document financial crimes with sufficient detail to support forensic analysis and prosecution.</li>\n</ul>\n<h3>Audience</h3>\n<p>Patrol Officers, Detectives, First-Line Supervisors (Sergeants / Lieutenants). No prerequisite courses are required.</p>\n<h3>Scope</h3>\n<p>This course is an <strong>awareness and tactics</strong> training. It is not a forensic certification program. It covers the practical skills a field officer needs from the first contact with a suspect through the initial report. Complex blockchain tracing and expert-witness preparation are handled by specialized financial crimes units and federal partners.</p>\n<div class=\"callout\">\n  <p><strong>Course Position:</strong> This is Course 1 in the Deconflict catalog. It precedes the Foundations / Crypto 101 course. Officers who complete this course will have the field vocabulary needed to benefit from deeper technical training.</p>\n</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Mandatory Disclosure &amp; Disclaimer</h2>\n<p>Read and acknowledge the following before proceeding. This disclosure applies to every module in the course.</p>\n<h3>Course Nature</h3>\n<p>This training program, \"Cryptocurrency &amp; Digital Assets: Comprehensive Field Tactics for Law Enforcement,\" is designed solely for educational and awareness purposes. It is intended to equip law enforcement personnel with foundational knowledge to recognize, document, and preserve evidence commonly associated with cryptocurrency and digital assets.</p>\n<h3>Policy Adherence</h3>\n<ul>\n  <li><strong>Department Policy Supremacy:</strong> Nothing in this course supersedes, overrides, or replaces your specific agency's Standard Operating Procedures (SOPs), General Orders, or official policies.</li>\n  <li><strong>Jurisdictional Law:</strong> Laws regarding search, seizure, probable cause, and asset forfeiture vary significantly by jurisdiction (local, state, and federal). Officers must always operate within the legal framework of their specific jurisdiction.</li>\n  <li><strong>Consult Legal Counsel:</strong> When in doubt regarding the legality of a seizure, the application of a warrant, or the handling of digital assets, personnel should consult with their agency's legal counsel or the local prosecutor's office.</li>\n</ul>\n<h3>Operational Limitations</h3>\n<ul>\n  <li><strong>No Certification of Proficiency:</strong> Completion of this course does not certify the attendee as a forensic examiner, expert witness, or financial crimes investigator.</li>\n  <li><strong>Safety First:</strong> The tactical suggestions provided (e.g., handling suspects, device isolation) are general best practices. Officer safety and the security of the scene always take precedence.</li>\n</ul>\n<h3>Liability</h3>\n<p>The instructors, authors, and affiliated organizations assume no liability for actions taken by students in the field. All investigative and enforcement actions are the sole responsibility of the individual officer and their agency.</p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-1",
+      "title": "Module 1 — The Digital Asset Landscape",
+      "lessons": [
+        {
+          "id": "1.1",
+          "title": "The \"Big Three\" in Crime",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>The \"Big Three\" in Crime</h2>\n<p>Officers learn to distinguish between types of narcotics and firearms because each requires a different investigative approach. Digital assets are no different. While thousands of cryptocurrencies exist, criminal activity is overwhelmingly concentrated in three categories: <strong>Bitcoin</strong>, <strong>Ethereum</strong>, and <strong>Stablecoins</strong>. Recognizing which asset you are looking at tells you which investigative tools apply.</p>\n<div class=\"callout\">\n  <p><strong>Investigative Principle:</strong> Just as fentanyl and marijuana trigger different statutes and evidence protocols, Bitcoin and a stablecoin like USDT trigger different legal processes and recovery windows. Know which is which before you act.</p>\n</div>\n<h3>Why Three?</h3>\n<ul>\n  <li><strong>Bitcoin (BTC)</strong> — The original cryptocurrency. Used in ransomware, darknet markets, and high-value money laundering.</li>\n  <li><strong>Ethereum (ETH)</strong> — The programmable blockchain. Powers the smart-contract scams, fake tokens, and \"Pig Butchering\" drainers your detectives are already seeing.</li>\n  <li><strong>Stablecoins (USDT / USDC)</strong> — The digital dollar. Preferred by cartels and scam platforms for cross-border settlement because the value does not fluctuate. Critically, these can be <strong>frozen</strong> by the issuer on a law enforcement request — a capability Bitcoin does not have.</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Bitcoin (BTC) — The \"Gold Standard\"</h2>\n<p>Bitcoin is the original cryptocurrency, launched in 2009. Think of it as digital gold bars: heavy and slow to move relative to other assets, but universally accepted in the criminal underworld and highly liquid.</p>\n<h3>How It Works</h3>\n<p>Bitcoin transactions work like cash. If you have a $20 bill and buy a $5 item, you hand over the $20 and receive $15 in change. On the blockchain this creates distinct \"outputs\" that investigators can trace — a model known as UTXO (Unspent Transaction Output). Each output is a traceable piece of evidence.</p>\n<h3>Why Criminals Use Bitcoin</h3>\n<ul>\n  <li><strong>High Liquidity:</strong> Millions of dollars can be moved anywhere in the world instantly.</li>\n  <li><strong>Darknet Markets:</strong> Primary currency for drugs, stolen credit card data, and hacking tools sold online.</li>\n  <li><strong>Ransomware:</strong> Nearly all major ransomware gangs demand BTC because laundering infrastructure (mixers) is mature and robust.</li>\n</ul>\n<div class=\"badge-panel\"><span class=\"badge-label\">INVESTIGATIVE NOTE</span> Bitcoin is <strong>pseudonymous, not anonymous</strong>. Every transaction is permanently public. Link a person to one address — via a crypto exchange subpoena, for example — and you can see their entire transaction history. Sophisticated actors may use \"mixers\" to obscure the trail, but the initial link to an identity often remains traceable.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Ethereum (ETH) — The \"Utility Belt\"</h2>\n<p>Ethereum is the second-largest cryptocurrency and represents a \"world computer.\" If Bitcoin is digital gold, Ethereum is digital oil: it fuels a massive ecosystem of applications. Criminals often do not want the Ethereum itself — they need it to pay transaction fees (called \"Gas\") to move other assets.</p>\n<h3>Key Concepts</h3>\n<ul>\n  <li><strong>Account Model:</strong> Unlike Bitcoin's cash-change model, Ethereum works like a bank account. Value moves from Account A to Account B and the balance updates directly.</li>\n  <li><strong>Smart Contracts:</strong> Ethereum allows code that executes automatically. This powers \"Pig Butchering\" scams: victims connect their wallets to a fake investment site and a malicious smart contract drains their funds without requiring manual approval of every transaction.</li>\n  <li><strong>Tokens (ERC-20):</strong> Anyone can create a token on top of Ethereum. Criminals create fake versions of real companies or meme coins to defraud investors — known as \"Rug Pulls.\"</li>\n</ul>\n<div class=\"badge-panel\"><span class=\"badge-label\">INVESTIGATIVE NOTE</span> When you see an Ethereum address (starts with <code>0x</code>), you are often looking at a hub. A suspect may hold $50 in ETH but $5,000,000 in stolen USDT tokens in the same wallet. <strong>Always examine the full token portfolio, not just the ETH balance.</strong></div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Stablecoins (USDT &amp; USDC) — The \"Digital Dollar\"</h2>\n<p>Stablecoins are cryptocurrencies designed to maintain a stable value of $1.00. They solve the biggest problem for criminals: volatility. If a cartel sells $1M in product and takes Bitcoin, a 10% price drop costs them $100k overnight. With USDT (Tether), the $1M is still $1M the next day. Stablecoins combine the speed of crypto with the stability of the US dollar.</p>\n<h3>Criminal Use Patterns</h3>\n<ul>\n  <li><strong>Money Laundering:</strong> Cartels use USDT to settle accounts across borders instantly, bypassing the SWIFT banking network.</li>\n  <li><strong>Pig Butchering:</strong> Victims are instructed to convert funds to USDT before sending to the scam platform, because it appears \"professional\" and avoids the volatility objection.</li>\n  <li><strong>Tron Network (TRX):</strong> Criminals prefer moving USDT on the Tron blockchain — addresses start with a capital <code>T</code> — because fees are cheaper and transactions faster than on Ethereum.</li>\n</ul>\n<h3>The Blacklist Capability</h3>\n<p>Unlike Bitcoin, stablecoins are issued by centralized companies: Tether Ltd. (USDT) and Circle (USDC). These companies can, upon receiving a valid law enforcement request, <strong>freeze assets in a specific wallet</strong>. This is a critical recovery tool that does not exist for Bitcoin.</p>\n<div class=\"callout callout-warn\">\n  <p><strong>Time-Sensitive:</strong> If you identify stolen funds in USDT or USDC, act immediately. Contact the issuer directly (see Module 7 for LE portals). Every hour of delay increases the likelihood the suspect has already moved the funds off-chain.</p>\n</div>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "1.2",
+          "title": "Wallet Anatomy & Recognition",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Wallet Anatomy &amp; Recognition</h2>\n<p>In the physical world, money is either in a bank (custodial) or in your pocket (non-custodial). In crypto, this same distinction dictates your entire investigative strategy. An officer who can look at a suspect's phone screen or a seized device and instantly categorize the wallet type knows their next legal move. An officer who cannot may miss the evidence entirely or take unlawful action.</p>\n<div class=\"callout\">\n  <p><strong>The Core Question:</strong> Is there a company in the middle? If yes — it is a custodial wallet and you can serve legal process. If no — the evidence is on the device or written on paper, and you need a physical search warrant.</p>\n</div>\n<h3>Three Wallet Categories</h3>\n<ol>\n  <li><strong>Custodial</strong> — A company holds the funds on the user's behalf. Think: bank account.</li>\n  <li><strong>Non-Custodial</strong> — The user holds the private keys directly on their device. Think: leather wallet.</li>\n  <li><strong>Hardware (Cold Storage)</strong> — An offline physical device stores the private keys. Think: buried safe.</li>\n</ol>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Custodial Wallets — The \"Bank\" Model</h2>\n<p>A custodial wallet works like a Bank of America app. The user does not hold the money directly; a company holds it for them. If they lose their password, they call customer service. Because a company is involved, <strong>law enforcement has a physical entity to serve legal process to</strong>.</p>\n<h3>How to Identify a Custodial Wallet</h3>\n<ul>\n  <li><strong>Login Process:</strong> Requires an email address, password, and often a 2-Factor Authentication (2FA) code.</li>\n  <li><strong>Interface:</strong> Resembles a stock trading app (like Robinhood) with clearly visible Buy, Sell, and Deposit buttons.</li>\n  <li><strong>KYC (Know Your Customer):</strong> The account holder almost certainly uploaded a driver's license and a selfie when creating the account.</li>\n</ul>\n<h3>Common Examples</h3>\n<p>Coinbase, Binance, Kraken, CashApp (crypto section), Venmo (crypto section), Crypto.com.</p>\n<h3>Law Enforcement Strategy</h3>\n<ul>\n  <li><strong>Preservation Letter:</strong> Send immediately to lock account activity and prevent data deletion.</li>\n  <li><strong>Subpoena / Warrant:</strong> Obtain subscriber details (name, DOB, IP logs, linked bank accounts) and full transaction history.</li>\n  <li><strong>Seizure:</strong> Serve a warrant to the exchange to seize funds directly from the account.</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Non-Custodial Wallets — The \"Cash\" Model</h2>\n<p>A non-custodial wallet makes the user their own bank. Think of a physical leather wallet: if you drop it in a volcano, the cash is gone — there is no customer service to call. The user holds the \"Private Keys\" (the mathematical proof of ownership) directly on their device. There is no company to subpoena.</p>\n<h3>How to Identify a Non-Custodial Wallet</h3>\n<ul>\n  <li><strong>No Email Login:</strong> The app opens with only a PIN code or FaceID — no email or password prompt.</li>\n  <li><strong>Recovery Phrase Prompt:</strong> You will often see warnings such as \"Write down your Secret Recovery Phrase.\"</li>\n  <li><strong>Built-in Browser:</strong> Many non-custodial wallets (like MetaMask) include a browser to connect to decentralized websites.</li>\n</ul>\n<h3>Common Examples</h3>\n<p>MetaMask (fox logo), Trust Wallet (shield logo), Exodus, BlueWallet, Phantom.</p>\n<h3>Law Enforcement Strategy</h3>\n<ul>\n  <li><strong>No Subpoena Target:</strong> MetaMask's developer cannot freeze funds or provide user data — they do not have it.</li>\n  <li><strong>Evidence is Local:</strong> The keys are encrypted inside the phone or written on a piece of paper (Seed Phrase) found in the home.</li>\n  <li><strong>Search Warrant Required:</strong> Obtain a warrant for the physical device and the passcode to unlock it.</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Hardware Wallets — Cold Storage</h2>\n<p>A hardware wallet is a small physical device that keeps private keys offline at all times. Even when plugged into a computer, the keys never leave the device. It is immune to viruses and remote hackers. <strong>This is where sophisticated criminals store large illicit proceeds.</strong></p>\n<h3>How to Identify Hardware Wallets</h3>\n<ul>\n  <li><strong>Ledger Nano X / S:</strong> Looks like a generic USB thumb drive but has a stainless-steel swivel cover, two small buttons on the top edge, and a tiny LCD screen. Logo often engraved on the swivel cover. Commonly found on keychains.</li>\n  <li><strong>Trezor Model One / T:</strong> Looks like a small car key fob with no lock/unlock buttons. A larger screen covers most of the front face. \"TREZOR\" or a padlock icon is printed on the casing.</li>\n  <li><strong>Tangem:</strong> Resembles a thick credit card.</li>\n</ul>\n<h3>Field Significance</h3>\n<p>Finding a hardware wallet during a search implies a technically sophisticated suspect who potentially controls substantial assets. Begin searching the immediate area for a written seed phrase.</p>\n<div class=\"callout callout-danger\">\n  <p><strong>HANDLING PROTOCOL — DO NOT:</strong></p>\n  <ul>\n    <li>Do not plug the device into any police computer or evidence system. Plugging it in can alter metadata or trigger security lockouts.</li>\n    <li>Do not guess the PIN. Most devices wipe themselves after 3 incorrect attempts.</li>\n    <li>Do not power cycle the device unnecessarily.</li>\n  </ul>\n  <p><strong>DO:</strong> Seize the device as physical evidence. Immediately search the home for a paper list of 12 to 24 numbered words — this seed phrase allows fund recovery without the device or the PIN.</p>\n</div>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "1.3",
+          "title": "Address Recognition & Tradecraft",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Address Recognition &amp; Identification Tradecraft</h2>\n<p>In the field, officers encounter strings of random characters in notebooks, screenshots, text messages, and printed QR codes. These strings are not random — they follow specific formats. Recognizing the difference between a Public Address and a Private Key is the most critical safety skill in digital asset investigation.</p>\n<div class=\"callout\">\n  <p><strong>The Core Distinction:</strong> A Public Address is a mailbox. A Private Key or Seed Phrase is the master key that unlocks every door. Treat them accordingly.</p>\n</div>\n<h3>Why It Matters in the Field</h3>\n<ul>\n  <li>A public address in your report is evidence. A seed phrase in your report is a liability: it becomes a public record that anyone can use to drain the wallet.</li>\n  <li>An officer who reads a seed phrase aloud — even a fragment — is broadcasting the combination to a safe on their body camera audio, which may become discoverable.</li>\n  <li>An officer who recognizes a hardware wallet on a suspect's keychain can articulate probable cause and initiate the correct evidence chain immediately.</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Public Addresses — The Mailbox</h2>\n<p><strong>Safe to share. Safe to photograph. Safe to include in reports.</strong></p>\n<p>A public address functions like an email address or a bank account number. You give it to people so they can send you money. Knowing a suspect's public address allows investigators to examine their entire transaction history on the blockchain without a warrant — the ledger is public.</p>\n<h3>Visual Identification Guide</h3>\n<ul>\n  <li><strong>Bitcoin (BTC) — Legacy:</strong> Starts with <code>1</code>. Example: <code>1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</code>. Length: 26-62 alphanumeric characters.</li>\n  <li><strong>Bitcoin (BTC) — SegWit (newer):</strong> Starts with <code>bc1</code>. Example: <code>bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf3dl</code>.</li>\n  <li><strong>Ethereum (ETH) and EVM Chains:</strong> Always starts with <code>0x</code>. Example: <code>0x71C7656EC7ab88b098defB751B7401B5f6d8976F</code>. This same address format is used for USDT, USDC, Avalanche, Polygon, and Base. One address can hold dozens of different assets.</li>\n  <li><strong>Tron (TRX):</strong> Always starts with a capital <code>T</code>. Example: <code>TMuAw6776c5b9aDA326D211d818C34a994aEcEd808</code>. Highly relevant to Pig Butchering and cartel money laundering due to low fees.</li>\n</ul>\n<div class=\"callout callout-success\">\n  <p><strong>SAFE TO SHARE:</strong> Photograph public addresses. Record them verbatim in your report. Include the full character string and any accompanying QR code images. This is how investigators trace funds.</p>\n</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Private Keys &amp; Seed Phrases — The Master Key</h2>\n<div class=\"callout callout-danger\">\n  <p><strong>EVIDENCE ONLY. Never share. Never type into a report.</strong></p>\n</div>\n<p>The private key is the mathematical proof of ownership. Possession of this key makes you the legal owner of the funds. It bypasses all passwords, 2FA codes, and biometrics.</p>\n<h3>The Seed Phrase (Mnemonic)</h3>\n<p>The seed phrase is a human-readable encoding of the private key — typically a list of 12 or 24 numbered English words. It allows anyone to clone the wallet and access funds from any device anywhere in the world.</p>\n<p>What to look for: a list of 12 or 24 numbered words written on paper, engraved on metal, or saved in a notes app. Often found in safes, under keyboards, or in notebooks titled \"Backup\" or \"Recovery.\"</p>\n<p>Example format (12-word):</p>\n<pre><code>1. army    2. wagon   3. blue    4. kite\n5. jump    6. ghost   7. train   8. coffee\n9. loud   10. verify 11. hero   12. zebra</code></pre>\n<h3>The Raw Private Key</h3>\n<ul>\n  <li><strong>Bitcoin:</strong> A string of 51-52 characters starting with <code>5</code>, <code>L</code>, or <code>K</code>. Example: <code>5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF</code></li>\n  <li><strong>Ethereum:</strong> 64 hexadecimal characters, visually similar to a public address but without the <code>0x</code> prefix. Rarely encountered by end users; typically seen by developers only.</li>\n</ul>\n<div class=\"badge-panel\"><span class=\"badge-label\">TACTICAL NOTE</span> A suspect can call a co-conspirator from jail, read 12 words over the recorded line, and the co-conspirator drains the wallet from another country in minutes. Treat a seized seed phrase with the same urgency as a firearm — immediate control, immediate documentation, immediate evidence seal.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Officer Safety &amp; Evidence Handling Protocol</h2>\n<p>The following protocol applies whenever a public address or seed phrase is encountered at a scene.</p>\n<div class=\"compare-cards\">\n  <div class=\"compare-card compare-safe\">\n    <h3>SAFE — Public Address</h3>\n    <p><em>QR code or alphanumeric string. Examples: starts with <code>1</code>, <code>bc1</code>, <code>0x</code>, or <code>T</code>.</em></p>\n    <ul>\n      <li>Photograph it.</li>\n      <li>Record it verbatim in your report.</li>\n      <li>Use it to trace funds on a blockchain explorer.</li>\n      <li>Share it with your financial crimes unit.</li>\n    </ul>\n    <p><strong>Share this. Trace this. Put this in your report.</strong></p>\n  </div>\n  <div class=\"compare-card compare-danger\">\n    <h3>DANGER — Seed Phrase / Private Key</h3>\n    <p><em>Numbered list of 12 or 24 English words. Or a 51-64 character alphanumeric string not starting with <code>0x</code>, <code>1</code>, or <code>bc1</code>.</em></p>\n    <ul>\n      <li>Stop. Do not read it aloud — body camera audio is a public record.</li>\n      <li>Photograph it for internal documentation only.</li>\n      <li>Seal the physical item in a tamper-evident evidence bag immediately.</li>\n      <li>In your report, write: <em>\"Seed phrase identified and secured into evidence.\"</em> Do not type the actual words.</li>\n    </ul>\n    <p><strong>EVIDENCE. Secure this. Never type this. This unlocks the money.</strong></p>\n  </div>\n</div>\n<div class=\"callout callout-warn\">\n  <p><strong>Hardware Wallet Found?</strong> Do not plug it in. Do not guess the PIN. Seize it as physical evidence and immediately search the premises for the associated seed phrase written on paper or metal. The paper is the prize.</p>\n</div>"
+            }
+          ],
+          "quiz": null
+        }
+      ],
+      "knowledge_check": {
+        "questions": [
+          {
+            "q": "A detective traces stolen funds to a wallet holding a small amount of ETH and a large amount of USDT. The detective checks only the ETH balance, notes it is trivial, and closes the lead. What critical error was made?",
+            "options": [
+              "The detective failed to examine the full token portfolio — USDT tokens are held at the same address but are separate from the ETH balance.",
+              "The detective should have checked the Tron blockchain instead of Ethereum.",
+              "USDT cannot be held on an Ethereum address; the detective should have searched a Bitcoin explorer.",
+              "The detective needed a court order before viewing any Ethereum address balance."
+            ],
+            "answer": 0,
+            "ref": "1.1 page 3 — Ethereum"
+          },
+          {
+            "q": "Stolen funds totaling $200,000 are identified sitting in a USDT wallet. Which action, if taken within the first 24-48 hours, is uniquely available for USDT but NOT possible with Bitcoin?",
+            "options": [
+              "Subpoena the blockchain to obtain the suspect's identity.",
+              "Follow the transaction to a KYC-regulated exchange.",
+              "Request a freeze of the specific wallet from Tether Ltd. or Circle.",
+              "File an IC3 complaint to trigger federal asset forfeiture."
+            ],
+            "answer": 2,
+            "ref": "1.1 page 4 — Stablecoins"
+          },
+          {
+            "q": "During a premises search, an officer locates a MetaMask app on a suspect's phone. The suspect denies owning any crypto. Which of the following best supports a finding of knowledge inconsistent with that denial?",
+            "options": [
+              "MetaMask can be installed by any app store without user interaction.",
+              "The MetaMask fox logo is a common screensaver, not necessarily a wallet.",
+              "Non-custodial wallet setup requires the user to manually write down and re-enter 12 words to verify the backup — it cannot be done accidentally.",
+              "Custodial wallets like MetaMask require email login, which the suspect could claim ignorance of."
+            ],
+            "answer": 2,
+            "ref": "1.2 page 3 — Non-Custodial Wallets"
+          },
+          {
+            "q": "An officer seizes a small device from a suspect's keychain. It resembles a USB thumb drive but has a stainless-steel swivel cover and two side buttons. The officer's correct immediate action is:",
+            "options": [
+              "Plug the device into the patrol vehicle's USB port to document the contents.",
+              "Enter the suspect's known birthday as a PIN to verify ownership.",
+              "Seize the device as physical evidence without plugging it in, and begin searching the scene for a list of 12 to 24 written words.",
+              "Return the device to the suspect because it is not a recognized drug or firearm."
+            ],
+            "answer": 2,
+            "ref": "1.2 page 4 — Hardware Wallets"
+          },
+          {
+            "q": "A patrol officer finds a notebook page containing a numbered list of 24 English words. Under proper evidence handling protocol, the officer should:",
+            "options": [
+              "Read the words aloud to confirm they are in sequence and document them on the CAD notes.",
+              "Type all 24 words verbatim into the incident report to create a complete record.",
+              "Discard the page as irrelevant because no crypto device was found at the scene.",
+              "Photograph the page, seal the physical item in a tamper-evident evidence bag, and write in the report only that a seed phrase was identified and secured."
+            ],
+            "answer": 3,
+            "ref": "1.3 page 4 — Officer Safety Protocol"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-2",
+      "title": "Module 2 — Criminal Topologies &amp; The Scam Ecosystem",
+      "lessons": [
+        {
+          "id": "2.1",
+          "title": "Pig Butchering (Sha Zhu Pan)",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Pig Butchering (Sha Zhu Pan) — The Anatomy of the Scam</h2>\n<p>\"Pig Butchering\" (Chinese: Sha Zhu Pan, literally \"fattening the pig before slaughter\") is a long-con investment fraud run by organized criminal groups, primarily based in Southeast Asia. It is one of the most significant drivers of cryptocurrency-related victim losses reported to law enforcement. Your jurisdiction almost certainly has active victims right now.</p>\n<h3>Phase 1 — The Grooming Phase</h3>\n<p>Contact is initiated via a \"wrong number\" text, a LinkedIn or dating-app match, or a social media friend request. The suspect invests weeks or months building a genuine-feeling personal or romantic relationship. There is no mention of money or investment at this stage. The goal is trust.</p>\n<h3>Phase 2 — The Fake Platform</h3>\n<p>The suspect introduces their \"investment opportunity\" — a fake trading platform designed to look professional. Victims are often directed to download legitimate wallets (like Coinbase) but then instructed to transfer funds to external addresses controlled by the scam operation. Early small \"withdrawals\" are permitted to build confidence before the large loss.</p>\n<h3>Phase 3 — The Malware Link (Wallet Drainers)</h3>\n<p>In sophisticated variants, the victim is sent a link to a website that, once opened, prompts the user to \"connect\" their crypto wallet. By approving this connection, the victim unknowingly signs a malicious smart contract that grants the suspect unlimited permission to drain the wallet. The entire balance disappears in a single transaction.</p>\n<div class=\"badge-panel\"><span class=\"badge-label\">INVESTIGATIVE NOTE</span> Most victims of Pig Butchering do not know they are victims when they first contact police — they believe they are trapped in a \"tax hold\" or bureaucratic freeze on a legitimate platform. Investigators must recognize the pattern quickly to preserve the freeze window with exchanges and stablecoin issuers.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Identifying Pig Butchering in the Field</h2>\n<h3>Victim Profile Indicators</h3>\n<ul>\n  <li>Victim met the suspect online (dating app, social media, wrong-number text) and has never met them in person.</li>\n  <li>Victim was coached to use a specific app or website and was told the platform has higher returns than traditional investments.</li>\n  <li>Victim converted funds into USDT or USDC before transferring — the scam platform presented stablecoins as \"professional\" or \"required.\"</li>\n  <li>Victim believes funds are frozen due to \"taxes\" or \"verification fees\" and is now being asked to pay additional money to \"unlock\" their balance.</li>\n</ul>\n<h3>Scam Platform Red Flags</h3>\n<ul>\n  <li>The trading platform URL is a recently registered domain (days to weeks old).</li>\n  <li>Customer service contact is only via WhatsApp or Telegram — no phone number, no physical address.</li>\n  <li>The platform shows implausible gains (20-50% in days or weeks).</li>\n</ul>\n<h3>Investigative Priority Actions</h3>\n<ol>\n  <li>Obtain the TxID (Transaction Hash) of every transfer the victim made.</li>\n  <li>Identify whether the destination address holds USDT or USDC — if so, initiate an immediate freeze request to Tether or Circle.</li>\n  <li>File an IC3 report. Pig Butchering rings are multi-jurisdictional; the FBI aggregates victims across agencies and coordinates international legal assistance (MLATs).</li>\n</ol>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "2.2",
+          "title": "Bitcoin ATMs &amp; Kiosks",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Bitcoin ATMs (BTMs) &amp; Kiosks</h2>\n<p>Bitcoin ATMs are the physical bridge between street cash and digital crime. They allow users to insert cash and receive cryptocurrency at a wallet address. As of 2024, tens of thousands of BTMs operate in the United States, frequently in gas stations, convenience stores, and laundromats. Their accessibility makes them a primary money laundering vector for elder fraud, drug proceeds, and scam payment collection.</p>\n<h3>The Mule Pattern — \"Smurfing\"</h3>\n<p>Organized crime groups use runners (\"mules\") to deposit cash into BTMs in amounts just under reporting thresholds — typically $900 to $2,500 per transaction. Each runner may visit multiple machines per day, across multiple jurisdictions, to aggregate large sums while avoiding bank Suspicious Activity Reports (SARs).</p>\n<h3>Evidence Collection at the Kiosk</h3>\n<ul>\n  <li><strong>The Receipt:</strong> Vital physical evidence. Contains the transaction time, dollar amount, and destination wallet address. Photograph it. Seize it.</li>\n  <li><strong>The Camera:</strong> BTMs almost universally include a face-forward camera. Identify the machine operator and request footage preservation immediately — most systems overwrite within 30 days.</li>\n  <li><strong>KYC Records:</strong> Users often scan a government-issued ID or submit a phone number to use the machine above a threshold amount. This data is subpoena-able from the machine operator.</li>\n</ul>\n<div class=\"callout callout-warn\">\n  <p><strong>Seizure Warning:</strong> Do not seize the physical ATM kiosk unless specifically directed by a warrant. The machine is typically third-party hardware belonging to an operator who may be a witness, not a suspect. Seizing it creates agency liability and yields no data that cannot be obtained via subpoena. Contact the operator first through official legal channels.</p>\n</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Investigating BTM-Linked Crimes</h2>\n<h3>Locating the Operator</h3>\n<p>The FinCEN MSB Registrant Search (fincen.gov/msb-registrant-search) allows officers to identify the registered Money Services Business (MSB) operator for any BTM. This is the entity you will serve with a preservation letter and subpoena for KYC records and camera footage.</p>\n<h3>Connecting the Dots</h3>\n<p>The destination wallet address printed on the BTM receipt is the starting point for blockchain tracing. Enter it into Mempool.space (for Bitcoin) or Etherscan.io (for Ethereum/USDT) to see where the funds moved next. Even without tracing software, this free step may reveal a known exchange address, making a subpoena straightforward.</p>\n<h3>Common Scenarios</h3>\n<ul>\n  <li><strong>Elder Fraud:</strong> Victim is told by a \"government agent\" or \"tech support\" to withdraw cash and deposit it at a BTM to \"secure\" their account. The receipt contains the scammer's wallet address.</li>\n  <li><strong>Drug Proceeds:</strong> Courier drops cash at multiple BTMs, funneling proceeds to a single wallet controlled by the organization. Pattern analysis of BTM receipts can map the network.</li>\n  <li><strong>Ransomware Collection:</strong> Small businesses directed to local BTMs to pay ransomware demands in Bitcoin. Receipt and camera footage are often the only physical evidence.</li>\n</ul>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "2.3",
+          "title": "Common Street Scams",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Common Street Scams Involving Cryptocurrency</h2>\n<p>Beyond the large-scale Pig Butchering operations and BTM mule networks, patrol officers encounter two recurring crypto-adjacent scam patterns on the street: Hostage Scams and Money Mule recruitment.</p>\n<h3>The \"Hostage\" Scam — Sextortion and Ransomware</h3>\n<p>The suspect contacts the victim (via email, text, or social media) claiming to possess compromising material or to have encrypted the victim's device. Payment in Bitcoin is demanded, often with a wallet address and a QR code. The victim is given a deadline to prevent \"release\" of the material or permanent data loss.</p>\n<ul>\n  <li><strong>Field Indicators:</strong> Victim presents a printed email or phone screenshot with a BTC address and a payment amount. Victim has already visited or is en route to a BTM.</li>\n  <li><strong>Officer Action:</strong> Preserve the communication (screenshot or print). Record the BTC address. Do not advise the victim to pay. File IC3 report and document the wallet address for tracing.</li>\n</ul>\n<h3>The Money Mule</h3>\n<p>A student, new resident, or job-seeker is recruited online (often via a fake employment offer) to receive funds into their personal bank account, withdraw the cash, and deposit it at a BTM to a provided wallet address. The mule is often told this is a legitimate remote finance job. They are laundering proceeds of other crimes, frequently without full understanding of what they are doing.</p>\n<ul>\n  <li><strong>Field Indicators:</strong> Subject holds multiple BTM receipts, has large cash withdrawal receipts from their own bank account, and receives job-related messages via WhatsApp from an unknown employer.</li>\n  <li><strong>Investigative Note:</strong> The mule may be a victim of the scam as well as a participant in the laundering. Assess knowledge and intent carefully before making arrest decisions. Consult with the local prosecutor on structuring charges.</li>\n</ul>\n<div class=\"badge-panel\"><span class=\"badge-label\">TACTICAL NOTE</span> In both scenarios, the BTM receipt and the wallet address are your primary evidence anchors. Photograph them before anything else. The address connects the street-level activity to the broader criminal network.</div>"
+            }
+          ],
+          "quiz": null
+        }
+      ],
+      "knowledge_check": {
+        "questions": [
+          {
+            "q": "A Pig Butchering victim tells you that her \"investment\" balance is frozen because she owes a \"tax\" on her gains. She has never met the investment advisor in person. She was instructed to convert her savings to USDT before transferring. Which of the following best describes the investigative priority at this moment?",
+            "options": [
+              "Advise the victim to pay the tax to unlock the account and document the outcome.",
+              "Collect the TxID of her transfers, determine if funds remain in USDT, and immediately initiate a freeze request with Tether or Circle.",
+              "Wait 30 days for the FBI to open a parallel investigation before taking any action.",
+              "Explain that cryptocurrency fraud is a federal matter and decline to take a report."
+            ],
+            "answer": 1,
+            "ref": "2.1 page 2 — Investigative Priority Actions"
+          },
+          {
+            "q": "During a traffic stop, the officer notices the passenger is holding multiple BTM receipts, a large bundle of cash, and their phone shows a conversation on WhatsApp with instructions to \"go to the machine on Fifth and deposit $900 again.\" This pattern is most consistent with:",
+            "options": [
+              "A smurfing operation using a money mule to structure cash deposits below reporting thresholds.",
+              "A legitimate cryptocurrency day trader converting between assets.",
+              "A victim of Pig Butchering trying to recover their own funds.",
+              "A journalist documenting BTM usage for a news investigation."
+            ],
+            "answer": 0,
+            "ref": "2.2 page 1 — The Mule Pattern"
+          },
+          {
+            "q": "An officer responds to a complaint from a small business owner who received an email demanding Bitcoin payment to decrypt company files. The owner has a printout of the email containing a QR code and a BTC wallet address. What is the correct initial documentation step?",
+            "options": [
+              "Advise the business owner to scan the QR code and pay the ransom to recover the files quickly.",
+              "Seize the email printout as evidence, record the BTC wallet address verbatim, and assist the victim in filing an IC3 report.",
+              "Refer the owner to a private cybersecurity firm and take no police report.",
+              "Contact the BTM operator to freeze the destination wallet before the business owner can pay."
+            ],
+            "answer": 1,
+            "ref": "2.3 page 1 — Hostage Scam"
+          },
+          {
+            "q": "Why is it generally incorrect to physically seize a Bitcoin ATM kiosk during a field investigation?",
+            "options": [
+              "Bitcoin ATMs are classified as bank branches and are protected under federal banking law.",
+              "The machines contain no useful evidence because all records are stored exclusively on the blockchain.",
+              "Seizing the machine creates agency liability and yields no data that cannot be obtained via subpoena from the third-party operator.",
+              "Officers must obtain both a federal and state warrant before touching any BTM."
+            ],
+            "answer": 2,
+            "ref": "2.2 page 1 — Seizure Warning"
+          },
+          {
+            "q": "A Pig Butchering victim connected their crypto wallet to a website link sent by the suspect. The victim's entire wallet balance then disappeared in a single transaction without them manually approving it. This is most consistent with:",
+            "options": [
+              "A custodial exchange hack where the exchange server was breached.",
+              "A \"Duress PIN\" being triggered on the victim's hardware wallet.",
+              "A malicious smart contract (wallet drainer) that was authorized when the victim connected their wallet to the suspect's website.",
+              "A Bitcoin mixer that intercepted the victim's seed phrase in transit."
+            ],
+            "answer": 2,
+            "ref": "2.1 page 1 — Phase 3, Wallet Drainers"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-3",
+      "title": "Module 3 — Patrol &amp; Field Tactics",
+      "lessons": [
+        {
+          "id": "3.1",
+          "title": "The Digital Traffic Stop",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>The Digital Traffic Stop — Beyond Guns and Drugs</h2>\n<p>Patrol officers are the first line of defense in identifying illicit finance. Criminals rely on the assumption that a street officer will not recognize a hardware wallet on a keychain or a seed phrase in a glovebox. This module equips officers to disrupt that assumption and secure digital evidence before it can be destroyed.</p>\n<h3>Plain View Sweep — What to Look For</h3>\n<ul>\n  <li><strong>The Keychain:</strong> A Ledger Nano resembles a standard USB drive but has a swivel cover and side buttons. A Trezor resembles a car key fob but has no lock/unlock buttons. Either finding indicates a technically sophisticated suspect who likely controls significant digital assets.</li>\n  <li><strong>The Glovebox / Console:</strong> Look for scrap paper, notebooks, or metal plates with numbered lists of words (12 or 24 items). A drug courier may carry no cash (forfeiture risk) but will carry a seed phrase on a napkin representing access to millions.</li>\n  <li><strong>The Runner Profile:</strong> Large amounts of cash combined with multiple receipts from gas station or convenience store kiosks indicates a smurfing operation — structured cash deposits to avoid bank reporting thresholds.</li>\n</ul>\n<div class=\"badge-panel\"><span class=\"badge-label\">TACTICAL NOTE</span> Hardware wallets on keychains and seed phrases in gloveboxes are plain-view evidence where visible without a search. Document what is visible before opening anything, and articulate the observation clearly in your report to support probable cause for a further search.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Field Questioning Strategy — The Digital Interview</h2>\n<p>Add cryptocurrency questions to your standard field interview sequence alongside questions about cash, weapons, and contraband. These questions are straightforward, non-accusatory, and create a documented baseline.</p>\n<h3>Baseline Question</h3>\n<p>\"Do you possess any cryptocurrency or digital assets?\"</p>\n<h3>Drill-Down Questions</h3>\n<ul>\n  <li>\"Do you have any digital wallet applications on your phone?\"</li>\n  <li>\"Who holds the private keys to these assets?\" — This tests the subject's actual knowledge of their own wallet type.</li>\n  <li>\"Is this wallet custodial — like Coinbase — or non-custodial — like MetaMask?\" — Knowing the difference indicates deliberate use, not casual installation.</li>\n</ul>\n<div class=\"callout\">\n  <p>These questions are appropriate during a lawful detention where financial crime is suspected. Consult your agency's legal counsel regarding Miranda requirements when custodial questioning applies.</p>\n</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>The Lie Detector Trap — Inconsistent Knowledge</h2>\n<p>Non-custodial wallets require deliberate, multi-step setup. The user must manually write down 12 words from a screen, then re-enter those same 12 words in order to complete the process. There is no automated or accidental installation path that creates a funded non-custodial wallet.</p>\n<h3>The Scenario</h3>\n<p>An officer finds a MetaMask application on a suspect's phone during a lawful search. The suspect states: \"I don't know what that is — my friend must have put it there.\"</p>\n<h3>The Tell</h3>\n<p>The claim of ignorance is inconsistent with the facts of non-custodial wallet setup. A MetaMask wallet containing funds requires the user to:</p>\n<ol>\n  <li>Download and open the application.</li>\n  <li>Be presented with a 12-word seed phrase on screen.</li>\n  <li>Manually write down each word.</li>\n  <li>Re-enter the words in the correct sequence to confirm backup.</li>\n  <li>Set a separate PIN or password.</li>\n</ol>\n<p>This is a deliberate, multi-minute, multi-step process. Articulate this clearly in your report. The inconsistency is a strong indicator of deception and supports probable cause for further investigation into the suspect's knowledge of the assets.</p>\n<div class=\"badge-panel\"><span class=\"badge-label\">INVESTIGATIVE NOTE</span> Document the exact statement the suspect made and the specific steps required for non-custodial wallet setup. This foundation is essential for the detective and prosecutor who will later argue the suspect's knowing possession of the digital assets.</div>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "3.2",
+          "title": "The Seed Phrase — Crown Jewels",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>The Seed Phrase — Crown Jewels of a Crypto Investigation</h2>\n<h3>What Is a Seed Phrase?</h3>\n<p>A Seed Phrase (also called a Mnemonic or Secret Recovery Phrase) is the master key to a cryptocurrency fortune. It is typically a list of 12 or 24 randomly selected English words. Anyone who possesses these words can clone the wallet and access all funds from any device, anywhere in the world — bypassing all PINs, passwords, FaceID, and biometrics.</p>\n<h3>Why It Matters More Than the Device</h3>\n<ul>\n  <li><strong>The Phrase IS the Money:</strong> The hardware wallet or the phone is just a plastic shell. The value lives on the blockchain, and the seed phrase is the only control mechanism that matters. Seize the device and lose the seed phrase: the money may be gone the moment the suspect gets access to any internet connection.</li>\n  <li><strong>Global Remote Access:</strong> A suspect in custody can call a co-conspirator from a recorded jail line, read 12 words, and the co-conspirator drains the wallet from another country within minutes. The recorded call becomes evidence — but the funds are gone.</li>\n  <li><strong>Supersedes All Passwords:</strong> There is no \"forgot password\" option in crypto. The seed phrase is the last line of control. Controlling the phrase means controlling the funds.</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Seed Phrase Handling — The Golden Rules</h2>\n<div class=\"callout callout-danger\">\n  <h3>Golden Rules — Mandatory Protocol</h3>\n  <ol>\n    <li><strong>Silence is Security:</strong> Never read the words aloud. Your body camera audio is a public record. If that footage is released in discovery or via a records request, anyone who hears or reads it can drain the wallet instantly.</li>\n    <li><strong>No Digital Notes:</strong> Never type the words into your police report, CAD notes, a department computer, or a personal device. Malware and keyloggers can intercept typed text. A police report is a public document in many jurisdictions.</li>\n    <li><strong>Physical Evidence Only:</strong> Photograph the paper or metal plate for internal documentation. Collect the physical item itself. Seal it immediately in a tamper-evident evidence envelope. Label it: <em>\"High Value Digital Asset Access — Handle with Chain-of-Custody Protocol.\"</em></li>\n  </ol>\n</div>\n<h3>Treat It as Cash, Not Paper</h3>\n<p>Treat a seized seed phrase with the same urgency and security as you would treat a large amount of seized cash or a firearm. A seed phrase giving access to $500,000 in assets must be handled with the same chain-of-custody rigor as $500,000 in bills.</p>\n<div class=\"callout callout-warn\">\n  <p><strong>Reminder:</strong> The physical device (Ledger, Trezor, phone) is secondary evidence. The seed phrase is primary. If you find the device but not the phrase, the suspect may still drain the funds using their backup copy from any location. Keep searching the premises.</p>\n</div>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "3.3",
+          "title": "Suspect Device Handling — Anti-Wiping",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Suspect Device Handling — The Anti-Wiping Threat</h2>\n<p>Digital evidence on mobile phones and hardware wallets can be destroyed remotely, instantly, and permanently. Officers who do not follow an isolation protocol risk losing all forensic value from a seized device within minutes of custody.</p>\n<h3>Threat 1 — Remote Wipe</h3>\n<p>If a suspect's phone remains connected to the internet after seizure, a co-conspirator — or the suspect via a pre-configured cloud account — can issue a remote wipe command through services such as \"Find My iPhone\" (Apple) or \"Find My Device\" (Google). The phone's data is erased before the evidence bag is sealed. This is not hypothetical: it happens.</p>\n<h3>Threat 2 — Duress PINs</h3>\n<p>Some hardware wallets (including certain Ledger configurations) allow the user to configure a secondary \"Duress PIN.\" When this PIN is entered under coercion, the device opens to a decoy wallet showing a zero or minimal balance, while the real funds remain hidden behind the correct PIN. <strong>Do not ask the suspect to unlock a hardware wallet in the field.</strong> Preserve the device and let the forensics lab handle it.</p>\n<div class=\"badge-panel\"><span class=\"badge-label\">WARNING</span> A suspect who appears cooperative in unlocking a device may be entering a Duress PIN. Any wallet that shows a zero or unexpectedly low balance on a device otherwise consistent with significant asset storage should be flagged for forensic examination before any assumptions are made.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>The Isolation Protocol</h2>\n<p>Execute the following steps immediately upon seizing any phone or digital device during a crypto-related investigation:</p>\n<ol>\n  <li><strong>Faraday Bag — First Action:</strong> As soon as the device is in custody, place it into a Faraday Bag (a radio-frequency shielding bag). This blocks all cellular, Wi-Fi, and Bluetooth signals, preventing any remote wipe command from reaching the device.</li>\n  <li><strong>Airplane Mode — If the Device Is Unlocked:</strong> If the device is already unlocked when seized — for example, the suspect was actively using it — enable Airplane Mode immediately before placing it in the Faraday Bag. Separately disable Wi-Fi and Bluetooth within the settings. Do not lock the screen.</li>\n  <li><strong>Keep It Alive — The \"Live\" Power Rule:</strong> If the phone powers off, it enters BFU (Before First Unlock) state. In BFU state, the device's encryption keys are flushed from RAM, making forensic extraction extremely difficult or impossible. Maintain the \"AFU\" (After First Unlock) state by keeping the device powered. Use a portable battery bank inside the evidence bag, connected to the device, to maintain charge during transport to the forensics lab.</li>\n</ol>\n<div class=\"callout callout-danger\">\n  <p><strong>Critical Sequence:</strong></p>\n  <ol>\n    <li>Seize the device. Do not set it down where the suspect can reach it.</li>\n    <li>Airplane Mode on (if unlocked).</li>\n    <li>Into the Faraday Bag.</li>\n    <li>Connect a battery bank inside the bag.</li>\n    <li>Seal and label the bag with date, time, officer ID, and case number.</li>\n  </ol>\n  <p>Every step skipped is a potential evidence failure in court.</p>\n</div>"
+            }
+          ],
+          "quiz": null
+        }
+      ],
+      "knowledge_check": {
+        "questions": [
+          {
+            "q": "During a traffic stop, an officer observes a small device on the suspect's keychain that resembles a USB thumb drive but has a swivel cover and two side buttons. The suspect says it is \"just a USB drive.\" The officer's correct action is:",
+            "options": [
+              "Accept the explanation and return the keychain to the suspect.",
+              "Plug the device into the patrol vehicle's computer to verify the contents.",
+              "Recognize it as likely a hardware wallet, note it in plain-view observations, and initiate the appropriate search protocol.",
+              "Ask the suspect to enter their PIN to prove ownership before deciding whether to seize it."
+            ],
+            "answer": 2,
+            "ref": "3.1 page 1 — Plain View Sweep"
+          },
+          {
+            "q": "An officer seizes a suspect's unlocked smartphone during an arrest. The phone shows an active crypto wallet app. What is the correct immediate sequence of actions?",
+            "options": [
+              "Power off the phone to prevent battery drain, then bag it.",
+              "Enable Airplane Mode, place the device in a Faraday Bag, and connect a portable battery bank inside the bag.",
+              "Photograph the wallet balance and then power off the phone.",
+              "Allow the suspect to lock the phone themselves before bagging it."
+            ],
+            "answer": 1,
+            "ref": "3.3 page 2 — Isolation Protocol"
+          },
+          {
+            "q": "A suspect's hardware wallet, when unlocked by the suspect in the field, shows a zero balance. The officer concludes no crypto assets are present and does not seize the device. What critical risk does this decision create?",
+            "options": [
+              "The officer may be violating the suspect's Fourth Amendment rights by even looking at the device.",
+              "The device may have a Duress PIN configured, and the real wallet — with actual funds — was not displayed.",
+              "Hardware wallets never store assets; they only sign transactions, so zero balance is always correct.",
+              "Seizing a hardware wallet with zero balance would expose the officer to civil liability."
+            ],
+            "answer": 1,
+            "ref": "3.3 page 1 — Duress PINs"
+          },
+          {
+            "q": "A suspect states that a MetaMask wallet found on their phone was installed by a friend without their knowledge. Why is this statement particularly difficult to sustain?",
+            "options": [
+              "MetaMask is only available on desktop computers and cannot be installed on phones.",
+              "MetaMask automatically links to the user's social security number, which would confirm ownership.",
+              "Installing MetaMask requires facial recognition that ties the app to a specific user's biometric data.",
+              "Non-custodial wallet setup requires the user to manually write down and re-enter a 12-word seed phrase in sequence — a deliberate, multi-step process that cannot be completed accidentally."
+            ],
+            "answer": 3,
+            "ref": "3.1 page 3 — The Lie Detector Trap"
+          },
+          {
+            "q": "Why is it critical to keep a seized phone powered on (in AFU state) rather than allowing it to turn off before forensic examination?",
+            "options": [
+              "A powered-off phone cannot be placed in a Faraday Bag.",
+              "Apple and Google require the device to be on to accept a legal preservation request.",
+              "When a phone powers off, it enters BFU state and encryption keys are flushed from RAM, making forensic extraction extremely difficult or impossible.",
+              "A powered-off phone will remotely erase itself within 30 minutes via cloud services."
+            ],
+            "answer": 2,
+            "ref": "3.3 page 2 — The Live Power Rule"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-4",
+      "title": "Module 4 — Investigation &amp; Report Writing",
+      "lessons": [
+        {
+          "id": "4.1",
+          "title": "The Crypto-Ready Police Report",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>The Crypto-Ready Police Report — The Three Pillars</h2>\n<p>A crypto case is only as strong as its initial report. Detectives routinely receive reports that state only \"money was sent via Bitcoin,\" which is functionally useless for investigation. Cryptocurrency leaves a permanent, public digital footprint — but if the specific identifiers are not captured at the initial report stage, that footprint is lost and the case is often unsolvable.</p>\n<h3>The Three Pillars of a Crypto-Ready Report</h3>\n<ol>\n  <li><strong>The Source:</strong> Where did the money originate? Identify the specific platform or wallet. Examples: \"Victim's Coinbase account,\" \"Victim's MetaMask wallet on their iPhone.\" The source determines which legal process applies — exchange subpoena vs. device warrant.</li>\n  <li><strong>The Transaction Hash (TxID):</strong> The digital fingerprint of the specific transfer. It is a long string of alphanumeric characters (e.g., <code>0xf4184fc596403b9d638783cf57adfe4c75c605f6ad0770b71f0f21a7c8...</code>). This is the only way to definitively identify a transaction on the blockchain. Without it, multiple similar transactions on the same day cannot be distinguished.</li>\n  <li><strong>The Destination:</strong> The exact wallet address the funds were sent to. Record the full character string verbatim, including any prefix (<code>0x</code>, <code>bc1</code>, <code>T</code>). Truncated addresses are not usable for tracing.</li>\n</ol>\n<div class=\"callout\">\n  <p><strong>Attach Screenshots:</strong> Every report should have the victim's transaction confirmation screenshot attached as evidence. This is the fastest way to capture all three pillars simultaneously. Instruct victims to screenshot the transaction confirmation page before they navigate away from it.</p>\n</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Report Comparison — Bad vs. Crypto-Ready</h2>\n<p>The following comparison illustrates the practical difference between an inadequate report and one that enables investigation.</p>\n<div class=\"compare-cards\">\n  <div class=\"compare-card compare-danger\">\n    <h3>Bad Report</h3>\n    <p><em>Unsolvable. Dead end.</em></p>\n    <p>\"Victim stated they were scammed out of $5,000 in Bitcoin on Tuesday.\"</p>\n    <ul>\n      <li>No source platform identified.</li>\n      <li>No Transaction Hash (TxID) recorded.</li>\n      <li>No destination address recorded.</li>\n      <li>No screenshots attached.</li>\n      <li>No date/time of the specific transaction.</li>\n    </ul>\n    <p>A financial crimes detective receives this report and has no starting point. The case is effectively closed before it opens.</p>\n  </div>\n  <div class=\"compare-card compare-safe\">\n    <h3>Crypto-Ready Report</h3>\n    <p><em>Solvable. Actionable.</em></p>\n    <p>\"Victim sent 0.05 BTC (approximately $5,000 at time of transfer) from their Kraken account on 10/24/25 at 14:32 UTC. The Transaction Hash (TxID) provided by the victim is <code>a3f9b2c1...</code>. Funds were sent to suspicious address <code>bc1qar0s...</code>. Screenshots of the transaction confirmation and wallet history are attached as Exhibit A.\"</p>\n    <ul>\n      <li>Source: Kraken (subpoena target identified).</li>\n      <li>TxID: Recorded verbatim.</li>\n      <li>Destination address: Recorded verbatim.</li>\n      <li>Screenshots: Attached.</li>\n      <li>Timestamp: Specific date and time recorded.</li>\n    </ul>\n    <p>A financial crimes detective receives this report and can begin tracing immediately using free tools, before any legal process is needed.</p>\n  </div>\n</div>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "4.2",
+          "title": "Victim Intake Strategy",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Victim Intake Strategy — The Kill Chain</h2>\n<div class=\"callout callout-warn\">\n  <p><strong>Time is Critical:</strong> Crypto moves instantly, but \"off-ramping\" — converting digital assets back to cash — takes time. For most scam operations, the window to freeze funds or identify the off-ramp point is <strong>48 hours or less</strong> from the time of transfer. Every step in the intake process must be executed with urgency proportional to the time elapsed since the victim's last transaction.</p>\n</div>\n<h3>Step 1 — Exchange Freeze Request</h3>\n<p>If the transfer occurred within the last 24 to 48 hours and involved a centralized exchange as either the source or a known intermediate point, take two immediate actions:</p>\n<ol>\n  <li>Instruct the victim to contact their exchange's fraud department directly and request an account hold.</li>\n  <li>If the suspect's exchange account is known or identifiable, law enforcement can send an Emergency Preservation Request to freeze the suspect's account pending legal process. Refer to each exchange's LE portal (see Module 7).</li>\n</ol>\n<h3>Step 2 — Stablecoin Issuer Contact</h3>\n<p>If the stolen funds are in USDT or USDC, contact Tether or Circle via their LE compliance portals immediately. Provide the wallet address. A freeze request submitted within the first 48 hours has a meaningful chance of recovering the funds before the suspect cashes out.</p>\n<h3>Step 3 — IC3 Filing</h3>\n<p>Law enforcement must encourage or assist the victim in filing a report at <a href=\"https://ic3.gov\">IC3.gov</a> (FBI Internet Crime Complaint Center). The FBI aggregates these reports nationally. A $5,000 loss in your jurisdiction may connect to 500 victims of the same Pig Butchering ring. The IC3 database triggers federal asset forfeiture actions and international coordination through MLATs that local agencies cannot initiate alone.</p>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Managing Victim Expectations</h2>\n<p>Victims of cryptocurrency fraud are often in acute distress. Many have lost life savings. Honest expectation management is an officer safety issue — victims who feel misled by law enforcement become hostile witnesses and file complaints.</p>\n<h3>What to Say</h3>\n<p>Use this framework when speaking with victims:</p>\n<ul>\n  <li>\"Tracing where the money went is often possible. We can frequently identify the path the funds took on the blockchain.\"</li>\n  <li>\"Recovering the money is a different matter. It is difficult, expensive, and rare in cryptocurrency cases — especially when the suspect is an international criminal organization operating from overseas.\"</li>\n  <li>\"Your report is critical even if we cannot recover your funds directly. It connects to other victims and builds the federal case.\"</li>\n</ul>\n<div class=\"callout callout-danger\">\n  <p><strong>Do not say:</strong> \"We will get your Bitcoin back.\" This promise cannot be kept in the vast majority of cases and will damage the victim's trust in law enforcement and the agency's credibility when the money is not recovered.</p>\n</div>\n<h3>Referrals</h3>\n<p>Refer victims to the National Elder Fraud Hotline (1-833-FRAUD-11) if age-related exploitation is involved. Direct all victims to file with the FTC at <a href=\"https://reportfraud.ftc.gov\">reportfraud.ftc.gov</a> in addition to the IC3 report. Both databases are used for federal enforcement prioritization.</p>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "4.3",
+          "title": "Tracing Basics — The First Hop",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Tracing Basics — The First Hop</h2>\n<h3>The Concept</h3>\n<p>Cryptocurrency moves wallet-to-wallet across a public ledger. Your goal as a first-responding investigator is not to hack the blockchain — it is to <strong>follow the money until it lands at a KYC point</strong>: a regulated exchange (known as a VASP, Virtual Asset Service Provider) that required the account holder to submit their real identity.</p>\n<p>Once funds reach a KYC point, the investigative path is familiar: preservation letter, subpoena, search warrant. The blockchain tracing simply gives you the destination to serve those documents to.</p>\n<h3>The First Hop in Practice</h3>\n<p>The suspect receives stolen funds at Wallet A. They move the funds to Wallet B to create distance. Wallet B sends to Wallet C, which turns out to be a Binance deposit address. Binance is a VASP — you now have a known institution to subpoena for the account holder's identity. This is the first hop that cracks the case.</p>\n<div class=\"badge-panel\"><span class=\"badge-label\">INVESTIGATIVE NOTE</span> Even one hop on the blockchain is more tracing than most traditional financial crimes provide. Every wallet address a suspect uses is a permanent, publicly visible record. The blockchain does not lie, is not subject to evidence tampering, and does not forget.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Tracing Process &amp; Free Tools</h2>\n<h3>Step-by-Step Process</h3>\n<ol>\n  <li><strong>Enter the Address or TxID into a Free Explorer:</strong> Use <a href=\"https://mempool.space\">Mempool.space</a> for Bitcoin investigations. Use <a href=\"https://etherscan.io\">Etherscan.io</a> for Ethereum and USDT (ERC-20) investigations. Enter the address or Transaction Hash to see the full fund flow.</li>\n  <li><strong>Follow the Money:</strong> Examine the destination address. Did the suspect immediately move the funds again? Repeat the lookup on the next address. Most criminals move funds at least once before attempting to cash out.</li>\n  <li><strong>Identify the VASP:</strong> Use free tools or your specialized unit to identify whether a destination address belongs to a known exchange. Many blockchain explorers label known exchange addresses automatically (e.g., \"Binance Hot Wallet,\" \"Coinbase Deposit\").</li>\n  <li><strong>Execute Legal Process in Sequence:</strong>\n    <ul>\n      <li><strong>Step 1 — Preservation Letter:</strong> \"Dear [Exchange], preserve all records for account associated with Address X related to Transaction Y, pending legal process.\" This prevents the exchange from deleting records on their standard retention schedule.</li>\n      <li><strong>Step 2 — Subpoena:</strong> Request subscriber information: name, date of birth, IP address logs, email, linked bank accounts, and full transaction history.</li>\n      <li><strong>Step 3 — Search Warrant:</strong> If the subpoena returns a suspect in your jurisdiction, you now have probable cause for a physical search warrant.</li>\n    </ul>\n  </li>\n</ol>\n<h3>Free Tools Reference</h3>\n<ul>\n  <li><a href=\"https://mempool.space\">Mempool.space</a> — Best Bitcoin visualizer; shows real-time fees and unconfirmed transactions.</li>\n  <li><a href=\"https://etherscan.io\">Etherscan.io</a> — Ethereum and ERC-20 token (USDT, USDC) lookups.</li>\n  <li><a href=\"https://tronscan.org\">Tronscan.org</a> — Tron network; for USDT-TRC20 investigations.</li>\n  <li><a href=\"https://misttrack.io\">MistTrack</a> — Free address risk scoring and compliance lookups.</li>\n  <li><a href=\"https://blockchain.com/explorer\">Blockchain.com Explorer</a> — Alternative Bitcoin lookup with address clustering.</li>\n</ul>"
+            }
+          ],
+          "quiz": null
+        }
+      ],
+      "knowledge_check": {
+        "questions": [
+          {
+            "q": "A report states: \"Victim lost $10,000 in Ethereum last month.\" A financial crimes detective calls this report \"unsolvable.\" Which missing data element is most critical for initiating a blockchain trace?",
+            "options": [
+              "The Transaction Hash (TxID) — the unique digital fingerprint of the specific transfer.",
+              "The victim's bank account number.",
+              "The name of the suspect's internet service provider.",
+              "The exact model of phone the victim used to make the transfer."
+            ],
+            "answer": 0,
+            "ref": "4.1 page 1 — The Three Pillars"
+          },
+          {
+            "q": "A victim reports a Pig Butchering loss. She transferred $50,000 in USDT to a scam wallet 36 hours ago. What is the single highest-priority action at this moment?",
+            "options": [
+              "Advise the victim to contact her bank to issue a chargeback on the USDT transfer.",
+              "File an IC3 report and wait for FBI guidance before taking any local action.",
+              "Contact Tether's law enforcement compliance portal immediately to request a wallet freeze.",
+              "Issue a subpoena to Ethereum for the account holder information of the destination wallet."
+            ],
+            "answer": 2,
+            "ref": "4.2 page 1 — Stablecoin Issuer Contact"
+          },
+          {
+            "q": "An officer tells a victim: \"Don't worry, we will get your Bitcoin back.\" Why is this statement problematic?",
+            "options": [
+              "It implies the officer has blockchain forensics expertise they may not possess.",
+              "Recovery of cryptocurrency in fraud cases is difficult, expensive, and rare — particularly when suspects are overseas. The promise sets expectations that almost certainly cannot be met.",
+              "It is legally accurate but should only be said by a supervisor, not a patrol officer.",
+              "The statement is fine if the theft occurred within 24 hours and the victim used Coinbase."
+            ],
+            "answer": 1,
+            "ref": "4.2 page 2 — Managing Expectations"
+          },
+          {
+            "q": "An investigator traces a stolen Bitcoin transaction to a wallet address that a blockchain explorer labels \"Binance Hot Wallet.\" What is the correct next legal step?",
+            "options": [
+              "Send a preservation letter to Binance requesting that all records related to the identified account be preserved pending further legal process.",
+              "Issue an immediate arrest warrant based on the blockchain trace.",
+              "Post the wallet address publicly to crowdsource identification of the suspect.",
+              "Contact Tether to freeze the Bitcoin wallet since Binance is a large exchange."
+            ],
+            "answer": 0,
+            "ref": "4.3 page 2 — Legal Process Sequence"
+          },
+          {
+            "q": "What is the primary purpose of encouraging a crypto fraud victim to file a report at IC3.gov in addition to the local police report?",
+            "options": [
+              "IC3 is the only entity legally authorized to prosecute cryptocurrency crimes in the United States.",
+              "The FBI aggregates IC3 reports nationally, connecting victims across jurisdictions to identify criminal rings and trigger federal asset forfeiture and international cooperation.",
+              "IC3 has the technical capability to freeze cryptocurrency wallets that local law enforcement cannot access.",
+              "Filing with IC3 automatically starts a 30-day hold on all transactions from the suspect's address."
+            ],
+            "answer": 1,
+            "ref": "4.2 page 1 — IC3 Filing"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-5",
+      "title": "Module 5 — Leadership, Supervision &amp; Liability",
+      "lessons": [
+        {
+          "id": "5.1",
+          "title": "Asset Seizure &amp; Storage Liability",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Asset Seizure &amp; Storage Liability — The \"Vanishing Evidence\" Problem</h2>\n<p>Cryptocurrency presents a liability profile unlike any other seized asset. Cash and drugs, once locked in a vault, are physically secure. Digital assets can be moved by anyone who holds a copy of the private key — even if the physical device is in police custody. Supervisors who do not enforce strict protocols expose their officers, their agency, and their case to serious risk.</p>\n<h3>The Scenario</h3>\n<p>An officer seizes a Ledger hardware wallet and books it into evidence. Two days later, the suspect — or a co-conspirator using a backup seed phrase — drains the funds remotely. The suspect then claims in civil court that the police stole the cryptocurrency. Without proper documentation of the balance at time of seizure and a clear chain of custody, the department has no defense.</p>\n<h3>Risk Mitigation — Strict Chain of Custody</h3>\n<ul>\n  <li><strong>Seed Phrases:</strong> Any seized seed phrase must be sealed in a tamper-evident evidence bag immediately at the scene. It must be photographed once, and that photograph must be <strong>digitally hashed</strong> (a cryptographic fingerprint) to prove it was not altered after seizure. The hash and the sealing officer's ID are recorded in the chain-of-custody log.</li>\n  <li><strong>Two-Person Rule (Dual Control):</strong> Any time a seed phrase is unsealed — or any time agency-controlled digital funds are actively transferred (e.g., moving seized Bitcoin to a government wallet) — two supervisors must be physically present. Both must sign the chain-of-custody log at each step.</li>\n  <li><strong>Document the Balance:</strong> At the time of seizure, photograph the wallet balance on screen. If the device is locked, note in the report that balance was undetermined at time of seizure, pending forensic access.</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Evidence Room Controls &amp; Faraday Isolation</h2>\n<p>An evidence locker without proper digital controls is a liability. Devices that reconnect to Wi-Fi inside the evidence room are vulnerable to remote wipe, destroying the case and exposing the agency.</p>\n<h3>Evidence Room Requirements</h3>\n<ul>\n  <li><strong>Faraday Bags Mandatory:</strong> Every seized phone, hardware wallet, and tablet involved in a digital asset case must be stored in a Faraday bag inside the evidence locker. If a device connects to any network inside the locker, it can receive a remote wipe command.</li>\n  <li><strong>Battery Maintenance:</strong> Phones must remain powered (AFU state) until forensic examination. The evidence room must maintain a stock of battery packs compatible with common device types.</li>\n  <li><strong>Separate Storage:</strong> Seed phrases and hardware wallets from the same case should be stored separately when possible. Co-storage increases the risk of simultaneous loss if either item is mishandled.</li>\n</ul>\n<h3>Documentation Protocol</h3>\n<p>For every digital asset seizure, the case file must include:</p>\n<ol>\n  <li>Photograph of the wallet balance at time of seizure (if device was accessible).</li>\n  <li>Hash of the seed phrase photograph.</li>\n  <li>Signature of at least two officers on the evidence seal.</li>\n  <li>Blockchain explorer confirmation of the address balance at time of seizure (print and attach a screenshot).</li>\n</ol>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "5.2",
+          "title": "Resource Allocation &amp; Federal Escalation",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>When to Call Federal Partners</h2>\n<p>Local agencies often lack the budget, legal authority, or staffing for complex international cryptocurrency investigations. Knowing when to escalate — and to whom — is a core supervisory competency.</p>\n<h3>Thresholds for Federal Escalation</h3>\n<ul>\n  <li><strong>High Dollar Loss:</strong> Losses exceeding $1,000,000 typically trigger federal interest from the FBI, the Department of Homeland Security Investigations (HSI), or the United States Secret Service (USSS). Contact your nearest field office proactively rather than waiting for a referral.</li>\n  <li><strong>Transnational Elements:</strong> Pig Butchering (Sha Zhu Pan) scams are almost universally run by organized crime groups operating out of Southeast Asia (primarily Myanmar, Cambodia, and Thailand). These cases require Mutual Legal Assistance Treaties (MLATs) for international evidence requests — a federal process that local agencies cannot initiate independently.</li>\n  <li><strong>Critical Infrastructure Attacks:</strong> Ransomware attacks against hospitals, utilities, schools, or government systems are immediate FBI escalations. Do not attempt to negotiate or manage these cases locally.</li>\n</ul>\n<div class=\"badge-panel\"><span class=\"badge-label\">INVESTIGATIVE NOTE</span> Federal escalation is not an admission that local investigators cannot handle a case. It is the strategic decision to apply the right resources to a problem that crosses borders. Make the call early — federal partners can provide intelligence support on cases you retain locally.</div>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Software Decisions &amp; Resource Allocation</h2>\n<p>Blockchain tracing software licenses — such as Chainalysis Reactor or TRM Labs — cost thousands of dollars per year. Supervisors must make rational cost-benefit decisions rather than defaulting to either extreme.</p>\n<h3>Small Agency (Fewer Than 50 Sworn Officers)</h3>\n<ul>\n  <li>It is generally not cost-effective to purchase a standalone tracing software license used only a few times per year.</li>\n  <li>Better strategy: Rely on <strong>state fusion centers</strong>, regional task forces, or partnerships with larger neighboring agencies that have existing licenses.</li>\n  <li>Ensure officers are trained on free tools (Mempool.space, Etherscan, MistTrack) to handle initial triage independently before escalating for software-assisted tracing.</li>\n</ul>\n<h3>Large Agency (Dedicated Financial Crimes Unit)</h3>\n<ul>\n  <li>A tracing software license is essential if financial crimes investigators handle crypto cases regularly.</li>\n  <li>Evaluate cost per case closed. If the unit handles 50+ crypto cases per year, the cost of a license is almost always justified by the asset recovery and prosecution value it enables.</li>\n  <li>Consider a consortium license shared across a multi-agency task force to distribute costs.</li>\n</ul>"
+            }
+          ],
+          "quiz": null
+        },
+        {
+          "id": "5.3",
+          "title": "Policy Audits &amp; Internal Controls",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Policy Audits &amp; Internal Controls — Closing the Policy Gap</h2>\n<p>Most department policies were drafted before Bitcoin existed. They define \"currency\" as coin and paper. This creates a grey area in which officers who seize digital assets have no written guidance on handling them — and bad actors, both inside and outside the agency, can exploit that gap.</p>\n<h3>The Policy Gap</h3>\n<p>If your department's evidence policy does not specifically define cryptocurrency, tokens, and hardware wallets as monetary instruments subject to chain-of-custody protocols, then officers handling these items have no written standard to follow — and no written standard to cite when a defense attorney challenges the chain of custody.</p>\n<h3>Essential Policy Updates</h3>\n<ol>\n  <li><strong>Define \"Digital Assets\":</strong> Update policy language to explicitly include cryptocurrency, digital tokens, NFTs, and hardware wallets as \"Monetary Instruments\" subject to all currency-handling protocols.</li>\n  <li><strong>The Personal Wallet Ban:</strong> Strictly and explicitly prohibit any officer from using a personal cryptocurrency wallet to receive, hold, or transfer seized funds. This is not a hypothetical risk — it has caused officer terminations and criminal prosecutions in multiple jurisdictions. All seized digital assets must flow through <strong>Official Agency Wallets</strong> managed by the Treasurer or Evidence Unit, or through a contracted third-party custodian (e.g., BitGo, Anchorage).</li>\n  <li><strong>Audit Trails:</strong> Any movement of agency-controlled cryptocurrency must be recorded on the blockchain and matched against the agency's case log. Supervisors should conduct quarterly reviews comparing wallet balances against case management records.</li>\n</ol>"
+            },
+            {
+              "type": "text",
+              "content": "<h2>Implementing a Policy Audit</h2>\n<p>For supervisors tasked with updating or auditing department policy, the following checklist provides a starting framework. All updates should be reviewed by agency legal counsel before adoption.</p>\n<h3>Audit Checklist</h3>\n<ul>\n  <li>Does current policy define digital assets as a category of monetary evidence?</li>\n  <li>Does current evidence handling policy address Faraday isolation of electronic devices?</li>\n  <li>Is there a written protocol for the two-person / dual-control rule when handling seed phrases or transferring seized crypto?</li>\n  <li>Does policy prohibit personal wallets and specify official agency wallets or an approved custodian?</li>\n  <li>Is there a written procedure for contacting stablecoin issuers (Tether, Circle) for freeze requests?</li>\n  <li>Is the chain-of-custody form updated to include fields for wallet address, Transaction Hash (TxID), and blockchain balance screenshot?</li>\n</ul>\n<div class=\"callout\">\n  <p><strong>Resource:</strong> The NW3C (National White Collar Crime Center) provides model policy language and free technical support for state and local agencies updating their digital evidence protocols. See Module 7 for contact information.</p>\n</div>\n<div class=\"callout callout-warn\">\n  <p><strong>Supervisory Responsibility:</strong> Policy gaps are not just administrative oversights — they are agency liability. A defense attorney who demonstrates that your department had no written policy for handling seized cryptocurrency has a powerful argument for evidence suppression. Close the gap before the next seizure, not after.</p>\n</div>"
+            }
+          ],
+          "quiz": null
+        }
+      ],
+      "knowledge_check": {
+        "questions": [
+          {
+            "q": "A Ledger hardware wallet is booked into the evidence room without a Faraday bag. Three days later, the funds it was associated with are gone. The suspect claims the police stole them. What documentation practice, if followed at the time of seizure, would provide the strongest defense for the department?",
+            "options": [
+              "A photograph of the suspect holding the device.",
+              "A statement from the arresting officer attesting that the funds were present.",
+              "A copy of the search warrant showing the device was legally seized.",
+              "A blockchain explorer screenshot of the wallet address balance at the time of seizure, combined with a hashed photograph of the seed phrase sealed in a tamper-evident bag."
+            ],
+            "answer": 3,
+            "ref": "5.1 page 1 — Risk Mitigation"
+          },
+          {
+            "q": "Your agency receives a Pig Butchering case with a confirmed victim loss of $1.5 million. The suspects are believed to operate from Southeast Asia. What is the most appropriate escalation action?",
+            "options": [
+              "Issue a local arrest warrant for the overseas suspects.",
+              "Handle the case locally and purchase a Chainalysis license to trace the funds independently.",
+              "Contact the nearest FBI, HSI, or USSS field office to escalate — transnational cases above $1M require federal resources and international legal assistance (MLATs).",
+              "Advise the victim to hire a private blockchain forensics firm and close the local case."
+            ],
+            "answer": 2,
+            "ref": "5.2 page 1 — Thresholds for Federal Escalation"
+          },
+          {
+            "q": "Under the Two-Person Rule (Dual Control), which of the following situations requires two supervisors to be physically present and signing the chain-of-custody log?",
+            "options": [
+              "When a patrol officer first photographs a suspected seed phrase at a scene.",
+              "When an officer places a hardware wallet into a Faraday bag.",
+              "When a sealed seed phrase is opened or when agency-controlled cryptocurrency is transferred to a government wallet.",
+              "When a victim's exchange account is frozen by a preservation letter."
+            ],
+            "answer": 2,
+            "ref": "5.1 page 1 — Two-Person Rule"
+          },
+          {
+            "q": "A small agency with 30 sworn officers is considering purchasing an annual Chainalysis Reactor license. They have handled two crypto-related cases in the past year. What is the most defensible supervisory recommendation?",
+            "options": [
+              "Rely on state fusion centers, regional task forces, or neighboring agencies with existing licenses, and train officers on free tools for initial triage.",
+              "Purchase the license immediately — crypto crime is rising and agencies must be prepared.",
+              "Decline all future cryptocurrency cases until the license is funded.",
+              "Ask the FBI to handle all crypto tracing in exchange for sharing the Chainalysis license."
+            ],
+            "answer": 0,
+            "ref": "5.2 page 2 — Small Agency"
+          },
+          {
+            "q": "A department's evidence policy defines currency as \"coin and paper money\" and does not mention cryptocurrency. Why does this create a liability risk for the agency?",
+            "options": [
+              "Federal law requires all agencies to update evidence policy annually regardless of crime type.",
+              "Without written policy covering digital assets, officers have no standard to follow and defense attorneys can argue a lack of chain-of-custody protocol to seek evidence suppression.",
+              "Undefined policies automatically defer to the suspect's jurisdiction's rules.",
+              "The policy gap means officers cannot legally seize any cryptocurrency under any circumstances."
+            ],
+            "answer": 1,
+            "ref": "5.3 page 1 — The Policy Gap"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-6",
+      "title": "Module 6 — Practical Exercises (Companion)",
+      "lessons": [
+        {
+          "id": "6.1",
+          "title": "Three Tabletop Exercises",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Practical Exercises — Instructor-Led Tabletop Activities</h2>\n<p>The following three exercises are designed for instructor-led delivery in a classroom or roll-call setting. They require no technology and can be completed in 15 to 45 minutes each. These exercises are optional companions to the online course and are intended to reinforce field-applicable skills through simulation.</p>\n<h3>Exercise 1 — The Glovebox Search (Patrol Focus)</h3>\n<p><strong>Objective:</strong> Officers demonstrate the ability to identify cryptocurrency evidence in a realistic vehicle-search scenario.</p>\n<p><strong>Setup:</strong> The instructor prepares a cluttered table simulating a vehicle console/glovebox. Items include: a fast-food receipt with a 12-word list scrawled on the back; a Ledger Nano device mixed into a messy keychain with multiple keys and USB drives; a crumpled Bitcoin ATM receipt in a cup holder; and several irrelevant items (insurance cards, pens, change).</p>\n<p><strong>Task:</strong> Officers are given 2 minutes to \"search\" the table and identify all cryptocurrency-relevant items. They must articulate what each item is and what evidence action they would take.</p>\n<p><strong>Pass/Fail Criteria:</strong> Did the officer identify the seed phrase on the fast-food receipt? Did the officer recognize the \"USB drive\" as a Ledger hardware wallet? Did the officer correctly identify the BTM receipt as evidence? Did the officer articulate the correct handling protocol for each item?</p>\n<h3>Exercise 2 — The Victim Interview (Detective Focus)</h3>\n<p><strong>Objective:</strong> Investigators practice extracting the three critical data points (TxID, scam URL, wallet address) from a distressed and confused victim.</p>\n<p><strong>Setup:</strong> The instructor plays a Pig Butchering victim who is convinced she is investing with a legitimate online acquaintance. She becomes defensive when the term \"scam\" is used. She has her phone with her and can navigate to her wallet app and transaction history when guided.</p>\n<p><strong>Task:</strong> The officer/detective must navigate the interview with empathy, extract the Transaction Hash (TxID), the scam platform URL, and the destination wallet address, and explain the IC3 filing process without causing the victim to disengage.</p>\n<p><strong>Evaluation Points:</strong> Did the investigator obtain all three pillars of the crypto-ready report? Did the investigator manage victim expectations accurately? Did the investigator avoid promising recovery of funds?</p>\n<h3>Exercise 3 — The Paper Wallet Sweep (General Awareness)</h3>\n<p><strong>Objective:</strong> All personnel practice distinguishing private keys and seed phrases from harmless public addresses in a stack of seized paper documents.</p>\n<p><strong>Setup:</strong> The instructor prepares a packet of 15-20 printed documents simulating seized paperwork: printed wallet screenshots with public addresses; printed transaction confirmations; a handwritten list of 12 words on notebook paper; a printout of a Bitcoin raw private key string; and unrelated documents (grocery lists, phone numbers).</p>\n<p><strong>Task:</strong> Officers sort documents into three piles: Public Address (safe to record in report), Private Key / Seed Phrase (EVIDENCE ONLY — handle per Golden Rules), and Irrelevant (no crypto relevance).</p>\n<p><strong>Evaluation Points:</strong> Correct identification of all seed phrase and private key documents. Correct identification of public addresses. No seed phrase content verbalized or written during the exercise.</p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-7",
+      "title": "Module 7 — Resources",
+      "lessons": [
+        {
+          "id": "7.1",
+          "title": "Tools, Federal Reporting, LE Working Groups &amp; Industry Partners",
+          "pages": [
+            {
+              "type": "text",
+              "content": "<h2>Resource Directory</h2>\n<p>The following resources are organized by category. All links were current at the time of course publication. Verify currency before operational use. No endorsement of commercial products is implied.</p>\n<h3>Paid Blockchain Forensics &amp; Intelligence Platforms</h3>\n<ul>\n  <li><a href=\"https://chainalysis.com\">Chainalysis Reactor</a> — Industry standard for law enforcement. Visual transaction graphing, entity attribution, and case management integration.</li>\n  <li><a href=\"https://trmlabs.com\">TRM Labs</a> — Cross-chain tracing covering DeFi protocols and bridge hops.</li>\n  <li><a href=\"https://elliptic.co\">Elliptic</a> — Regulatory compliance focus; VASP exposure analysis.</li>\n  <li><a href=\"https://globalledger.io\">Global Ledger</a> — High-risk entity identification and visual graph analysis.</li>\n  <li><a href=\"https://merklescience.com\">Merkle Science</a> — Predictive risk scoring and DeFi protocol analysis.</li>\n  <li><a href=\"https://breadcrumbs.app\">Breadcrumbs</a> — Affordable visualization tool with free and paid tiers. Useful for initial triage.</li>\n</ul>\n<h3>Free OSINT Tools</h3>\n<ul>\n  <li><a href=\"https://mempool.space\">Mempool.space</a> — Best Bitcoin network visualizer. Shows real-time fees and unconfirmed transaction status.</li>\n  <li><a href=\"https://bitquery.io\">Bitquery</a> — Graph-based tool for Ethereum and EVM-compatible chains. Limited free tier.</li>\n  <li><a href=\"https://misttrack.io\">MistTrack</a> — Compliance-focused address risk lookups. Free tier available.</li>\n  <li><a href=\"https://metasleuth.io\">MetaSleuth</a> — Visual graph tracing for Ethereum and Layer-2 networks.</li>\n  <li><a href=\"https://github.com/s0md3v/Orbit\">Orbit</a> — Open-source Python-based blockchain crawler for technical analysts.</li>\n  <li><a href=\"https://walletexplorer.com\">WalletExplorer</a> — Legacy Bitcoin wallet clustering tool.</li>\n</ul>\n<h3>Blockchain Explorers</h3>\n<ul>\n  <li><strong>Bitcoin:</strong> <a href=\"https://blockchain.com/explorer\">Blockchain.com Explorer</a>, <a href=\"https://blockchair.com\">Blockchair</a></li>\n  <li><strong>Ethereum / EVM:</strong> <a href=\"https://etherscan.io\">Etherscan.io</a>, <a href=\"https://polygonscan.com\">Polygonscan</a>, <a href=\"https://arbiscan.io\">Arbiscan</a></li>\n  <li><strong>Tron:</strong> <a href=\"https://tronscan.org\">Tronscan</a></li>\n  <li><strong>Solana:</strong> <a href=\"https://solscan.io\">Solscan</a></li>\n</ul>\n<h3>Federal Reporting</h3>\n<ul>\n  <li><a href=\"https://ic3.gov\">IC3.gov</a> — FBI Internet Crime Complaint Center. Primary intake for cyber-enabled fraud and cryptocurrency crimes.</li>\n  <li><a href=\"https://fincen.gov/msb-registrant-search\">FinCEN MSB Registrant Search</a> — Verify Bitcoin ATM operators as registered Money Services Businesses.</li>\n  <li><a href=\"https://reportfraud.ftc.gov\">FTC Fraud Report</a> — Federal Trade Commission consumer fraud intake. Used for federal enforcement prioritization.</li>\n</ul>\n<h3>LE Working Groups</h3>\n<ul>\n  <li><a href=\"https://nw3c.org\">NW3C (National White Collar Crime Center)</a> — Free training and technical support for state and local law enforcement agencies.</li>\n  <li><a href=\"https://reacttf.org\">REACT Task Force</a> — Model for multi-agency cyber and financial crimes task forces.</li>\n  <li><a href=\"https://globalantiscam.org\">GASO (Global Anti-Scam Organization)</a> — Pig Butchering victim support network and criminal intelligence resource.</li>\n  <li><a href=\"https://mygenesis-training.com\">Genesis Digital Assets Academy</a> — Comprehensive law enforcement cryptocurrency training.</li>\n  <li><a href=\"https://deconflict.com\">Deconflict</a> — Case and address deconfliction across agencies.</li>\n</ul>\n<h3>Industry Partners — Law Enforcement Portals</h3>\n<ul>\n  <li><a href=\"https://tether.to/en/law-enforcement\">Tether (USDT) Law Enforcement Portal</a> — Submit freeze requests for USDT wallets.</li>\n  <li><a href=\"https://circle.com/en/legal/law-enforcement\">Circle (USDC) Law Enforcement Compliance</a> — Submit freeze requests for USDC wallets.</li>\n  <li><a href=\"https://coinbase.com/legal/law-enforcement\">Coinbase Law Enforcement Portal</a> — Preservation letters, subpoenas, and emergency requests.</li>\n  <li><a href=\"https://binance.com/en/support/law-enforcement\">Binance Law Enforcement Request System</a> — Formal LE request submission for account and transaction records.</li>\n</ul>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "final_exam": {
+    "questions": [
+      {
+        "q": "An officer encounters a wallet address beginning with the letter T on a suspect's phone. Which blockchain and asset type is this most likely associated with?",
+        "options": [
+          "Bitcoin on the Lightning Network.",
+          "Ethereum tokens on the Polygon sidechain.",
+          "A Bitcoin SegWit address — all SegWit addresses start with T.",
+          "USDT or TRX on the Tron blockchain, a network frequently used for low-cost cartel money transfers and Pig Butchering payments."
+        ],
+        "answer": 3,
+        "ref": "1.3 page 2 — Tron addresses"
+      },
+      {
+        "q": "Which of the following correctly distinguishes Bitcoin from USDT (Tether) as a tool for criminal financial activity?",
+        "options": [
+          "Bitcoin can be frozen by the US Treasury; USDT cannot.",
+          "USDT maintains a stable $1.00 value and can be frozen by Tether Ltd. on a valid LE request; Bitcoin cannot be frozen by any central authority.",
+          "Bitcoin is untraceable on the blockchain; USDT transactions are fully public.",
+          "USDT is exclusively used on the Bitcoin blockchain; BTC is used on Ethereum."
+        ],
+        "answer": 1,
+        "ref": "1.1 page 4 — Stablecoins"
+      },
+      {
+        "q": "A suspect's Ethereum wallet shows a balance of $30 in ETH. The officer concludes the wallet is low-value and does not document the token holdings. What investigative error occurred?",
+        "options": [
+          "ETH wallets with under $100 do not require documentation under FinCEN thresholds.",
+          "The officer failed to examine ERC-20 token holdings — the same address may contain millions in USDT or other tokens that are separate from the ETH balance.",
+          "Ethereum tokens require a separate warrant from the ETH balance and should not be examined without one.",
+          "No error occurred — the ETH balance is the only relevant figure for a criminal investigation."
+        ],
+        "answer": 1,
+        "ref": "1.1 page 3 — Ethereum Investigative Note"
+      },
+      {
+        "q": "A MetaMask app is found on a suspect's phone. The suspect claims ignorance. Which fact most directly undermines the claim of unknowing installation?",
+        "options": [
+          "Non-custodial wallets require the user to manually write down and re-enter a 12-word seed phrase to complete setup — a deliberate, multi-step process that cannot be completed accidentally.",
+          "MetaMask is sold in Apple and Google app stores, making it widely accessible.",
+          "MetaMask uses biometric login that ties the account to the device owner.",
+          "Custodial wallets like Coinbase require ID upload, which would prove the suspect's identity."
+        ],
+        "answer": 0,
+        "ref": "3.1 page 3 — The Lie Detector Trap"
+      },
+      {
+        "q": "During a vehicle search, an officer finds a crumpled receipt from a gas station kiosk and $8,500 in banded cash. The most likely criminal activity indicated by this combination is:",
+        "options": [
+          "A legitimate cryptocurrency investor diversifying into cash holdings.",
+          "A drug transaction where cash was the payment method.",
+          "A smurfing operation using a money mule to structure Bitcoin ATM deposits below reporting thresholds.",
+          "A ransomware victim who withdrew cash to pay a Bitcoin ATM ransom."
+        ],
+        "answer": 2,
+        "ref": "2.2 page 1 — The Mule Pattern"
+      },
+      {
+        "q": "A victim was directed to connect her crypto wallet to a website, after which all her funds disappeared in a single transaction she did not authorize. This describes which attack method?",
+        "options": [
+          "A SIM-swap attack targeting the victim's phone carrier.",
+          "A Bitcoin mixer that intercepted the victim's transaction in the mempool.",
+          "A remote wipe command issued to the victim's hardware wallet.",
+          "A wallet drainer — a malicious smart contract that was authorized when the victim connected her wallet, granting the suspect permission to drain funds without further approval."
+        ],
+        "answer": 3,
+        "ref": "2.1 page 1 — Phase 3, Wallet Drainers"
+      },
+      {
+        "q": "A Pig Butchering victim's funds were confirmed in a USDT wallet 18 hours ago. Which action has the highest probability of fund recovery at this moment?",
+        "options": [
+          "Issue a local arrest warrant for the overseas suspects.",
+          "File an IC3 report and await federal guidance.",
+          "Contact Tether's law enforcement compliance portal immediately to request a wallet freeze.",
+          "Subpoena the Ethereum blockchain for subscriber records."
+        ],
+        "answer": 2,
+        "ref": "4.2 page 1 — Stablecoin Issuer Contact"
+      },
+      {
+        "q": "A police report states: \"Victim lost $15,000 in crypto last week.\" A financial crimes detective says this report is unsolvable. Which element, if added, would most directly enable a blockchain trace?",
+        "options": [
+          "The victim's date of birth.",
+          "The name of the crypto exchange the victim used.",
+          "The Transaction Hash (TxID) — the unique digital fingerprint of the specific transfer on the blockchain.",
+          "The IP address of the scam website the victim visited."
+        ],
+        "answer": 2,
+        "ref": "4.1 page 1 — The Three Pillars"
+      },
+      {
+        "q": "An officer seizes an unlocked phone showing an active crypto wallet during an arrest. The correct immediate sequence is:",
+        "options": [
+          "Power off the phone to preserve the current state, then bag it.",
+          "Allow the suspect to lock the phone themselves to maintain chain of custody.",
+          "Enable Airplane Mode, place the device in a Faraday Bag, and connect a portable battery bank inside the bag to maintain AFU state.",
+          "Photograph the wallet balance and then power off the device before bagging."
+        ],
+        "answer": 2,
+        "ref": "3.3 page 2 — Isolation Protocol"
+      },
+      {
+        "q": "Why is it critical to prevent a seized phone from powering off before forensic examination?",
+        "options": [
+          "A powered-off phone will automatically remote-wipe after 15 minutes.",
+          "When the phone enters BFU state, encryption keys are flushed from RAM, making forensic extraction extremely difficult or impossible.",
+          "Apple and Google require the device to remain on to honor preservation letters.",
+          "A powered-off phone cannot be placed in a Faraday bag without risk of damage."
+        ],
+        "answer": 1,
+        "ref": "3.3 page 2 — The Live Power Rule"
+      },
+      {
+        "q": "An officer finds a Trezor device during a premises search. The suspect offers to enter the PIN. The officer should:",
+        "options": [
+          "Allow the suspect to unlock it to document the balance on scene.",
+          "Decline — the device may have a Duress PIN configured that displays a decoy zero-balance wallet. Seize the device and have the forensics lab handle access.",
+          "Ask the suspect to write the PIN on the evidence bag for later reference.",
+          "Plug the device into the patrol car computer to verify it is a wallet before deciding whether to seize it."
+        ],
+        "answer": 1,
+        "ref": "3.3 page 1 — Duress PINs"
+      },
+      {
+        "q": "A numbered list of 24 English words is found on a metal plate during a search. The officer's correct handling action is:",
+        "options": [
+          "Photograph the plate, seal it in a tamper-evident evidence bag, and note in the report only that a seed phrase was located and secured.",
+          "Read the words aloud and have a partner enter them into CAD notes for documentation.",
+          "Type all 24 words verbatim into the incident report to create a complete official record.",
+          "Return the item to the suspect as it is not a firearm, controlled substance, or cash equivalent."
+        ],
+        "answer": 0,
+        "ref": "1.3 page 4 — Officer Safety Protocol"
+      },
+      {
+        "q": "A Coinbase app is found on a suspect's phone. The correct law enforcement strategy differs from finding MetaMask because:",
+        "options": [
+          "Coinbase holds larger balances and is therefore a higher enforcement priority.",
+          "Coinbase is a custodial exchange — a company that holds funds on the user's behalf and is subject to preservation letters, subpoenas, and warrants. MetaMask has no company to serve.",
+          "MetaMask is illegal in most jurisdictions; Coinbase is regulated and therefore legal.",
+          "Coinbase cannot be subpoenaed without a federal warrant; MetaMask can be subpoenaed at the local level."
+        ],
+        "answer": 1,
+        "ref": "1.2 page 2 — Custodial Wallets"
+      },
+      {
+        "q": "A Ledger hardware wallet is seized and booked into an evidence locker without a Faraday bag. Two days later, the associated wallet balance has been drained. What risk factor allowed this outcome?",
+        "options": [
+          "The Ledger device transmitted the private key over Bluetooth to the suspect's attorney.",
+          "Ledger devices automatically transfer funds to the last connected computer after 48 hours.",
+          "The suspect triggered a timer-based wipe that was set before the device was seized.",
+          "Without Faraday isolation, the device may have connected to the locker's Wi-Fi, allowing a co-conspirator with the backup seed phrase to drain the funds remotely — or the device itself received commands over wireless."
+        ],
+        "answer": 3,
+        "ref": "5.1 page 2 — Faraday Isolation"
+      },
+      {
+        "q": "Which of the following scenarios most clearly warrants immediate escalation to federal partners (FBI or HSI)?",
+        "options": [
+          "A local resident lost $8,000 in a Bitcoin ATM scam targeting elderly victims.",
+          "A $2 million Pig Butchering loss where suspects are believed to operate from Southeast Asia.",
+          "A detective requests tracing software that the local agency cannot afford.",
+          "A hardware wallet is seized and the PIN is unknown, requiring forensic extraction."
+        ],
+        "answer": 1,
+        "ref": "5.2 page 1 — Federal Escalation Thresholds"
+      },
+      {
+        "q": "A department's evidence policy defines currency as \"coin and paper money\" and makes no reference to cryptocurrency. Why is this an operational liability?",
+        "options": [
+          "Federal law mandates that all agency policies must reference cryptocurrency by name.",
+          "Officers have no written chain-of-custody standard for digital assets, and a defense attorney can use this gap to argue for evidence suppression.",
+          "The policy is automatically invalid under the Bank Secrecy Act once cryptocurrency is involved in a case.",
+          "The absence of a digital asset definition means the agency cannot apply for federal grants."
+        ],
+        "answer": 1,
+        "ref": "5.3 page 1 — The Policy Gap"
+      },
+      {
+        "q": "The \"Two-Person Rule\" (Dual Control) in digital asset evidence handling requires two supervisors to be present when:",
+        "options": [
+          "A patrol officer first photographs a suspected seed phrase at a roadside stop.",
+          "A digital asset case is filed with the local prosecutor.",
+          "A sealed seed phrase is opened or agency-controlled cryptocurrency is transferred to a government wallet.",
+          "A preservation letter is sent to a cryptocurrency exchange."
+        ],
+        "answer": 2,
+        "ref": "5.1 page 1 — Two-Person Rule"
+      },
+      {
+        "q": "The \"Kill Chain\" in crypto victim intake refers to:",
+        "options": [
+          "The forensic process of tracing funds from one wallet to the next until reaching a VASP.",
+          "The 48-hour window following a theft during which freeze requests, exchange preservation letters, and IC3 filings have the greatest chance of success.",
+          "The chain of custody required from seizure of a device to forensic examination.",
+          "The sequential steps for obtaining a search warrant based on blockchain evidence."
+        ],
+        "answer": 1,
+        "ref": "4.2 page 1 — The Kill Chain"
+      },
+      {
+        "q": "A blockchain explorer shows that stolen funds moved from the victim's wallet to a second wallet, and then from that wallet to an address labeled \"Binance Hot Wallet.\" What is the correct next investigative step?",
+        "options": [
+          "Send a preservation letter to Binance requesting that all records related to the identified account be preserved, pending a subpoena for subscriber information.",
+          "Arrest the Binance employee whose IP address appears in the WHOIS record.",
+          "Post the wallet address to a law enforcement message board and wait for other agencies to identify the account holder.",
+          "Contact Tether to freeze the Binance wallet since Binance holds USDT."
+        ],
+        "answer": 0,
+        "ref": "4.3 page 2 — Legal Process Sequence"
+      },
+      {
+        "q": "A student reports that they received a wire transfer from an unknown sender, were instructed to withdraw the cash, and deposit it at a Bitcoin ATM. They believed this was a legitimate remote-work job. This situation is best described as:",
+        "options": [
+          "A legitimate cryptocurrency arbitrage transaction that requires no police action.",
+          "A money mule operation — the student was recruited to launder funds for a criminal organization, possibly without full awareness.",
+          "A Pig Butchering investment scam in which the student is the primary victim.",
+          "A BTM smurfing operation where the student is the primary organizer."
+        ],
+        "answer": 1,
+        "ref": "2.3 page 1 — The Money Mule"
+      },
+      {
+        "q": "Why do criminals prefer to use USDT on the Tron network rather than USDT on Ethereum for high-volume money laundering?",
+        "options": [
+          "Tron USDT transactions are untraceable because Tron does not have a public blockchain.",
+          "Tron USDT cannot be frozen by Tether Ltd., whereas Ethereum-based USDT can.",
+          "Transaction fees on the Tron network are significantly cheaper and transactions confirm faster than on Ethereum.",
+          "The Tron blockchain is regulated by a different agency and is not subject to FinCEN reporting."
+        ],
+        "answer": 2,
+        "ref": "1.1 page 4 — Tron Network"
+      },
+      {
+        "q": "An officer finds a Bitcoin ATM receipt during a premises search. The most investigatively valuable piece of information on that receipt is:",
+        "options": [
+          "The machine's serial number.",
+          "The transaction date, dollar amount, and destination Bitcoin wallet address.",
+          "The store name where the BTM is located.",
+          "The machine operator's telephone number printed at the bottom."
+        ],
+        "answer": 1,
+        "ref": "2.2 page 1 — Evidence Collection at the Kiosk"
+      },
+      {
+        "q": "Which statement about Bitcoin's traceability is accurate and supported by the course material?",
+        "options": [
+          "Bitcoin is pseudonymous — every transaction is public, and linking a person to one address through a subpoena or other means can reveal their entire transaction history.",
+          "Bitcoin is fully anonymous — transactions cannot be linked to individuals under any circumstances.",
+          "Bitcoin transactions are only visible to law enforcement, not to the public.",
+          "Bitcoin becomes untraceable after three wallet-to-wallet hops."
+        ],
+        "answer": 0,
+        "ref": "1.1 page 2 — Bitcoin Investigative Note"
+      },
+      {
+        "q": "A patrol officer tells a Pig Butchering victim: \"We will definitely get your money back — the blockchain shows exactly where it went.\" Why is this statement harmful?",
+        "options": [
+          "The officer should not be speaking to victims — only detectives are authorized to do so.",
+          "Tracing where funds went is often possible, but recovery is difficult, expensive, and rare — especially with overseas criminal organizations. The promise sets an expectation that almost certainly cannot be met, damaging the victim's trust and the agency's credibility.",
+          "The statement is technically accurate; blockchain tracing guarantees fund recovery.",
+          "The statement is harmless because it motivates the victim to cooperate with the investigation."
+        ],
+        "answer": 1,
+        "ref": "4.2 page 2 — Managing Expectations"
+      },
+      {
+        "q": "An agency strictly prohibits officers from using personal cryptocurrency wallets to receive, hold, or transfer seized digital assets. This policy primarily protects against:",
+        "options": [
+          "The risk of officers losing their own personal savings in volatile crypto markets.",
+          "Compliance with IRS tax reporting requirements for crypto holdings.",
+          "The risk of department computers being hacked through officers' personal wallet apps.",
+          "The risk of officers misappropriating seized funds — a scenario that has resulted in officer terminations and criminal prosecutions in multiple jurisdictions — and ensures an auditable chain of custody through official agency wallets or approved custodians."
+        ],
+        "answer": 3,
+        "ref": "5.3 page 1 — The Personal Wallet Ban"
+      }
+    ]
+  }
+}

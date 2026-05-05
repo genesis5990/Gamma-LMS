@@ -64,6 +64,9 @@ check "tenant theme stylesheet"     200 "/tenant-themes.css"     "deconflict"
 check "courses catalog"             200 "/courses"          "Crypto 101"
 check "admin requests page"         200 "/admin/requests"   "Access requests"
 check "public-config endpoint"      200 "/api/public-config" "stripe_publishable_key"
+check "le preview page"             200 "/preview/le-field-tactics"  "PREVIEW MODE"
+check "le preview json"             200 "/preview/le-field-tactics.course.json"  "le-field-tactics"
+check "le preview css"              200 "/preview/le-preview.css"    "compare-cards"
 
 # ---- Fallback behavior -----------------------------------------------------
 # Unknown routes serve the neutral GDAA landing with a 404 status.
