@@ -25,6 +25,19 @@ window.authReady = (async () => {
   sb.auth.onAuthStateChange((_event, session) => {
     _user = session?.user || null;
   });
+
+  // Phase 3: detect a gating rejection from handle_new_user (insufficient_privilege)
+  // Supabase surfaces it as ?error=...&error_description=... in the URL after the redirect.
+  try {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
+    const errDesc = params.get('error_description') || params.get('error');
+    if (errDesc && /approval|invitation|insufficient_privilege/i.test(errDesc)) {
+      // Clear the error from the URL
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      window._gatingRejection = decodeURIComponent(errDesc.replace(/\+/g, ' '));
+    }
+  } catch { /* noop */ }
 })();
 
 window.currentUser = () => _user;
