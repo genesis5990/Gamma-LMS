@@ -1,0 +1,173 @@
+/* tenant-themes.css — Phase 4A: per-tenant white-label theming.
+ *
+ * Tenant pages get `data-tenant="<slug>"` on <body> from tenant.js. Each
+ * theme block scopes its rules to that selector so non-tenant pages
+ * (/, /home, /courses, /verify, /admin) and other tenants are untouched.
+ *
+ * Themes drive the existing CSS variables defined per-page (--ink, --paper,
+ * --paper-2, --line, --accent, --accent-2, --muted, --gold, --shadow) so
+ * existing components recolor without per-component edits.
+ */
+
+/* ===== Deconflict ====================================================== */
+body[data-tenant="deconflict"] {
+  /* Brand palette (sampled from logo) */
+  --deconflict-bg:           #060A16;
+  --deconflict-card:         #0F1729;
+  --deconflict-fg:           #FFFFFF;
+  --deconflict-fg-muted:     #C6C6C9;
+  --deconflict-accent:       #3B82F6;
+  --deconflict-accent-hover: #2563EB;
+  --deconflict-border:       #1F2937;
+
+  /* Override the existing per-page CSS variable system so existing
+   * components (.lesson-card, .stat, .panel, .btn-primary, etc) recolor.
+   * Keep --ink readable on light surfaces — but our paper IS dark now,
+   * so we flip ink to white. */
+  --ink:      #FFFFFF;
+  --ink-2:    #E5E7EB;
+  --paper:    #060A16;
+  --paper-2:  #0F1729;
+  --line:     #1F2937;
+  --line-2:   #1F2937;
+  --accent:   #3B82F6;
+  --accent-2: #60A5FA;
+  --gold:     #3B82F6;             /* repurpose the gold accent stripe to brand blue */
+  --muted:    #9CA3AF;
+  --shadow:   0 1px 3px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.5);
+
+  background: var(--deconflict-bg);
+  color: var(--deconflict-fg);
+}
+
+/* Header chrome — switch the gradient and accent stripe.
+ * Both course.html (header.course) and admin-requests.html (header.admin) use
+ * a linear-gradient inline with the same variables, so overriding the
+ * variables would already work — but those headers also reference --gold
+ * directly for the bottom-border, which we've remapped above. We still
+ * pin a flat dark surface here so the gradient (designed for light pages)
+ * doesn't end up muddy on the deconflict bg. */
+body[data-tenant="deconflict"] header.course,
+body[data-tenant="deconflict"] header.admin {
+  background: linear-gradient(180deg, #060A16 0%, #0F1729 100%);
+  border-bottom-color: var(--deconflict-accent);
+}
+
+/* The default badge "G" is the GENESIS fallback — hide it for tenants that
+ * supply a logo (the .logo <img> + "data-tenant-fallback" toggle in
+ * tenant.js already handles this, but be defensive). */
+body[data-tenant="deconflict"] #defaultBadge { display: none !important; }
+
+/* Make the small per-page logo display larger and remove the white inner
+ * shadow some pages add (border-radius w/ object-fit:contain on a now-
+ * transparent SVG). */
+body[data-tenant="deconflict"] header [data-tenant-logo] {
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Sidebar and panels */
+body[data-tenant="deconflict"] aside.sidebar,
+body[data-tenant="deconflict"] .panel,
+body[data-tenant="deconflict"] .lesson-card,
+body[data-tenant="deconflict"] .stat,
+body[data-tenant="deconflict"] .stub,
+body[data-tenant="deconflict"] .gate {
+  background: var(--deconflict-card);
+  border-color: var(--deconflict-border);
+  color: var(--deconflict-fg);
+}
+
+/* Subdued, branded progress card on the course sidebar */
+body[data-tenant="deconflict"] .progress-card {
+  background: linear-gradient(180deg, #0F1729 0%, #111c33 100%);
+  border-color: var(--deconflict-border);
+}
+body[data-tenant="deconflict"] .progress-card .pct { color: var(--deconflict-fg); }
+body[data-tenant="deconflict"] .progress-bar { background: #1F2937; }
+body[data-tenant="deconflict"] .progress-bar > div { background: var(--deconflict-accent); }
+
+/* Lesson sidebar links */
+body[data-tenant="deconflict"] .lesson-link              { color: var(--deconflict-fg); }
+body[data-tenant="deconflict"] .lesson-link:hover        { background: #182238; }
+body[data-tenant="deconflict"] .lesson-link.active       { background: #1d2a47; border-color: var(--deconflict-accent); }
+body[data-tenant="deconflict"] .lesson-link .lnum        { color: var(--deconflict-fg-muted); }
+body[data-tenant="deconflict"] .lesson-link .lstat       { border-color: var(--deconflict-border); }
+body[data-tenant="deconflict"] .module-head              { color: var(--deconflict-fg-muted); }
+body[data-tenant="deconflict"] .lesson-link .qbadge      { background: #1F2937; color: var(--deconflict-fg-muted); }
+
+/* Lesson content emphasis (h2 left-bar uses the gold/accent variable) */
+body[data-tenant="deconflict"] .lesson-card h2,
+body[data-tenant="deconflict"] .lesson-card h3,
+body[data-tenant="deconflict"] .lesson-card h4 { color: var(--deconflict-fg); }
+body[data-tenant="deconflict"] .lesson-card a { color: var(--deconflict-accent); }
+
+/* Quiz block accent stripe */
+body[data-tenant="deconflict"] .quiz-block {
+  background: #0c1322;
+  border-left-color: var(--deconflict-accent);
+}
+body[data-tenant="deconflict"] .quiz-block .qhead { color: var(--deconflict-accent); }
+body[data-tenant="deconflict"] .quiz-q .opts label {
+  background: #0c1322; border-color: var(--deconflict-border); color: var(--deconflict-fg);
+}
+body[data-tenant="deconflict"] .quiz-q .opts label:hover { border-color: var(--deconflict-accent); }
+
+/* Buttons */
+body[data-tenant="deconflict"] .btn-primary,
+body[data-tenant="deconflict"] .gate button {
+  background: var(--deconflict-accent); color: #fff;
+}
+body[data-tenant="deconflict"] .btn-primary:hover,
+body[data-tenant="deconflict"] .gate button:hover { background: var(--deconflict-accent-hover); }
+
+body[data-tenant="deconflict"] .btn-secondary {
+  background: var(--deconflict-card); color: var(--deconflict-fg); border-color: var(--deconflict-border);
+}
+body[data-tenant="deconflict"] .btn-secondary:hover {
+  border-color: var(--deconflict-accent); color: var(--deconflict-accent);
+}
+
+/* Generic links + focus rings */
+body[data-tenant="deconflict"] a { color: var(--deconflict-accent); }
+body[data-tenant="deconflict"] *:focus-visible {
+  outline: 2px solid var(--deconflict-accent);
+  outline-offset: 2px;
+}
+
+/* ===== Auth overlay (shared on all tenant pages) ====================== */
+/* The overlay is positioned: fixed, so it sits above the body chrome —
+ * use the same selector. */
+body[data-tenant="deconflict"] #authOverlay {
+  background: rgba(3, 6, 14, 0.92);
+}
+body[data-tenant="deconflict"] #authOverlay > div {
+  background: var(--deconflict-card) !important;
+  color: var(--deconflict-fg) !important;
+  border: 1px solid var(--deconflict-border);
+}
+body[data-tenant="deconflict"] #authOverlay h2 { color: var(--deconflict-fg); }
+body[data-tenant="deconflict"] #authOverlay p { color: var(--deconflict-fg-muted) !important; }
+body[data-tenant="deconflict"] #authOverlay input {
+  background: #0a1020; color: var(--deconflict-fg);
+  border: 1px solid var(--deconflict-border) !important;
+}
+body[data-tenant="deconflict"] #authOverlay input::placeholder { color: #6b7280; }
+body[data-tenant="deconflict"] #authOverlay #authSend {
+  background: var(--deconflict-accent) !important; color: #fff !important;
+}
+body[data-tenant="deconflict"] #authOverlay #authSend:hover { background: var(--deconflict-accent-hover) !important; }
+body[data-tenant="deconflict"] #authOverlay #authRequestAccessLink { color: var(--deconflict-accent) !important; }
+
+/* ===== Admin-requests page-specific ================================== */
+body[data-tenant="deconflict"] .req {
+  background: var(--deconflict-card); border-color: var(--deconflict-border);
+}
+body[data-tenant="deconflict"] .req .body .note { background: #0a1020; }
+body[data-tenant="deconflict"] .tab {
+  background: var(--deconflict-card); color: var(--deconflict-fg); border-color: var(--deconflict-border);
+}
+body[data-tenant="deconflict"] .tab.active {
+  background: var(--deconflict-accent); border-color: var(--deconflict-accent); color: #fff;
+}
+body[data-tenant="deconflict"] .empty { background: var(--deconflict-card); border-color: var(--deconflict-border); color: var(--deconflict-fg-muted); }

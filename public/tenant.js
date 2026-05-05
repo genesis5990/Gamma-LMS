@@ -19,16 +19,37 @@
     enrollment_mode: 'open'
   };
 
+  // Per-tenant logo overrides (Phase 4A: prefer transparent variants on
+  // chrome where the surface color is set by CSS, not the SVG background).
+  const TENANT_LOGO_OVERRIDES = {
+    deconflict: {
+      light: '/assets/tenants/deconflict/transparent/Logo-With-Text.svg',
+      dark:  '/assets/tenants/deconflict/transparent/Logo-With-Text.svg'
+    }
+  };
+
   function applyTheme(t) {
     const root = document.documentElement;
     root.style.setProperty('--brand-ink', t.primary_color || DEFAULT_THEME.primary_color);
     root.style.setProperty('--brand-bg',  t.secondary_color || DEFAULT_THEME.secondary_color);
     document.title = t.name ? `${t.name} — Crypto 101 for Investigators` : document.title;
 
+    // Phase 4A: tag <body> with the tenant slug so per-tenant CSS can scope.
+    if (document.body) {
+      if (t.slug) document.body.setAttribute('data-tenant', t.slug);
+      else document.body.removeAttribute('data-tenant');
+    }
+
+    const override = t.slug ? TENANT_LOGO_OVERRIDES[t.slug] : null;
     let anyLogo = false;
     document.querySelectorAll('[data-tenant-logo]').forEach(el => {
       const variant = el.getAttribute('data-tenant-logo');
-      const url = variant === 'dark' ? t.logo_url_white : t.logo_url;
+      let url;
+      if (override) {
+        url = variant === 'dark' ? override.dark : override.light;
+      } else {
+        url = variant === 'dark' ? t.logo_url_white : t.logo_url;
+      }
       if (url) {
         el.setAttribute('src', url);
         el.setAttribute('alt', t.name || 'Logo');
@@ -47,11 +68,18 @@
     });
   }
 
+  // Per-tenant icon-only logo for the sign-in modal (icon mark only, no
+  // wordmark — keeps the "Sign in to <Tenant>" heading from being redundant).
+  const TENANT_MODAL_ICON = {
+    deconflict: '/assets/tenants/deconflict/transparent/Logo-Only.svg'
+  };
+
   // Rebrand the sign-in overlay headline/body for tenant pages.
   // Falls back silently if the overlay isn't on the page.
   function applyAuthModalBranding(t) {
     const overlay = document.getElementById('authOverlay');
     if (!overlay) return;
+    const card = overlay.firstElementChild;
     const h2 = overlay.querySelector('h2');
     if (!h2) return;
     if (t && t.slug && t.name) {
@@ -59,6 +87,16 @@
     } else if (t && t.slug === 'deconflict') {
       // Hardcoded fallback per spec, in case name is missing.
       h2.textContent = 'Sign in to Deconflict Training';
+    }
+    // Inject the tenant icon at the top of the modal card (idempotent).
+    const iconUrl = t && t.slug ? TENANT_MODAL_ICON[t.slug] : null;
+    if (iconUrl && card && !card.querySelector('[data-tenant-modal-icon]')) {
+      const img = document.createElement('img');
+      img.setAttribute('data-tenant-modal-icon', '');
+      img.src = iconUrl;
+      img.alt = t.name || '';
+      img.style.cssText = 'display:block; height:64px; width:64px; margin:0 auto 14px; object-fit:contain;';
+      card.insertBefore(img, card.firstChild);
     }
   }
 
@@ -81,6 +119,21 @@
   }
 
   applyTheme(DEFAULT_THEME);
+
+  // Phase 4A: minimize FOUC by setting data-tenant from the URL slug as soon
+  // as <body> is parsed, before the async fetch resolves. This is best-effort —
+  // applyTheme() will reset/correct it once tenantReady resolves.
+  function preTagBody() {
+    if (!document.body) return;
+    if (slugFromUrl && !isSuperAdminView) {
+      document.body.setAttribute('data-tenant', slugFromUrl);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', preTagBody, { once: true });
+  } else {
+    preTagBody();
+  }
 
   window.tenantReady = (async () => {
     if (!slugFromUrl || isSuperAdminView) {

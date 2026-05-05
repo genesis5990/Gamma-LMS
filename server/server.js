@@ -501,7 +501,7 @@ app.get(/^\/([^\/]+)(?:\/(admin)?\/?)?$/, (req, res, next) => {
 app.use(express.static(PUBLIC_DIR, {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
-    if (/(course\.html|admin\.html|admin-requests\.html|courses\.html|index\.html|config\.js|auth\.js|tenant\.js|admin-welcome\.js|course_data\.json)$/.test(filePath)) {
+    if (/(course\.html|admin\.html|admin-requests\.html|courses\.html|index\.html|config\.js|auth\.js|tenant\.js|admin-welcome\.js|tenant-themes\.css|course_data\.json)$/.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }
