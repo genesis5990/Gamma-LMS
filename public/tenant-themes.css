@@ -60,10 +60,37 @@ body[data-tenant="deconflict"] #defaultBadge { display: none !important; }
 
 /* Make the small per-page logo display larger and remove the white inner
  * shadow some pages add (border-radius w/ object-fit:contain on a now-
- * transparent SVG). */
+ * transparent SVG). The logo SVG includes the DECONFLICT wordmark + tagline,
+ * so we give it more vertical room and width than the default 46x280, and
+ * defensively unset any opacity/filter the host page may apply. */
 body[data-tenant="deconflict"] header [data-tenant-logo] {
-  border-radius: 0;
-  background: transparent;
+  border-radius: 0 !important;
+  background: transparent !important;
+  height: 52px !important;
+  max-width: 360px !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Header hierarchy on Deconflict pages.
+ *
+ * The Logo-With-Text SVG already shows the DECONFLICT wordmark + tagline,
+ * so the text block to its right should not repeat tenant branding. We
+ * keep the existing markup (h1 = page/course name, .sub = tenant name) but
+ * demote the h1 visually and hide the now-redundant .sub. The logo carries
+ * the brand; the page name reads as a small secondary label.
+ *
+ * Why scoped to header.course and not header.admin: admin-requests.html
+ * uses `<h1 data-tenant-name>` so tenant IS primary there already. */
+body[data-tenant="deconflict"] header.course h1 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--deconflict-fg-muted);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+body[data-tenant="deconflict"] header.course .sub {
+  display: none;
 }
 
 /* Sidebar and panels */
