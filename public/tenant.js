@@ -171,12 +171,42 @@
     applyAuthModalBranding(window.tenant);
 
     // Phase 3: when enrollment is gated, show a "Request access" affordance.
+    // The inline link inside the auth modal is fine for everyone (only logged-out
+    // users ever see the auth modal). The floating launcher, however, must only
+    // appear for logged-out visitors on the bare `/<slug>` tenant landing — never
+    // on /<slug>/admin*, /course.html, /admin.html, /verify, or for signed-in or
+    // already-enrolled users.
     if (['request_approval', 'invite_only'].includes(window.tenant?.enrollment_mode)) {
-      ensureRequestAccessUI(window.tenant);
       injectAuthModalRequestLink(window.tenant);
+      if (await shouldMountRequestAccessLauncher(window.tenant)) {
+        ensureRequestAccessUI(window.tenant);
+      }
     }
     return window.tenant;
   })();
+
+  async function shouldMountRequestAccessLauncher(tenant) {
+    // Only on the bare tenant landing path: /<slug> (length 1).
+    // Excludes /<slug>/admin, /<slug>/admin/requests, /course.html, /admin.html,
+    // /verify, /admin, etc.
+    if (!slugFromUrl || isSuperAdminView) return false;
+    if (pathParts.length !== 1) return false;
+
+    // Don't mount for signed-in users. Wait for auth.js to settle so first paint
+    // doesn't flash the launcher to a returning member.
+    try {
+      if (window.authReady) await window.authReady;
+      const user = (typeof window.currentUser === 'function') ? window.currentUser() : null;
+      if (user) {
+        // Already enrolled in this tenant? Definitely don't show the request CTA.
+        // (Even if not enrolled, a signed-in user shouldn't see the floater — the
+        // brief says signed-in users never get it.)
+        return false;
+      }
+    } catch { /* if auth probing fails, fall through and show the launcher */ }
+
+    return true;
+  }
 
   // ---------------------------------------------------------------------
   // Request access UI — injected on gated tenant landing pages so that
