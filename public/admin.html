@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<title>Admin Dashboard — Crypto 101 LMS</title>
+<style>
+  :root {
+    --ink:        #0d1424;
+    --ink-2:      #1d2a47;
+    --paper:      #f7f8fc;
+    --paper-2:    #ffffff;
+    --line:       #d9dfee;
+    --line-2:     #e8ecf6;
+    --accent:     #1f63d6;
+    --accent-2:   #0a3d91;
+    --gold:       #c8a64a;
+    --good:       #2a9355;
+    --bad:        #c94545;
+    --warn:       #b97a09;
+    --muted:      #5b6788;
+    --shadow:     0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: var(--paper);
+  }
+  a { color: var(--accent-2); }
+
+  header.course {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color: #fff;
+    border-bottom: 3px solid var(--gold);
+    padding: 14px 22px;
+  }
+  header.course .row { display:flex; align-items:center; gap:14px; max-width:1400px; margin:0 auto; }
+  header.course .badge {
+    width:46px; height:46px; border-radius:8px;
+    background: var(--gold); color: var(--ink);
+    display:grid; place-items:center; font-weight:800; font-size:18px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,.15);
+  }
+  header.course h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
+  header.course .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+  header.course .actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  header.course .btn-ghost {
+    background: transparent; color:#fff; border:1px solid rgba(255,255,255,.2);
+    padding: 7px 12px; border-radius: 6px; font-size: 13px; cursor:pointer;
+    text-decoration:none;
+  }
+  header.course .btn-ghost:hover { background: rgba(255,255,255,.08); }
+
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 22px; }
+
+  .stat-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-bottom: 20px;
+  }
+  @media (max-width: 800px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .stat .label {
+    font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+  .stat .value {
+    font-size: 28px; font-weight: 700; color: var(--ink);
+    margin-top: 4px; line-height: 1.1;
+  }
+  .stat .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .panel {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line-2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .panel-head h2 { margin: 0; font-size: 15px; letter-spacing: .3px; }
+  .panel-head .tools { margin-left: auto; display:flex; gap:8px; align-items:center; }
+  .panel-head input[type=search] {
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+    font: inherit; min-width: 220px;
+  }
+  .panel-head select {
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+    font: inherit; background: #fff;
+  }
+
+  table.users { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.users th {
+    text-align: left; padding: 10px 14px;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+    background: #fafbff; border-bottom: 1px solid var(--line-2);
+    cursor: pointer; user-select: none;
+  }
+  table.users th .arrow { color: var(--accent); margin-left: 4px; }
+  table.users td { padding: 11px 14px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+  table.users tr.user-row { cursor: pointer; }
+  table.users tr.user-row:hover { background: #f3f6ff; }
+  table.users tr.user-row.open { background: #eef3ff; }
+  td.email { font-weight: 600; color: var(--ink); }
+  td.email .name { display:block; font-weight:400; font-size:12px; color:var(--muted); }
+  .pill {
+    display:inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  }
+  .pill.in_progress { background: #fef4dd; color: var(--warn); }
+  .pill.completed   { background: #e3f2eb; color: var(--good); }
+  .pill.not_started { background: #ebeef8; color: var(--muted); }
+  .progress-bar {
+    background: var(--line-2); border-radius: 999px; height: 6px;
+    overflow: hidden; min-width: 80px;
+  }
+  .progress-bar > span {
+    display:block; height:100%; background: var(--accent);
+    border-radius: 999px; transition: width .25s ease;
+  }
+  .progress-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .detail-row td {
+    background: #fcfdff; border-bottom: 2px solid var(--line);
+    padding: 16px 22px;
+  }
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
+  }
+  @media (max-width: 800px) { .detail-grid { grid-template-columns: 1fr; } }
+  .detail-grid h3 {
+    margin: 0 0 8px; font-size: 12px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .detail-list {
+    background: #fff; border: 1px solid var(--line-2);
+    border-radius: 8px; padding: 0; margin: 0; list-style: none;
+    max-height: 240px; overflow: auto;
+  }
+  .detail-list li {
+    padding: 7px 12px; border-bottom: 1px solid var(--line-2);
+    font-size: 13px; display:flex; align-items:center; gap:8px;
+  }
+  .detail-list li:last-child { border-bottom: none; }
+  .detail-list .lid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); min-width: 70px; }
+  .detail-list .meta { margin-left:auto; font-size: 12px; color: var(--muted); }
+  .quiz-pass { color: var(--good); font-weight: 700; }
+  .quiz-fail { color: var(--bad);  font-weight: 700; }
+
+  .empty {
+    padding: 40px 22px; text-align: center; color: var(--muted);
+    font-size: 14px;
+  }
+
+  .gate {
+    max-width: 460px; margin: 80px auto; padding: 28px;
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: var(--shadow);
+  }
+  .gate h2 { margin: 0 0 8px; font-size: 18px; }
+  .gate p { color: var(--muted); margin: 6px 0 14px; font-size: 14px; }
+  .gate input {
+    width: 100%; padding: 10px 12px; font: inherit;
+    border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px;
+  }
+  .gate button {
+    width: 100%; padding: 10px 14px; font: inherit;
+    background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+    cursor: pointer; font-weight: 600;
+  }
+  .gate button:hover { background: var(--accent-2); }
+  .gate .msg { font-size: 13px; margin-top: 10px; }
+  .gate .msg.err { color: var(--bad); }
+  .gate .msg.ok  { color: var(--good); }
+
+  .toast {
+    position: fixed; right: 18px; bottom: 18px;
+    background: var(--ink); color:#fff; padding: 10px 14px;
+    border-radius: 8px; font-size: 13px; box-shadow: var(--shadow);
+    opacity: 0; transition: opacity .2s ease; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header class="course">
+  <div class="row">
+    <div class="badge">G</div>
+    <div>
+      <h1>Crypto 101 — Admin Dashboard</h1>
+      <div class="sub">Genesis Digital Assets Academy</div>
+    </div>
+    <div class="actions">
+      <a class="btn-ghost" href="course.html">↩ Back to course</a>
+      <button class="btn-ghost" id="btnSignOut" style="display:none">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<!-- Loading / gate states -->
+<div id="loadingView" class="empty">Loading…</div>
+
+<div id="gateView" class="gate" style="display:none">
+  <h2>Admin sign-in required</h2>
+  <p>You'll receive a one-time sign-in link by email. Only accounts with the <strong>super_admin</strong> role can view this page.</p>
+  <input type="email" id="gateEmail" placeholder="you@agency.gov" autocomplete="email" />
+  <button id="gateBtn">Send sign-in link</button>
+  <div class="msg" id="gateMsg"></div>
+</div>
+
+<div id="forbiddenView" class="gate" style="display:none">
+  <h2>Access denied</h2>
+  <p>You're signed in as <strong id="fbEmail"></strong> but this account isn't an admin. If this is a mistake, ask the system owner to grant you the <code>super_admin</code> role on your profile row.</p>
+  <button id="fbSignOut">Sign out</button>
+</div>
+
+<!-- Main dashboard -->
+<div id="dashView" class="wrap" style="display:none">
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="label">Total users</div>
+      <div class="value" id="kTotal">—</div>
+      <div class="sub" id="kTotalSub">&nbsp;</div>
+    </div>
+    <div class="stat">
+      <div class="label">Active learners</div>
+      <div class="value" id="kActive">—</div>
+      <div class="sub">In progress</div>
+    </div>
+    <div class="stat">
+      <div class="label">Completed</div>
+      <div class="value" id="kDone">—</div>
+      <div class="sub" id="kDoneSub">&nbsp;</div>
+    </div>
+    <div class="stat">
+      <div class="label">Quiz attempts</div>
+      <div class="value" id="kQuiz">—</div>
+      <div class="sub" id="kQuizSub">&nbsp;</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Students</h2>
+      <div class="tools">
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="not_started">Not started</option>
+          <option value="in_progress">In progress</option>
+          <option value="completed">Completed</option>
+        </select>
+        <input type="search" id="searchBox" placeholder="Search by email, name, agency…" />
+      </div>
+    </div>
+    <div id="tableWrap">
+      <div class="empty">Loading students…</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Total lessons in the course (used for progress %) =====
+let TOTAL_LESSONS = 18; // Modules 1+2+3 — recomputed from course_data.json on load
+
+// ===== Supabase client (re-uses what auth.js created) =====
+const sbAdmin = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+// ===== Toast helper =====
+const toastEl = document.getElementById('toast');
+let _toastT = null;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => toastEl.classList.remove('show'), 2400);
+}
+
+// ===== State =====
+let allRows = [];
+let filteredRows = [];
+let sortKey = 'last_seen_at';
+let sortDir = -1; // -1 desc, 1 asc
+let openUserId = null;
+let detailCache = new Map(); // user_id -> {lessons, quizzes}
+
+// ===== Boot =====
+(async function boot() {
+  // 1. Load total lesson count
+  try {
+    const r = await fetch('course_data.json', { cache: 'no-store' });
+    if (r.ok) {
+      const cd = await r.json();
+      const lessons = (cd.modules || []).flatMap(m => (m.lessons || []).filter(l => l.type !== 'quiz' && l.type !== 'recap'));
+      if (lessons.length) TOTAL_LESSONS = lessons.length;
+    }
+  } catch (_) {}
+
+  // 2. Wait for auth
+  await window.authReady;
+  const user = window.currentUser();
+
+  if (!user) {
+    showGate();
+    return;
+  }
+
+  // 3. Check admin role
+  const { data: prof, error } = await sbAdmin
+    .from('profiles').select('role, email, full_name')
+    .eq('id', user.id).single();
+  if (error) {
+    document.getElementById('loadingView').textContent = 'Error loading profile: ' + error.message;
+    return;
+  }
+
+  if (prof?.role !== 'super_admin') {
+    showForbidden(prof?.email || user.email);
+    return;
+  }
+
+  // 4. Wire sign-out + load data
+  document.getElementById('btnSignOut').style.display = 'inline-block';
+  document.getElementById('btnSignOut').addEventListener('click', () => window.signOut());
+  await loadData();
+})();
+
+function showGate() {
+  document.getElementById('loadingView').style.display = 'none';
+  document.getElementById('gateView').style.display = 'block';
+  const btn = document.getElementById('gateBtn');
+  const msg = document.getElementById('gateMsg');
+  const inp = document.getElementById('gateEmail');
+  btn.addEventListener('click', async () => {
+    const email = (inp.value || '').trim();
+    if (!email) { msg.className = 'msg err'; msg.textContent = 'Enter your email.'; return; }
+    btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Sending…';
+    try {
+      await window.signInWithEmail(email);
+      msg.className = 'msg ok';
+      msg.textContent = 'Check your inbox for a sign-in link. You can close this tab — the link will bring you back.';
+    } catch (e) {
+      msg.className = 'msg err';
+      msg.textContent = 'Could not send link: ' + (e.message || e);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+}
+
+function showForbidden(email) {
+  document.getElementById('loadingView').style.display = 'none';
+  const v = document.getElementById('forbiddenView');
+  v.style.display = 'block';
+  document.getElementById('fbEmail').textContent = email || '';
+  document.getElementById('fbSignOut').addEventListener('click', () => window.signOut());
+}
+
+async function loadData() {
+  document.getElementById('loadingView').style.display = 'none';
+  document.getElementById('dashView').style.display = 'block';
+
+  const { data, error } = await sbAdmin
+    .from('student_summary')
+    .select('*');
+
+  if (error) {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty" style="color:var(--bad)">Failed to load students: ' + escapeHtml(error.message) + '</div>';
+    return;
+  }
+
+  allRows = data || [];
+  computeStats(allRows);
+  applyFilters();
+
+  // Wire filter UI
+  document.getElementById('searchBox').addEventListener('input', applyFilters);
+  document.getElementById('filterStatus').addEventListener('change', applyFilters);
+}
+
+function computeStats(rows) {
+  const total = rows.length;
+  const done  = rows.filter(r => r.enrollment_status === 'completed').length;
+  const active = rows.filter(r => r.enrollment_status === 'in_progress').length;
+  const quizAtt = rows.reduce((s, r) => s + (r.quiz_attempts_total || 0), 0);
+  const quizPass = rows.reduce((s, r) => s + (r.quizzes_passed || 0), 0);
+
+  document.getElementById('kTotal').textContent = total;
+  document.getElementById('kTotalSub').textContent = total === 1 ? '1 enrolled student' : total + ' enrolled students';
+  document.getElementById('kActive').textContent = active;
+  document.getElementById('kDone').textContent = done;
+  document.getElementById('kDoneSub').textContent = total ? Math.round((done / total) * 100) + '% completion rate' : '\u00a0';
+  document.getElementById('kQuiz').textContent = quizAtt;
+  document.getElementById('kQuizSub').textContent = quizPass + ' passing • ' + Math.max(0, quizAtt - quizPass) + ' failed';
+}
+
+function applyFilters() {
+  const q = (document.getElementById('searchBox').value || '').toLowerCase().trim();
+  const status = document.getElementById('filterStatus').value;
+
+  filteredRows = allRows.filter(r => {
+    if (status && r.enrollment_status !== status) return false;
+    if (!q) return true;
+    return (
+      (r.email || '').toLowerCase().includes(q) ||
+      (r.full_name || '').toLowerCase().includes(q) ||
+      (r.agency_name || '').toLowerCase().includes(q) ||
+      (r.badge_number || '').toLowerCase().includes(q)
+    );
+  });
+
+  filteredRows.sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return  1 * sortDir;
+    return 0;
+  });
+
+  renderTable();
+}
+
+function renderTable() {
+  const wrap = document.getElementById('tableWrap');
+  if (!filteredRows.length) {
+    wrap.innerHTML = '<div class="empty">No students match your filters yet.</div>';
+    return;
+  }
+
+  const cols = [
+    { k: 'email',              t: 'Student' },
+    { k: 'agency_name',        t: 'Agency' },
+    { k: 'enrollment_status',  t: 'Status' },
+    { k: 'lessons_complete',   t: 'Lesson progress' },
+    { k: 'quizzes_passed',     t: 'Quizzes' },
+    { k: 'last_seen_at',       t: 'Last seen' }
+  ];
+
+  const head = '<thead><tr>' + cols.map(c => {
+    const arrow = c.k === sortKey ? (sortDir === -1 ? '▼' : '▲') : '';
+    return '<th data-k="' + c.k + '">' + escapeHtml(c.t) + ' <span class="arrow">' + arrow + '</span></th>';
+  }).join('') + '</tr></thead>';
+
+  const body = filteredRows.map(r => {
+    const pct = TOTAL_LESSONS ? Math.min(100, Math.round((r.lessons_complete || 0) / TOTAL_LESSONS * 100)) : 0;
+    const status = r.enrollment_status || 'not_started';
+    const isOpen = openUserId === r.user_id;
+    const main =
+      '<tr class="user-row ' + (isOpen ? 'open' : '') + '" data-uid="' + escapeHtml(r.user_id) + '">' +
+        '<td class="email">' +
+          escapeHtml(r.email || '—') +
+          (r.full_name ? '<span class="name">' + escapeHtml(r.full_name) + (r.badge_number ? ' • #' + escapeHtml(r.badge_number) : '') + '</span>' : '') +
+        '</td>' +
+        '<td>' + escapeHtml(r.agency_name || '—') + '</td>' +
+        '<td><span class="pill ' + status + '">' + status.replace('_',' ') + '</span></td>' +
+        '<td>' +
+          '<div class="progress-bar"><span style="width:' + pct + '%"></span></div>' +
+          '<div class="progress-meta">' + (r.lessons_complete || 0) + ' / ' + TOTAL_LESSONS + ' • ' + pct + '%</div>' +
+        '</td>' +
+        '<td>' + (r.quizzes_passed || 0) + ' passed<br>' +
+          '<span class="progress-meta">' + (r.quiz_attempts_total || 0) + ' attempt' + ((r.quiz_attempts_total || 0) === 1 ? '' : 's') + '</span>' +
+        '</td>' +
+        '<td>' + fmtDate(r.last_seen_at) + '</td>' +
+      '</tr>';
+
+    const detail = isOpen
+      ? '<tr class="detail-row" data-uid-detail="' + escapeHtml(r.user_id) + '"><td colspan="6">' + renderDetail(r) + '</td></tr>'
+      : '';
+    return main + detail;
+  }).join('');
+
+  wrap.innerHTML = '<table class="users">' + head + '<tbody>' + body + '</tbody></table>';
+
+  // Wire sort
+  wrap.querySelectorAll('th').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.getAttribute('data-k');
+      if (sortKey === k) { sortDir = -sortDir; }
+      else { sortKey = k; sortDir = -1; }
+      applyFilters();
+    });
+  });
+
+  // Wire row toggle
+  wrap.querySelectorAll('tr.user-row').forEach(tr => {
+    tr.addEventListener('click', async () => {
+      const uid = tr.getAttribute('data-uid');
+      openUserId = openUserId === uid ? null : uid;
+      if (openUserId && !detailCache.has(openUserId)) {
+        await loadDetail(openUserId);
+      }
+      renderTable();
+    });
+  });
+}
+
+function renderDetail(r) {
+  const cache = detailCache.get(r.user_id);
+  if (!cache) return '<div class="empty">Loading detail…</div>';
+
+  const lessonsList = cache.lessons.length
+    ? cache.lessons.map(l =>
+        '<li>' +
+          '<span class="lid">' + escapeHtml(l.lesson_id) + '</span>' +
+          (l.complete ? '<span class="quiz-pass">complete</span>' : '<span style="color:var(--muted)">in progress</span>') +
+          '<span class="meta">' + fmtDate(l.last_viewed_at) + '</span>' +
+        '</li>'
+      ).join('')
+    : '<li><span style="color:var(--muted)">No lessons started.</span></li>';
+
+  const quizList = cache.quizzes.length
+    ? cache.quizzes.map(q =>
+        '<li>' +
+          '<span class="lid">' + escapeHtml(q.lesson_id) + '</span>' +
+          '<span class="' + (q.passed ? 'quiz-pass' : 'quiz-fail') + '">' + q.score + '%</span>' +
+          '<span style="color:var(--muted); font-size:11px; margin-left:6px">attempt #' + q.attempt_no + '</span>' +
+          '<span class="meta">' + fmtDate(q.submitted_at) + '</span>' +
+        '</li>'
+      ).join('')
+    : '<li><span style="color:var(--muted)">No quiz attempts yet.</span></li>';
+
+  return '' +
+    '<div class="detail-grid">' +
+      '<div>' +
+        '<h3>Lesson activity (' + cache.lessons.length + ')</h3>' +
+        '<ul class="detail-list">' + lessonsList + '</ul>' +
+      '</div>' +
+      '<div>' +
+        '<h3>Quiz attempts (' + cache.quizzes.length + ')</h3>' +
+        '<ul class="detail-list">' + quizList + '</ul>' +
+      '</div>' +
+    '</div>';
+}
+
+async function loadDetail(uid) {
+  const [lessons, quizzes] = await Promise.all([
+    sbAdmin.from('lesson_progress')
+      .select('lesson_id, complete, last_viewed_at')
+      .eq('user_id', uid)
+      .order('last_viewed_at', { ascending: false }),
+    sbAdmin.from('quiz_attempts')
+      .select('lesson_id, score, passed, attempt_no, submitted_at')
+      .eq('user_id', uid)
+      .order('submitted_at', { ascending: false })
+  ]);
+  if (lessons.error) toast('Lesson load error: ' + lessons.error.message);
+  if (quizzes.error) toast('Quiz load error: ' + quizzes.error.message);
+  detailCache.set(uid, {
+    lessons: lessons.data || [],
+    quizzes: quizzes.data || []
+  });
+}
+
+// ===== Helpers =====
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d)) return '—';
+  const now = Date.now();
+  const diff = (now - d.getTime()) / 1000;
+  if (diff < 60)        return Math.floor(diff) + 's ago';
+  if (diff < 3600)      return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400)     return Math.floor(diff/3600) + 'h ago';
+  if (diff < 86400*14)  return Math.floor(diff/86400) + 'd ago';
+  return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+}
+</script>
+
+</body>
+</html>
