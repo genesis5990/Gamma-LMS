@@ -54,10 +54,15 @@ check "admin shell"                 200 "/admin.html"       "Admin Dashboard"
 check "supabase config"            200 "/config.js"        "SUPABASE_URL"
 check "auth helper"                200 "/auth.js"          "signInWithEmail"
 check "course data"                200 "/course_data.json" '"lessons"'
+check "tenant routing (deconflict)" 200 "/deconflict"      "Crypto 101"
+check "tenant admin routing"        200 "/deconflict/admin" "Admin Dashboard"
+check "super-admin route"           200 "/admin"            "Admin Dashboard"
+check "verify page"                 200 "/verify"           "Verify certificate"
+check "deconflict logo"             200 "/assets/tenants/deconflict/Logo-With-Text-White.svg"
 
 # ---- Fallback behavior -----------------------------------------------------
-# Server is intentionally SPA-ish: unknown routes return course.html (200).
-check "unknown route fallback"     200 "/this-should-not-exist.html" "Crypto 101"
+# Unknown routes serve the neutral GDAA landing with a 404 status.
+check "unknown route fallback"     404 "/this-should-not-exist.html" "Genesis Digital Assets Academy"
 
 # ---- Smoke-only checks for production endpoints ----------------------------
 # These only run when BASE is https://...
