@@ -739,7 +739,9 @@ function renderModule1Stub() {
 // ============================================================================
 // Boot — wait for auth, then either show sign-in modal or load the course.
 async function boot() {
-  await window.authReady;
+  // Wait for tenant config too so the sign-in modal is branded for the tenant
+  // and the inline "Request access" link is wired up before the modal appears.
+  await Promise.all([window.authReady, window.tenantReady].filter(Boolean));
   const user = window.currentUser();
   if (!user) {
     document.getElementById('authOverlay').style.display = 'flex';

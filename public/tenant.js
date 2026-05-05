@@ -47,6 +47,39 @@
     });
   }
 
+  // Rebrand the sign-in overlay headline/body for tenant pages.
+  // Falls back silently if the overlay isn't on the page.
+  function applyAuthModalBranding(t) {
+    const overlay = document.getElementById('authOverlay');
+    if (!overlay) return;
+    const h2 = overlay.querySelector('h2');
+    if (!h2) return;
+    if (t && t.slug && t.name) {
+      h2.textContent = `Sign in to ${t.name}`;
+    } else if (t && t.slug === 'deconflict') {
+      // Hardcoded fallback per spec, in case name is missing.
+      h2.textContent = 'Sign in to Deconflict Training';
+    }
+  }
+
+  // Inject a "Request access" CTA inside the sign-in modal on gated tenant
+  // pages. Shares the same handler/form as the floating launcher.
+  function injectAuthModalRequestLink(tenant) {
+    const overlay = document.getElementById('authOverlay');
+    if (!overlay) return;
+    if (overlay.querySelector('#authRequestAccessLink')) return;
+    const sendBtn = overlay.querySelector('#authSend');
+    if (!sendBtn) return;
+    const wrap = document.createElement('p');
+    wrap.style.cssText = 'margin:14px 0 0; font-size:13px; text-align:center;';
+    wrap.innerHTML = `Don't have access yet? <a href="#" id="authRequestAccessLink" style="color:#1f63d6; font-weight:600; text-decoration:none;">Request access &rarr;</a>`;
+    sendBtn.insertAdjacentElement('afterend', wrap);
+    wrap.querySelector('#authRequestAccessLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      if (typeof window.openRequestAccess === 'function') window.openRequestAccess();
+    });
+  }
+
   applyTheme(DEFAULT_THEME);
 
   window.tenantReady = (async () => {
@@ -81,9 +114,13 @@
     }
     window.TENANT_CONFIG = { ...window.tenant };
 
+    // Phase 3.6: rebrand the sign-in overlay headline for all tenant pages.
+    applyAuthModalBranding(window.tenant);
+
     // Phase 3: when enrollment is gated, show a "Request access" affordance.
     if (['request_approval', 'invite_only'].includes(window.tenant?.enrollment_mode)) {
       ensureRequestAccessUI(window.tenant);
+      injectAuthModalRequestLink(window.tenant);
     }
     return window.tenant;
   })();
@@ -99,14 +136,14 @@
     const style = document.createElement('style');
     style.textContent = `
       .ra-launcher {
-        position: fixed; bottom: 18px; right: 18px; z-index: 9000;
+        position: fixed; bottom: 18px; right: 18px; z-index: 100000;
         background: #1f63d6; color:#fff; border:0; border-radius: 999px;
         padding: 12px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
         box-shadow: 0 4px 14px rgba(13,20,36,.25);
       }
       .ra-launcher:hover { background: #0a3d91; }
       .ra-overlay {
-        position: fixed; inset: 0; background: rgba(13,20,36,.55); z-index: 9100;
+        position: fixed; inset: 0; background: rgba(13,20,36,.55); z-index: 100001;
         display:none; align-items:center; justify-content:center; padding: 20px;
       }
       .ra-overlay.show { display:flex; }
@@ -178,10 +215,13 @@
     `;
     document.body.appendChild(overlay);
 
+    const open = () => overlay.classList.add('show');
     const close = () => overlay.classList.remove('show');
-    launcher.addEventListener('click', () => overlay.classList.add('show'));
+    launcher.addEventListener('click', open);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.querySelector('#raCancel').addEventListener('click', close);
+    // Expose for the inline auth-modal link (Phase 3.6).
+    window.openRequestAccess = open;
 
     overlay.querySelector('#reqAccessForm').addEventListener('submit', async (e) => {
       e.preventDefault();
