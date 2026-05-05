@@ -1,8 +1,8 @@
 # fly.toml for mygenesis-training (Crypto 101 LMS)
-# Recycles the existing app slot from the old GDAA project.
+# App provisioned in personal org, region ams.
 
-app = 'gdaa-training-courses'
-primary_region = 'ord'
+app = 'mygenesis-training'
+primary_region = 'ams'
 
 [build]
 
@@ -22,6 +22,6 @@ primary_region = 'ord'
   path = '/health'
 
 [[vm]]
-  memory = '512mb'
+  memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
