@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crypto 101 for Law Enforcement — Course (Demo)</title>
+<style>
+  :root {
+    --ink:        #0d1424;
+    --ink-2:      #1d2a47;
+    --paper:      #f7f8fc;
+    --paper-2:    #ffffff;
+    --line:       #d9dfee;
+    --line-2:     #e8ecf6;
+    --accent:     #1f63d6;
+    --accent-2:   #0a3d91;
+    --gold:       #c8a64a;
+    --good:       #2a9355;
+    --bad:        #c94545;
+    --warn:       #b97a09;
+    --muted:      #5b6788;
+    --shadow:     0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: var(--paper);
+  }
+  a { color: var(--accent-2); }
+
+  /* ===== Top course chrome ===== */
+  header.course {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color: #fff;
+    border-bottom: 3px solid var(--gold);
+    padding: 14px 22px;
+  }
+  header.course .row { display:flex; align-items:center; gap:14px; max-width:1400px; margin:0 auto; }
+  header.course .badge {
+    width:46px; height:46px; border-radius:8px;
+    background: var(--gold); color: var(--ink);
+    display:grid; place-items:center; font-weight:800; font-size:18px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,.15);
+  }
+  header.course h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
+  header.course .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+  header.course .actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  header.course .btn-ghost {
+    background: transparent; color:#fff; border:1px solid rgba(255,255,255,.2);
+    padding: 7px 12px; border-radius: 6px; font-size: 13px; cursor:pointer;
+  }
+  header.course .btn-ghost:hover { background: rgba(255,255,255,.08); }
+
+  /* ===== Layout ===== */
+  .wrap { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 78px); }
+  @media (max-width: 900px) {
+    .wrap { grid-template-columns: 1fr; }
+    aside.sidebar { position: sticky; top: 0; z-index: 5; max-height: 50vh; overflow:auto; }
+  }
+
+  /* ===== Sidebar ===== */
+  aside.sidebar {
+    background: var(--paper-2);
+    border-right: 1px solid var(--line);
+    padding: 18px 14px 40px;
+  }
+  .module-block { margin-bottom: 10px; }
+  .module-head {
+    font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); padding: 12px 8px 6px; font-weight: 700;
+  }
+  .lesson-link {
+    display:flex; align-items:center; gap:10px;
+    padding: 9px 10px; border-radius: 6px;
+    cursor: pointer; user-select:none;
+    border: 1px solid transparent;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .lesson-link:hover { background: var(--paper); }
+  .lesson-link.active { background: #eef3ff; border-color: #c8d6f5; }
+  .lesson-link.locked { opacity: .55; }
+  .lesson-link .lnum {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted); font-size: 12px; min-width: 28px;
+  }
+  .lesson-link .ltitle { flex:1; line-height:1.35; }
+  .lesson-link .lstat {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid var(--line); flex:none;
+  }
+  .lesson-link.done .lstat { background: var(--good); border-color: var(--good); position: relative; }
+  .lesson-link.done .lstat::after {
+    content: ""; position:absolute; left:5px; top:2px; width:5px; height:9px;
+    border:solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .lesson-link.in-progress .lstat { border-color: var(--accent); border-style: dashed; }
+  .lesson-link .qbadge {
+    font-size: 10px; padding: 2px 6px; border-radius: 999px;
+    background: #e8ecf6; color: var(--muted); margin-left: 4px;
+  }
+  .lesson-link .qbadge.passed { background: #d8f0e2; color: #1b6b3d; }
+  .lesson-link .qbadge.failed { background: #fbe0e0; color: #8a1a1a; }
+  .progress-card {
+    background: linear-gradient(180deg, #fafbff 0%, #f1f4ff 100%);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; margin-bottom: 14px;
+  }
+  .progress-card .pct { font-size: 22px; font-weight: 700; color: var(--ink); }
+  .progress-card .lab { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom:6px; }
+  .progress-bar { height: 6px; background: var(--line); border-radius: 3px; overflow:hidden; }
+  .progress-bar > div { height: 100%; background: var(--accent); transition: width .3s; }
+
+  /* ===== Main panel ===== */
+  main.content { padding: 28px clamp(20px, 4vw, 56px) 60px; min-width: 0; }
+
+  .crumb { font-size: 12px; color: var(--muted); margin-bottom: 8px; letter-spacing: .5px; text-transform: uppercase; }
+  .crumb b { color: var(--ink); font-weight: 600; }
+  h2.lesson-title {
+    font-size: 26px; line-height: 1.25; margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .lesson-meta { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+  .lesson-card {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow);
+    padding: 26px clamp(18px, 3vw, 32px);
+  }
+  /* Inherit some agency styles from injected lesson HTML */
+  .lesson-card h2 {
+    color: var(--ink-2); font-size: 20px; margin: 18px 0 10px;
+    border-left: 4px solid var(--accent); padding-left: 12px;
+  }
+  .lesson-card h3 { color: var(--ink-2); margin: 18px 0 8px; font-size: 17px; }
+  .lesson-card h4 { color: var(--ink-2); margin: 14px 0 6px; font-size: 15px; }
+  .lesson-card p { margin: 0 0 14px; }
+  .lesson-card ul, .lesson-card ol { margin: 6px 0 14px 22px; }
+  .lesson-card li { margin: 4px 0; }
+  .lesson-card a { color: var(--accent-2); }
+  .lesson-card audio {
+    width: 100%; margin: 10px 0 18px; display: block;
+    border-radius: 6px;
+  }
+  .lesson-card img {
+    max-width: 100%; height:auto; border-radius: 6px; margin: 8px 0;
+  }
+  .lesson-card .step-footer { display:none; }       /* hide source nav */
+  .lesson-card .nav-button { display:none; }
+  .lesson-card .page-indicator { display:none; }
+
+  /* Page navigation footer */
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 22px; gap: 10px; flex-wrap: wrap;
+  }
+  .pager .pageinfo { font-size: 13px; color: var(--muted); }
+  .btn {
+    padding: 10px 18px; border-radius: 6px; border: 1px solid transparent;
+    font-weight: 600; cursor: pointer; font-size: 14px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-2); }
+  .btn-secondary { background: #fff; color: var(--ink); border-color: var(--line); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent-2); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ===== Quiz ===== */
+  .quiz-block {
+    background: #fafbff; border: 1px solid var(--line); border-left: 4px solid var(--gold);
+    border-radius: 8px; padding: 18px 20px; margin-top: 26px;
+  }
+  .quiz-block .qhead {
+    font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--gold); font-weight: 700; margin-bottom: 6px;
+  }
+  .quiz-block h3 { margin: 0 0 6px; font-size: 17px; }
+  .quiz-block .qmeta { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .quiz-q { margin-bottom: 16px; }
+  .quiz-q .stem { font-weight: 600; margin-bottom: 8px; }
+  .quiz-q .opts { list-style: none; padding: 0; margin: 0; }
+  .quiz-q .opts li { margin: 0 0 6px; }
+  .quiz-q .opts label {
+    display: flex; gap: 10px; padding: 9px 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: #fff; cursor: pointer;
+    line-height: 1.4;
+  }
+  .quiz-q .opts label:hover { border-color: var(--accent); }
+  .quiz-q .opts input { margin-top: 3px; }
+  .quiz-q.correct .opts label.chosen { border-color: var(--good); background: #f0faf3; }
+  .quiz-q.incorrect .opts label.chosen { border-color: var(--bad); background: #fdf3f3; }
+  .quiz-q.graded .opts label.is-correct { border-color: var(--good); background: #f0faf3; font-weight: 600; }
+  .quiz-q .feedback { font-size: 13px; margin-top: 6px; padding: 8px 10px; border-radius: 4px; display:none; }
+  .quiz-q.correct .feedback.ok { display:block; background: #e8f5ec; color: #1b6b3d; }
+  .quiz-q.incorrect .feedback.no { display:block; background: #fbecec; color: #8a1a1a; }
+  .quiz-result {
+    margin-top: 14px; padding: 12px 14px; border-radius: 6px;
+    font-weight: 600; display: none;
+  }
+  .quiz-result.passed { display:block; background: #e8f5ec; color: #1b6b3d; border: 1px solid #b9e0c4; }
+  .quiz-result.failed { display:block; background: #fbecec; color: #8a1a1a; border: 1px solid #ecc1c1; }
+  .quiz-actions { display:flex; gap:10px; margin-top: 12px; }
+  .synth-warn {
+    font-size: 12px; background: #fff7e6; color: var(--warn);
+    border: 1px dashed #f0c976; border-radius: 4px; padding: 6px 10px; margin-bottom: 10px;
+  }
+
+  /* Module 1 stub */
+  .stub {
+    background: #fff; border: 2px dashed var(--line); border-radius: 10px;
+    padding: 32px; text-align: center; color: var(--muted);
+  }
+  .stub h3 { color: var(--ink); margin: 0 0 8px; }
+
+  /* Demo banner */
+  .demo-banner {
+    background: linear-gradient(90deg, #fff7e6 0%, #fff2d4 100%);
+    border-bottom: 1px solid #f0c976;
+    color: #6e4a07; font-size: 13px;
+    padding: 8px 22px; text-align: center;
+  }
+  .demo-banner b { color: #4a3206; }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  <b>Demo build</b> — clickable end-to-end flow of all 12 source files. Some quiz answer keys are placeholders pending review. No backend yet.
+</div>
+
+<header class="course">
+  <div class="row">
+    <div class="badge">G</div>
+    <div>
+      <h1>Crypto 101 for Law Enforcement</h1>
+      <div class="sub">Genesis Digital Assets Academy</div>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" id="resetBtn" title="Clear progress">Reset progress</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content" id="content"></main>
+</div>
+
+<script>
+// ============================================================================
+// COURSE_DATA is loaded from course_data.json (via fetch on load)
+// ============================================================================
+let COURSE = null;
+
+const STORAGE_KEY = 'crypto101_progress_v1';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
+let progress = loadProgress();
+// Schema: { lessonId: { viewedPages: [0,1,...], complete: bool, quizScore: 0-1, quizPassed: bool } }
+
+// ============================================================================
+// Render sidebar
+// ============================================================================
+function buildSidebar() {
+  const sb = document.getElementById('sidebar');
+  // progress card
+  const allLessons = COURSE.lesson_map.filter(l => l.type !== 'quiz');
+  const allQuizzes = Object.keys(COURSE.quizzes);
+  const totalUnits = allLessons.length + allQuizzes.length;
+  let doneUnits = 0;
+  for (const l of allLessons) if (progress[l.id]?.complete) doneUnits++;
+  for (const qid of allQuizzes) if (progress[qid + ':quiz']?.passed) doneUnits++;
+  const pct = totalUnits ? Math.round(100 * doneUnits / totalUnits) : 0;
+
+  let html = `
+    <div class="progress-card">
+      <div class="lab">Course Progress</div>
+      <div class="pct">${pct}%</div>
+      <div class="progress-bar"><div style="width:${pct}%"></div></div>
+    </div>
+  `;
+
+  // Module 1
+  html += `<div class="module-block"><div class="module-head">Module 1 — Foundations</div>`;
+  for (const l of COURSE.lesson_map) {
+    if (l.module !== 1) continue;
+    if (l.type === 'quiz') continue;
+    const p = progress[l.id] || {};
+    const quizP = progress[l.id + ':quiz'];
+    let cls = 'lesson-link';
+    if (p.complete) cls += ' done';
+    else if ((p.viewedPages || []).length > 0) cls += ' in-progress';
+    let qbadge = '';
+    if (COURSE.quizzes[l.id]) {
+      if (quizP?.passed) qbadge = '<span class="qbadge passed">Quiz ✓</span>';
+      else if (quizP) qbadge = '<span class="qbadge failed">Retry quiz</span>';
+      else qbadge = '<span class="qbadge">Quiz</span>';
+    }
+    html += `
+      <div class="${cls}" data-id="${l.id}">
+        <span class="lnum">${l.num}</span>
+        <span class="ltitle">${l.title} ${qbadge}</span>
+        <span class="lstat"></span>
+      </div>`;
+  }
+  html += `</div>`;
+
+  // Module 2
+  html += `<div class="module-block"><div class="module-head">Module 2 — The Genesis of Bitcoin</div>`;
+  for (const l of COURSE.lesson_map) {
+    if (l.module !== 2) continue;
+    if (l.type === 'quiz') continue;
+    const p = progress[l.id] || {};
+    const quizP = progress[l.id + ':quiz'];
+    let cls = 'lesson-link';
+    if (p.complete) cls += ' done';
+    else if ((p.viewedPages || []).length > 0) cls += ' in-progress';
+    let qbadge = '';
+    if (COURSE.quizzes[l.id]) {
+      if (quizP?.passed) qbadge = '<span class="qbadge passed">Quiz ✓</span>';
+      else if (quizP) qbadge = '<span class="qbadge failed">Retry quiz</span>';
+      else qbadge = '<span class="qbadge">Quiz</span>';
+    }
+    html += `
+      <div class="${cls}" data-id="${l.id}">
+        <span class="lnum">${l.num}</span>
+        <span class="ltitle">${l.title} ${qbadge}</span>
+        <span class="lstat"></span>
+      </div>`;
+  }
+  html += `</div>`;
+
+  // Module 3
+  html += `<div class="module-block"><div class="module-head">Module 3 — Bitcoin as National Standard</div>`;
+  for (const l of COURSE.lesson_map) {
+    if (l.module !== 3) continue;
+    const p = progress[l.id] || {};
+    const quizP = progress[l.id + ':quiz'];
+    let cls = 'lesson-link';
+    if (p.complete) cls += ' done';
+    else if ((p.viewedPages || []).length > 0) cls += ' in-progress';
+    let qbadge = '';
+    if (COURSE.quizzes[l.id]) {
+      if (quizP?.passed) qbadge = '<span class="qbadge passed">Quiz ✓</span>';
+      else if (quizP) qbadge = '<span class="qbadge failed">Retry quiz</span>';
+      else qbadge = '<span class="qbadge">Quiz</span>';
+    }
+    html += `
+      <div class="${cls}" data-id="${l.id}">
+        <span class="lnum">${l.num}</span>
+        <span class="ltitle">${l.title} ${qbadge}</span>
+        <span class="lstat"></span>
+      </div>`;
+  }
+  html += `</div>`;
+
+  // Final cert (stub)
+  html += `<div class="module-block">
+    <div class="module-head">Completion</div>
+    <div class="lesson-link locked" data-id="finalstub"><span class="lnum">★</span><span class="ltitle">Final exam &amp; certificate (stub)</span><span class="lstat"></span></div>
+  </div>`;
+
+  sb.innerHTML = html;
+
+  // Click handlers
+  sb.querySelectorAll('.lesson-link').forEach(el => {
+    const id = el.getAttribute('data-id');
+    if (id === 'finalstub') {
+      el.addEventListener('click', () => renderFinalStub());
+    } else if (id) {
+      el.addEventListener('click', () => renderLesson(id));
+    }
+  });
+
+  // Highlight active
+  if (window.__activeId) {
+    const a = sb.querySelector(`[data-id="${window.__activeId}"]`);
+    if (a) a.classList.add('active');
+  }
+}
+
+// ============================================================================
+// Render lesson
+// ============================================================================
+function renderLesson(lid) {
+  window.__activeId = lid;
+  const meta = COURSE.metadata[lid];
+  const pages = COURSE.lessons[lid] || [];
+  if (!progress[lid]) progress[lid] = { viewedPages: [], complete: false };
+  const lp = progress[lid];
+
+  let pageIdx = 0;
+  function showPage(i) {
+    pageIdx = Math.max(0, Math.min(i, pages.length - 1));
+    if (!lp.viewedPages.includes(pageIdx)) lp.viewedPages.push(pageIdx);
+    if (lp.viewedPages.length >= pages.length) lp.complete = true;
+    saveProgress(progress);
+
+    const page = pages[pageIdx];
+    let inner = '';
+    if (page.audio) {
+      inner += `<audio controls preload="metadata" style="width:100%; margin-bottom:14px;"><source src="${page.audio}" type="audio/mpeg"></audio>`;
+    }
+    inner += page.html;
+
+    const moduleLabel = meta.module === 1 ? 'Module 1 — Foundations'
+                      : meta.module === 2 ? 'Module 2 — The Genesis of Bitcoin'
+                      : meta.module === 3 ? 'Module 3 — Bitcoin as National Standard'
+                      : 'Course';
+
+    const isLastPage = (pageIdx === pages.length - 1);
+    const hasQuiz = !!COURSE.quizzes[lid];
+
+    document.getElementById('content').innerHTML = `
+      <div class="crumb">${moduleLabel} &nbsp;›&nbsp; <b>Lesson ${meta.num}</b></div>
+      <h2 class="lesson-title">${meta.title}</h2>
+      <div class="lesson-meta">${pages.length > 1 ? `Page ${pageIdx+1} of ${pages.length}` : 'Single-page lesson'}${page.audio ? ' · Audio narration included' : ''}</div>
+      <div class="lesson-card">${inner}</div>
+      <div class="pager">
+        <button class="btn btn-secondary" id="prevBtn" ${pageIdx === 0 ? 'disabled' : ''}>← Previous</button>
+        <span class="pageinfo">${pages.length > 1 ? `${pageIdx+1} / ${pages.length}` : ''}</span>
+        ${ isLastPage
+            ? (hasQuiz
+                ? `<button class="btn btn-primary" id="nextBtn">Take quiz →</button>`
+                : `<button class="btn btn-primary" id="nextBtn">Mark complete & continue →</button>`)
+            : `<button class="btn btn-primary" id="nextBtn">Next page →</button>` }
+      </div>
+      ${ hasQuiz && isLastPage ? renderQuiz(lid) : '' }
+    `;
+
+    document.getElementById('prevBtn').addEventListener('click', () => showPage(pageIdx - 1));
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (isLastPage) {
+        if (hasQuiz) {
+          document.querySelector('.quiz-block')?.scrollIntoView({behavior:'smooth', block:'start'});
+        } else {
+          goNextLesson(lid);
+        }
+      } else {
+        showPage(pageIdx + 1);
+      }
+    });
+
+    if (hasQuiz && isLastPage) wireQuiz(lid);
+
+    buildSidebar();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // Resume on last viewed page if any, else page 0
+  const resume = lp.viewedPages.length ? Math.max(...lp.viewedPages) : 0;
+  showPage(resume);
+}
+
+// ============================================================================
+// Quiz rendering & grading
+// ============================================================================
+// Per-quiz shuffled choice order — stored on a window var so re-renders within
+// the same lesson view stay stable, but a fresh lesson load reshuffles.
+let QUIZ_ORDER = {};   // qi -> [originalKey, ...]
+
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function renderQuiz(lid) {
+  const qs = COURSE.quizzes[lid];
+  if (!qs || qs.length === 0) return '';
+  const isSynth = qs[0]?.synth;
+  // Build a fresh shuffled order for each question
+  QUIZ_ORDER = {};
+  qs.forEach((q, qi) => {
+    QUIZ_ORDER[qi] = shuffleArray(q.choices.map(c => c.key));
+  });
+
+  let html = `<div class="quiz-block" id="quizBlock">
+    <div class="qhead">Check Your Understanding</div>
+    <h3>Lesson ${COURSE.metadata[lid].num} Quiz</h3>
+    <div class="qmeta">${qs.length} question${qs.length>1?'s':''} · 70% to pass · unlimited retakes · choices shuffled each attempt</div>
+    ${isSynth ? '<div class="synth-warn">⚠ Demo quiz (auto-generated questions). Replace with vetted bank before launch.</div>' : ''}
+  `;
+  qs.forEach((q, qi) => {
+    const order = QUIZ_ORDER[qi];
+    const choicesByKey = Object.fromEntries(q.choices.map(c => [c.key, c]));
+    html += `<div class="quiz-q" data-qi="${qi}">
+      <div class="stem">${qi+1}. ${q.question}</div>
+      <ul class="opts">
+        ${order.map((origKey, displayIdx) => {
+          const c = choicesByKey[origKey];
+          const displayLetter = String.fromCharCode(65 + displayIdx); // A,B,C,D
+          return `<li><label data-orig-key="${origKey}">
+            <input type="radio" name="lq_${lid}_${qi}" value="${origKey}">
+            <span><b>${displayLetter}.</b> ${c.text}</span>
+          </label></li>`;
+        }).join('')}
+      </ul>
+      <div class="feedback ok">✓ Correct.</div>
+      <div class="feedback no">✗ Not quite — review the lesson and try again.</div>
+    </div>`;
+  });
+  html += `<div class="quiz-result" id="quizResult"></div>
+    <div class="quiz-actions">
+      <button class="btn btn-primary" id="submitQuiz">Submit answers</button>
+      <button class="btn btn-secondary" id="reviewLesson" style="display:none;">← Review lesson</button>
+      <button class="btn btn-secondary" id="retryQuiz" style="display:none;">Retry</button>
+      <button class="btn btn-primary" id="continueAfterQuiz" style="display:none;">Continue →</button>
+    </div>
+  </div>`;
+  return html;
+}
+
+function wireQuiz(lid) {
+  const qs = COURSE.quizzes[lid];
+  const submit = document.getElementById('submitQuiz');
+  const retry = document.getElementById('retryQuiz');
+  const review = document.getElementById('reviewLesson');
+  const cont = document.getElementById('continueAfterQuiz');
+  const result = document.getElementById('quizResult');
+
+  document.querySelectorAll('.quiz-q .opts input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const ul = inp.closest('.opts');
+      ul.querySelectorAll('label').forEach(l => l.classList.remove('chosen'));
+      inp.closest('label').classList.add('chosen');
+    });
+  });
+
+  submit.addEventListener('click', () => {
+    let correctCount = 0;
+    let unanswered = 0;
+    qs.forEach((q, qi) => {
+      const node = document.querySelector(`.quiz-q[data-qi="${qi}"]`);
+      const sel = node.querySelector('input:checked');
+      const chosenKey = sel ? sel.value : null;
+      if (!chosenKey) unanswered++;
+      const isCorrect = chosenKey === q.correct;
+      node.classList.add('graded');
+      node.classList.remove('correct','incorrect');
+      node.classList.add(isCorrect ? 'correct' : 'incorrect');
+      node.querySelectorAll('.opts label').forEach(lab => {
+        if (lab.getAttribute('data-orig-key') === q.correct) lab.classList.add('is-correct');
+      });
+      if (isCorrect) correctCount++;
+    });
+    const pct = correctCount / qs.length;
+    const passed = pct >= 0.7;
+    progress[lid + ':quiz'] = { score: pct, passed, when: Date.now() };
+    saveProgress(progress);
+    result.className = 'quiz-result ' + (passed ? 'passed' : 'failed');
+    let resultMsg = `Score: ${correctCount}/${qs.length} (${Math.round(pct*100)}%) — ${passed ? 'Passed ✓' : 'Did not pass — review and retry.'}`;
+    if (unanswered > 0) resultMsg += ` (${unanswered} unanswered)`;
+    result.textContent = resultMsg;
+    submit.style.display = 'none';
+    retry.style.display = passed ? 'none' : '';
+    review.style.display = passed ? 'none' : '';
+    cont.style.display = passed ? '' : 'none';
+    buildSidebar();
+  });
+
+  retry.addEventListener('click', () => {
+    document.querySelectorAll('.quiz-q').forEach(n => {
+      n.classList.remove('graded','correct','incorrect');
+      n.querySelectorAll('input').forEach(i => i.checked = false);
+      n.querySelectorAll('label').forEach(l => l.classList.remove('chosen','is-correct'));
+    });
+    result.className = 'quiz-result';
+    result.textContent = '';
+    submit.style.display = '';
+    retry.style.display = 'none';
+    review.style.display = 'none';
+    // Reshuffle on retry so memorization isn't possible
+    renderLesson(lid);
+  });
+
+  review.addEventListener('click', () => {
+    // Re-open lesson at first page
+    progress[lid].viewedPages = [0];
+    saveProgress(progress);
+    renderLesson(lid);
+  });
+
+  cont.addEventListener('click', () => goNextLesson(lid));
+}
+
+function goNextLesson(currentId) {
+  const lessons = COURSE.lesson_map.filter(l => l.type !== 'quiz');
+  const idx = lessons.findIndex(l => l.id === currentId);
+  if (idx >= 0 && idx < lessons.length - 1) {
+    renderLesson(lessons[idx+1].id);
+  } else {
+    document.getElementById('content').innerHTML = `
+      <div class="crumb">Course Complete</div>
+      <h2 class="lesson-title">🎓 You've reached the end of the demo content.</h2>
+      <div class="lesson-card">
+        <p>You've worked through all currently-available lessons in Modules 2 and 3. In the production course this is where the final exam and certificate would unlock.</p>
+        <p><b>Still to come:</b></p>
+        <ul>
+          <li>Module 1 — 9 foundational lessons (drawn from the book)</li>
+          <li>Module 4+ — Investigations, exchanges, smart contracts, expert witness, etc.</li>
+          <li>Final comprehensive exam (drawn from the book's test bank)</li>
+          <li>Backend: student accounts, progress sync, certificates, department reporting</li>
+        </ul>
+      </div>
+    `;
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+}
+
+function renderFinalStub() {
+  window.__activeId = 'finalstub';
+  document.getElementById('content').innerHTML = `
+    <div class="crumb">Course Completion</div>
+    <h2 class="lesson-title">Final Exam &amp; Certificate</h2>
+    <div class="lesson-meta">Coming soon — unlocks once all modules are complete</div>
+    <div class="stub">
+      <h3>Planned: 25-question comprehensive exam</h3>
+      <p style="margin-top:8px;">Drawn from the test bank in the textbook (test bank starts at line 561 of the source). Students who pass with 80%+ unlock a downloadable PDF certificate of completion (with name, date, course title, and a verification code lookup).</p>
+      <p style="margin-top:14px; font-size:13px;">Backend required — see backend scope discussion.</p>
+    </div>
+  `;
+  buildSidebar();
+}
+
+function renderModule1Stub() {
+  window.__activeId = 'm1stub';
+  document.getElementById('content').innerHTML = `
+    <div class="crumb">Module 1 — Foundations</div>
+    <h2 class="lesson-title">Coming Soon</h2>
+    <div class="lesson-meta">Pending build from the book content</div>
+    <div class="stub">
+      <h3>9 foundational lessons proposed</h3>
+      <p style="margin-top:8px;">Pulled from the early chapters of the textbook — covers terminology, the role of money, public-key crypto basics, what a wallet is, and how transactions actually move on a public ledger. This module gives recruits the conceptual scaffolding they need before Modules 2 &amp; 3.</p>
+      <p style="margin-top:14px; font-size:13px;">Awaiting your sign-off to build.</p>
+    </div>
+  `;
+  buildSidebar();
+}
+
+// ============================================================================
+// Boot
+// ============================================================================
+fetch('course_data.json')
+  .then(r => r.json())
+  .then(data => {
+    COURSE = data;
+    buildSidebar();
+    // Default to first lesson
+    const first = COURSE.lesson_map.find(l => l.type !== 'quiz');
+    if (first) renderLesson(first.id);
+  })
+  .catch(e => {
+    document.getElementById('content').innerHTML = `<div class="lesson-card" style="color:var(--bad);">Failed to load course data: ${e.message}</div>`;
+  });
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (confirm('Clear all course progress?')) {
+    localStorage.removeItem(STORAGE_KEY);
+    progress = {};
+    buildSidebar();
+    const first = COURSE.lesson_map.find(l => l.type !== 'quiz');
+    if (first) renderLesson(first.id);
+  }
+});
+</script>
+</body>
+</html>

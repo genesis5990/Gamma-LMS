@@ -1,0 +1,144 @@
+// =====================================================================
+// auth.js — Supabase auth + progress sync for Crypto 101
+// Replaces the localStorage-based progress layer in course.html.
+// Exposes:
+//   window.authReady       — Promise that resolves when auth state is known
+//   window.currentUser()   — returns Supabase user or null
+//   window.signOut()       — signs out and reloads
+//   window.loadProgress()  — async, returns the same shape as before
+//   window.saveLessonProgress(lessonId, viewedPages, complete)
+//   window.saveQuizAttempt(lessonId, score, passed, answers)
+//   window.markCourseComplete(finalScore)
+// =====================================================================
+
+const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+let _user = null;
+
+window.authReady = (async () => {
+  // Handle magic-link callback (?code=... or #access_token=...)
+  const { data } = await sb.auth.getSession();
+  _user = data.session?.user || null;
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    _user = session?.user || null;
+  });
+})();
+
+window.currentUser = () => _user;
+
+window.signOut = async () => {
+  await sb.auth.signOut();
+  window.location.reload();
+};
+
+window.signInWithEmail = async (email) => {
+  const redirect = window.location.origin + window.location.pathname;
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirect }
+  });
+  if (error) throw error;
+};
+
+// =====================================================================
+// PROGRESS LAYER — same shape the old course.html expected.
+// {
+//   "<lesson_id>": { viewedPages: [int], complete: bool },
+//   "<lesson_id>:quiz": { score: 0..1, passed: bool, when: ms }
+// }
+// =====================================================================
+window.loadProgress = async () => {
+  if (!_user) return {};
+  const [lessons, quizzes] = await Promise.all([
+    sb.from('lesson_progress').select('lesson_id, viewed_pages, complete').eq('user_id', _user.id),
+    sb.from('quiz_attempts').select('lesson_id, score, passed, attempt_no, submitted_at')
+       .eq('user_id', _user.id).order('attempt_no', { ascending: false })
+  ]);
+
+  const out = {};
+  for (const r of (lessons.data || [])) {
+    out[r.lesson_id] = { viewedPages: r.viewed_pages || [], complete: !!r.complete };
+  }
+  // Take the latest attempt per lesson
+  const seen = new Set();
+  for (const a of (quizzes.data || [])) {
+    if (seen.has(a.lesson_id)) continue;
+    seen.add(a.lesson_id);
+    out[a.lesson_id + ':quiz'] = {
+      score: (a.score || 0) / 100,
+      passed: !!a.passed,
+      when: new Date(a.submitted_at).getTime()
+    };
+  }
+  return out;
+};
+
+// Debounced lesson-progress writer — avoid hammering the API on every page tick
+const _pendingLessonWrites = new Map();
+let _flushTimer = null;
+function _scheduleFlush() {
+  if (_flushTimer) return;
+  _flushTimer = setTimeout(async () => {
+    _flushTimer = null;
+    const rows = Array.from(_pendingLessonWrites.values());
+    _pendingLessonWrites.clear();
+    if (!rows.length || !_user) return;
+    await sb.from('lesson_progress').upsert(rows, { onConflict: 'user_id,lesson_id' });
+  }, 600);
+}
+
+window.saveLessonProgress = (lessonId, viewedPages, complete) => {
+  if (!_user) return;
+  _pendingLessonWrites.set(lessonId, {
+    user_id: _user.id,
+    lesson_id: lessonId,
+    viewed_pages: viewedPages,
+    complete: !!complete,
+    last_viewed_at: new Date().toISOString()
+  });
+  _scheduleFlush();
+};
+
+window.saveQuizAttempt = async (lessonId, score, passed, answers) => {
+  if (!_user) return;
+  // Get next attempt_no
+  const { data: prev } = await sb.from('quiz_attempts')
+    .select('attempt_no').eq('user_id', _user.id).eq('lesson_id', lessonId)
+    .order('attempt_no', { ascending: false }).limit(1);
+  const attemptNo = (prev?.[0]?.attempt_no || 0) + 1;
+  await sb.from('quiz_attempts').insert({
+    user_id: _user.id,
+    lesson_id: lessonId,
+    attempt_no: attemptNo,
+    score: Math.round(score * 100),
+    passed: !!passed,
+    answers
+  });
+};
+
+window.markCourseComplete = async (finalScore) => {
+  if (!_user) return;
+  await sb.from('enrollments')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('user_id', _user.id).eq('course_id', window.COURSE_ID);
+  await sb.from('certificates').upsert({
+    user_id: _user.id,
+    course_id: window.COURSE_ID,
+    final_score: Math.round((finalScore || 0) * 100),
+    pdf_url: null
+  }, { onConflict: 'user_id,course_id' });
+};
+
+window.updateProfile = async (patch) => {
+  if (!_user) return;
+  await sb.from('profiles').update(patch).eq('id', _user.id);
+};
+
+window.getProfile = async () => {
+  if (!_user) return null;
+  const { data } = await sb.from('profiles').select('*').eq('id', _user.id).single();
+  return data;
+};
