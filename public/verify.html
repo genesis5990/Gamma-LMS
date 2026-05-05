@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verify certificate — Genesis Digital Assets Academy</title>
+<meta name="description" content="Verify the authenticity of a Genesis Digital Assets Academy completion certificate." />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<style>
+  :root {
+    --ink:    #060A16;
+    --ink-2:  #1d2a47;
+    --paper:  #f7f8fc;
+    --paper-2:#ffffff;
+    --line:   #d9dfee;
+    --good:   #1b6b3d;
+    --good-bg:#d8f0e2;
+    --bad:    #8a1a1a;
+    --bad-bg: #fbe0e0;
+    --warn:   #b97a09;
+    --warn-bg:#fff2cc;
+    --muted:  #5b6788;
+    --gold:   #c8a64a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: var(--paper);
+    min-height: 100vh; display:flex; flex-direction:column;
+  }
+
+  header.site {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:#fff; border-bottom: 3px solid var(--gold);
+    padding: 14px 22px;
+  }
+  header.site .row { display:flex; align-items:center; gap:14px; max-width:1000px; margin:0 auto; }
+  header.site .badge {
+    width:42px; height:42px; border-radius:8px;
+    background: var(--gold); color: var(--ink);
+    display:grid; place-items:center; font-weight:800; font-size:16px;
+  }
+  header.site h1 { font-size: 16px; margin:0; }
+  header.site .sub { font-size: 11px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+  header.site a { color:#fff; opacity:.7; text-decoration:none; margin-left:auto; font-size:13px; }
+  header.site a:hover { opacity:1; }
+
+  main { flex:1; max-width: 760px; margin: 0 auto; padding: 48px 24px; width:100%; }
+
+  .card {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 36px; box-shadow: 0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+  }
+  .badge-status {
+    display:inline-flex; align-items:center; gap:8px;
+    padding: 6px 14px; border-radius: 999px;
+    font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 20px;
+  }
+  .badge-status.pass    { background: var(--good-bg); color: var(--good); }
+  .badge-status.revoked { background: var(--bad-bg);  color: var(--bad); }
+  .badge-status.miss    { background: var(--warn-bg); color: var(--warn); }
+  .badge-status::before {
+    content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor;
+  }
+
+  h2 { font-size: 26px; margin: 0 0 6px; }
+  p.lede { color: var(--muted); margin: 0 0 24px; font-size: 15px; }
+
+  dl { margin: 0; }
+  dl div { display: grid; grid-template-columns: 160px 1fr; gap: 12px;
+           padding: 12px 0; border-bottom: 1px solid var(--line); }
+  dl div:last-child { border-bottom: 0; }
+  dt { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .8px; }
+  dd { margin: 0; font-size: 15px; word-break: break-all; }
+  dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+  .lookup { display:flex; gap:10px; margin-top: 24px; }
+  .lookup input {
+    flex:1; padding: 10px 12px; font-size: 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid var(--line); border-radius: 6px;
+  }
+  .lookup button {
+    padding: 10px 18px; font-size: 14px; font-weight: 600;
+    background: var(--ink); color:#fff; border:0; border-radius: 6px; cursor: pointer;
+  }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 20px;
+    color: var(--muted); font-size: 13px; text-align:center;
+  }
+  footer a { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="row">
+    <div class="badge">G</div>
+    <div>
+      <h1>Genesis Digital Assets Academy</h1>
+      <div class="sub">Certificate verification</div>
+    </div>
+    <a href="/">Home</a>
+  </div>
+</header>
+
+<main>
+  <div class="card" id="card">
+    <div id="loading" style="color: var(--muted);">Verifying certificate…</div>
+  </div>
+</main>
+
+<footer>
+  &copy; <span id="yr"></span> Genesis Digital Assets Academy
+</footer>
+
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+const card = document.getElementById('card');
+
+// Hash from URL: /verify/<hash>  OR  ?hash=<hash>
+function hashFromUrl() {
+  const path = window.location.pathname.split('/').filter(Boolean);
+  if (path[0] === 'verify' && path[1]) return path[1].toLowerCase();
+  const q = new URLSearchParams(window.location.search).get('hash');
+  return q ? q.toLowerCase() : null;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function renderLookup() {
+  card.innerHTML = `
+    <h2>Verify a certificate</h2>
+    <p class="lede">Paste a certificate ID below to verify its authenticity. The ID is the 64-character hash printed on every Genesis Digital Assets Academy certificate.</p>
+    <div class="lookup">
+      <input id="hashIn" placeholder="64-character certificate ID" maxlength="64" autocomplete="off" />
+      <button id="goBtn">Verify</button>
+    </div>
+    <p id="err" style="color:var(--bad); font-size:14px; margin-top:10px; display:none;"></p>
+  `;
+  document.getElementById('goBtn').addEventListener('click', () => {
+    const v = document.getElementById('hashIn').value.trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(v)) {
+      const e = document.getElementById('err');
+      e.textContent = 'Please enter the full 64-character certificate ID.';
+      e.style.display = 'block';
+      return;
+    }
+    window.location.href = '/verify/' + v;
+  });
+  document.getElementById('hashIn').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('goBtn').click();
+  });
+}
+
+function renderResult(hash, data) {
+  if (!data || data.status === 'not_found') {
+    card.innerHTML = `
+      <span class="badge-status miss">Not found</span>
+      <h2>No certificate matches this ID.</h2>
+      <p class="lede">The certificate you're looking for was not issued by Genesis Digital Assets Academy, or the ID is mistyped.</p>
+      <dl><div><dt>ID checked</dt><dd class="mono">${escapeHtml(hash)}</dd></div></dl>
+    `;
+    return;
+  }
+  const issued = data.issued_at ? new Date(data.issued_at).toLocaleString(undefined, {
+    year:'numeric', month:'long', day:'numeric'
+  }) : '—';
+  const revoked = data.revoked_at ? new Date(data.revoked_at).toLocaleString(undefined, {
+    year:'numeric', month:'long', day:'numeric'
+  }) : null;
+
+  if (data.status === 'revoked') {
+    card.innerHTML = `
+      <span class="badge-status revoked">Revoked</span>
+      <h2>This certificate has been revoked.</h2>
+      <p class="lede">It was issued by ${escapeHtml(data.tenant || 'a partner program')} and later revoked. It is no longer valid.</p>
+      <dl>
+        <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '—')}</dd></div>
+        <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '—')}</dd></div>
+        <div><dt>Issued</dt><dd>${escapeHtml(issued)}</dd></div>
+        <div><dt>Revoked</dt><dd>${escapeHtml(revoked)}</dd></div>
+        <div><dt>Certificate ID</dt><dd class="mono">${escapeHtml(data.cert_hash)}</dd></div>
+      </dl>
+    `;
+    return;
+  }
+  // pass
+  card.innerHTML = `
+    <span class="badge-status pass">Verified</span>
+    <h2>This certificate is authentic.</h2>
+    <p class="lede">Issued by ${escapeHtml(data.tenant || 'Genesis Digital Assets Academy')}.</p>
+    <dl>
+      <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '—')}</dd></div>
+      <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '—')}</dd></div>
+      ${typeof data.score === 'number' ? `<div><dt>Final score</dt><dd>${escapeHtml(data.score)}%</dd></div>` : ''}
+      <div><dt>Issued</dt><dd>${escapeHtml(issued)}</dd></div>
+      <div><dt>Issuing program</dt><dd>${escapeHtml(data.tenant || '—')}</dd></div>
+      <div><dt>Certificate ID</dt><dd class="mono">${escapeHtml(data.cert_hash)}</dd></div>
+    </dl>
+  `;
+}
+
+(async () => {
+  const hash = hashFromUrl();
+  if (!hash) { renderLookup(); return; }
+  if (!/^[0-9a-f]{64}$/.test(hash)) {
+    renderResult(hash, { status: 'not_found' });
+    return;
+  }
+  try {
+    const { data, error } = await sb.rpc('verify_certificate', { p_hash: hash });
+    if (error) throw error;
+    renderResult(hash, data);
+  } catch (err) {
+    card.innerHTML = `
+      <span class="badge-status miss">Error</span>
+      <h2>Could not verify this certificate.</h2>
+      <p class="lede">${escapeHtml(err.message || 'Unknown error')}</p>
+    `;
+  }
+})();
+</script>
+
+</body>
+</html>

@@ -119,17 +119,37 @@ window.saveQuizAttempt = async (lessonId, score, passed, answers) => {
   });
 };
 
+// markCourseComplete:
+//   1. marks enrollment completed
+//   2. invokes the issue-certificate Edge Function to generate the PDF
+//      (uses the recipient's full_name from their profile as the cert subject)
+//   3. returns { cert_hash, pdf_url, verify_url, name, issued_at }  or null on failure
 window.markCourseComplete = async (finalScore) => {
-  if (!_user) return;
+  if (!_user) return null;
+  const score100 = Math.round((finalScore || 0) * 100);
+
   await sb.from('enrollments')
     .update({ status: 'completed', completed_at: new Date().toISOString() })
     .eq('user_id', _user.id).eq('course_id', window.COURSE_ID);
-  await sb.from('certificates').upsert({
-    user_id: _user.id,
-    course_id: window.COURSE_ID,
-    final_score: Math.round((finalScore || 0) * 100),
-    pdf_url: null
-  }, { onConflict: 'user_id,course_id' });
+
+  // Pull the recipient name from their profile.
+  const { data: profile } = await sb.from('profiles')
+    .select('full_name').eq('id', _user.id).single();
+  const fullName = (profile?.full_name || '').trim();
+  if (!fullName) {
+    console.warn('[cert] no full_name on profile; skipping certificate issue');
+    return null;
+  }
+
+  // Invoke the Edge Function. Supabase JS attaches the user's JWT automatically.
+  const { data: cert, error } = await sb.functions.invoke('issue-certificate', {
+    body: { full_name: fullName, course_id: window.COURSE_ID, score: score100 }
+  });
+  if (error) {
+    console.error('[cert] issue failed', error);
+    return null;
+  }
+  return cert;
 };
 
 window.updateProfile = async (patch) => {

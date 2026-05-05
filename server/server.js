@@ -29,6 +29,13 @@ app.use(compression());
 // Health check (used by fly.io)
 app.get('/health', (_req, res) => res.status(200).json({ ok: true, ts: Date.now() }));
 
+// Public certificate verification — anyone can hit this.
+// /verify             -> lookup form
+// /verify/<64hex>     -> result card (verify.html reads hash from URL)
+app.get(/^\/verify(?:\/([0-9a-f]{64}))?\/?$/, (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'verify.html'));
+});
+
 // ------- Tenant routing (must come BEFORE express.static so it can rewrite) -------
 //   /<slug>            -> course.html?tenant=<slug>
 //   /<slug>/           -> course.html?tenant=<slug>
