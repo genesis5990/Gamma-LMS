@@ -750,9 +750,12 @@ async function boot() {
   }
   document.getElementById('authOverlay').style.display = 'none';
 
-  // First-time profile check — gate the course until name + agency are filled in
+  // First-time profile check — gate the course until name + agency are filled in.
+  // Canonical check is field-presence (window.profileIsComplete), so existing
+  // users with populated full_name/agency_name don't get re-prompted even if
+  // their metadata blob is empty.
   const profile = await window.getProfile();
-  if (!profile || !profile.full_name || !profile.agency_name) {
+  if (!window.profileIsComplete(profile)) {
     await showProfileModal(profile);
   }
 
@@ -833,10 +836,14 @@ function showProfileModal(existing) {
       msg.style.color = '#475569';
       msg.textContent = 'Saving…';
       try {
+        const nextMeta = Object.assign({}, (existing && existing.metadata) || {}, {
+          profile_completed_at: new Date().toISOString()
+        });
         await window.updateProfile({
           full_name:    fullName,
           agency_name:  agencyName,
-          badge_number: badgeNumber || null
+          badge_number: badgeNumber || null,
+          metadata:     nextMeta
         });
         overlay.style.display = 'none';
         saveBtn.removeEventListener('click', attemptSave);

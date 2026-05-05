@@ -166,12 +166,41 @@ window.markCourseComplete = async (finalScore) => {
 };
 
 window.updateProfile = async (patch) => {
-  if (!_user) return;
-  await sb.from('profiles').update(patch).eq('id', _user.id);
+  if (!_user) throw new Error('not signed in');
+  // Select the row back so callers can verify the write actually landed
+  // (RLS denial / schema mismatch would otherwise no-op silently).
+  const { data, error } = await sb.from('profiles')
+    .update(patch).eq('id', _user.id).select('*').single();
+  if (error) throw error;
+  return data;
 };
 
 window.getProfile = async () => {
+  // If a magic-link hash is present, the session may not yet be hydrated by
+  // the time boot() awaits authReady. Give it one short retry so the gate
+  // check doesn't see a null user and flash the completion modal.
+  if (!_user) {
+    const { data } = await sb.auth.getSession();
+    _user = data.session?.user || _user;
+  }
   if (!_user) return null;
-  const { data } = await sb.from('profiles').select('*').eq('id', _user.id).single();
+  const { data, error } = await sb.from('profiles').select('*').eq('id', _user.id).single();
+  if (error) {
+    console.warn('[profile] read failed', error);
+    return null;
+  }
   return data;
+};
+
+// Returns true iff the profile row has the fields the completion modal asks
+// for. This is the CANONICAL completeness check — checking actual field
+// presence (not a metadata flag) means existing complete users never get
+// trapped by an empty metadata blob.
+window.profileIsComplete = (profile) => {
+  if (!profile) return false;
+  if (profile.metadata && profile.metadata.profile_completed_at) return true;
+  return !!(
+    (profile.full_name   || '').trim() &&
+    (profile.agency_name || '').trim()
+  );
 };
