@@ -240,6 +240,29 @@
   </div>
 </div>
 
+<!-- First-time profile completion modal (shown after sign-in if profile fields are blank) -->
+<div id="profileOverlay" style="display:none; position:fixed; inset:0; background:rgba(13,20,36,.94); z-index:9998; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; color:#0d1424; padding:32px; border-radius:14px; max-width:480px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.4);">
+    <h2 style="margin:0 0 6px; font-size:20px;">Complete your profile</h2>
+    <p style="margin:0 0 20px; color:#475569; font-size:14px; line-height:1.5;">This information appears on your certificate of completion and helps your training officer track progress. You can update it later from your account.</p>
+
+    <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:#5b6788; margin-bottom:5px;">Full name <span style="color:#c94545;">*</span></label>
+    <input id="profFullName" type="text" autocomplete="name" placeholder="Det. Sarah Chen"
+           style="width:100%; padding:10px 12px; font-size:14px; border:1px solid #cbd5e1; border-radius:8px; box-sizing:border-box; margin-bottom:14px;">
+
+    <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:#5b6788; margin-bottom:5px;">Agency / Department <span style="color:#c94545;">*</span></label>
+    <input id="profAgency" type="text" autocomplete="organization" placeholder="Chicago PD - Financial Crimes Unit"
+           style="width:100%; padding:10px 12px; font-size:14px; border:1px solid #cbd5e1; border-radius:8px; box-sizing:border-box; margin-bottom:14px;">
+
+    <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:#5b6788; margin-bottom:5px;">Badge / ID number <span style="color:#94a3b8; font-weight:400; text-transform:none; letter-spacing:0;">(optional)</span></label>
+    <input id="profBadge" type="text" autocomplete="off" placeholder="4471"
+           style="width:100%; padding:10px 12px; font-size:14px; border:1px solid #cbd5e1; border-radius:8px; box-sizing:border-box; margin-bottom:18px;">
+
+    <button id="profSave" style="width:100%; padding:12px; font-size:15px; background:#0d1424; color:#fff; border:0; border-radius:8px; cursor:pointer; font-weight:600;">Save and start the course</button>
+    <p id="profMsg" style="margin:12px 0 0; font-size:13px; min-height:18px; color:#475569;"></p>
+  </div>
+</div>
+
 <div class="demo-banner" id="banner" style="display:none;">
   <b>Beta</b> — your progress is saved to the cloud and syncs across devices.
 </div>
@@ -677,6 +700,13 @@ async function boot() {
     return;
   }
   document.getElementById('authOverlay').style.display = 'none';
+
+  // First-time profile check — gate the course until name + agency are filled in
+  const profile = await window.getProfile();
+  if (!profile || !profile.full_name || !profile.agency_name) {
+    await showProfileModal(profile);
+  }
+
   document.getElementById('banner').style.display = 'block';
   document.getElementById('signOutBtn').style.display = '';
   document.getElementById('resetBtn').style.display = '';
@@ -722,6 +752,62 @@ document.getElementById('authEmail').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('authSend').click();
 });
 document.getElementById('signOutBtn').addEventListener('click', () => window.signOut());
+
+// First-time profile modal — returns a promise that resolves once the user saves a complete profile
+function showProfileModal(existing) {
+  const overlay = document.getElementById('profileOverlay');
+  const nameInput   = document.getElementById('profFullName');
+  const agencyInput = document.getElementById('profAgency');
+  const badgeInput  = document.getElementById('profBadge');
+  const saveBtn     = document.getElementById('profSave');
+  const msg         = document.getElementById('profMsg');
+
+  // Pre-fill anything we already have
+  if (existing) {
+    nameInput.value   = existing.full_name   || '';
+    agencyInput.value = existing.agency_name || '';
+    badgeInput.value  = existing.badge_number || '';
+  }
+
+  overlay.style.display = 'flex';
+  setTimeout(() => nameInput.focus(), 50);
+
+  return new Promise((resolve) => {
+    async function attemptSave() {
+      const fullName    = nameInput.value.trim();
+      const agencyName  = agencyInput.value.trim();
+      const badgeNumber = badgeInput.value.trim();
+      if (!fullName)   { msg.style.color = '#b91c1c'; msg.textContent = 'Full name is required.';   nameInput.focus();   return; }
+      if (!agencyName) { msg.style.color = '#b91c1c'; msg.textContent = 'Agency / department is required.'; agencyInput.focus(); return; }
+
+      saveBtn.disabled = true;
+      msg.style.color = '#475569';
+      msg.textContent = 'Saving…';
+      try {
+        await window.updateProfile({
+          full_name:    fullName,
+          agency_name:  agencyName,
+          badge_number: badgeNumber || null
+        });
+        overlay.style.display = 'none';
+        saveBtn.removeEventListener('click', attemptSave);
+        nameInput.removeEventListener('keydown', onKey);
+        agencyInput.removeEventListener('keydown', onKey);
+        badgeInput.removeEventListener('keydown', onKey);
+        resolve();
+      } catch (e) {
+        saveBtn.disabled = false;
+        msg.style.color = '#b91c1c';
+        msg.textContent = 'Could not save: ' + (e.message || 'unknown error');
+      }
+    }
+    function onKey(e) { if (e.key === 'Enter') attemptSave(); }
+    saveBtn.addEventListener('click', attemptSave);
+    nameInput.addEventListener('keydown', onKey);
+    agencyInput.addEventListener('keydown', onKey);
+    badgeInput.addEventListener('keydown', onKey);
+  });
+}
 
 document.getElementById('resetBtn').addEventListener('click', async () => {
   // Refresh progress from server (e.g. if user did work on another device)
