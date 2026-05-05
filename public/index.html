@@ -3,17 +3,250 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Crypto 101 for Law Enforcement — Demo</title>
-<meta http-equiv="refresh" content="0; url=course.html">
+<title>Genesis Digital Assets Academy</title>
+<meta name="description" content="Investigator training in cryptocurrency, blockchain forensics, and digital asset compliance — delivered through partner agencies and private programs." />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
 <style>
-  body { font: 16px/1.5 system-ui, sans-serif; background:#0d1424; color:#fff; padding:40px; text-align:center; }
-  a { color:#c8a64a; }
+  :root {
+    --ink:    #0d1424;
+    --ink-2:  #1d2a47;
+    --paper:  #f7f8fc;
+    --paper-2:#ffffff;
+    --line:   #d9dfee;
+    --accent: #1f63d6;
+    --accent-2: #0a3d91;
+    --gold:   #c8a64a;
+    --muted:  #5b6788;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: var(--paper);
+    min-height: 100vh; display:flex; flex-direction:column;
+  }
+  a { color: var(--accent-2); }
+
+  header.site {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:#fff; border-bottom: 3px solid var(--gold);
+    padding: 14px 22px;
+  }
+  header.site .row { display:flex; align-items:center; gap:14px; max-width:1200px; margin:0 auto; }
+  header.site .badge {
+    width:46px; height:46px; border-radius:8px;
+    background: var(--gold); color: var(--ink);
+    display:grid; place-items:center; font-weight:800; font-size:18px;
+  }
+  header.site h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
+  header.site .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+
+  main {
+    flex:1; max-width: 980px; margin: 0 auto; padding: 56px clamp(20px, 4vw, 40px);
+    width: 100%;
+  }
+  .hero h2 {
+    font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin: 0 0 14px;
+    color: var(--ink); font-weight: 700;
+  }
+  .hero p.lede { font-size: 18px; color: var(--muted); margin: 0 0 28px; max-width: 720px; }
+
+  .panel {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 28px; box-shadow: 0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+    margin-top: 36px;
+  }
+  .panel h3 { margin: 0 0 6px; font-size: 18px; }
+  .panel p.note { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+
+  form.signin {
+    display:grid; gap: 12px;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+  @media (max-width: 600px) {
+    form.signin { grid-template-columns: 1fr; }
+  }
+  form.signin input {
+    padding: 12px 14px; font-size: 15px; border: 1px solid var(--line);
+    border-radius: 8px; background: #fff; color: var(--ink); width: 100%;
+  }
+  form.signin input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  form.signin button {
+    padding: 12px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    white-space: nowrap;
+  }
+  form.signin button:hover { background: var(--accent-2); }
+  form.signin button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .divider {
+    text-align:center; margin: 18px 0; color: var(--muted); font-size: 13px;
+    text-transform: uppercase; letter-spacing: 1.2px;
+  }
+
+  .slug-row { display:flex; gap:10px; align-items:center; }
+  .slug-row .prefix { color: var(--muted); font-size: 14px; white-space: nowrap; }
+  .slug-row input {
+    flex:1; padding: 10px 12px; font-size: 14px; border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .slug-row button {
+    padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--ink); color: #fff; border: 0; border-radius: 6px;
+  }
+
+  .msg { font-size: 14px; padding: 10px 12px; border-radius: 6px; margin-top: 12px; display:none; }
+  .msg.show { display:block; }
+  .msg.ok  { background: #d8f0e2; color: #1b6b3d; }
+  .msg.err { background: #fbe0e0; color: #8a1a1a; }
+
+  .features {
+    display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 36px;
+  }
+  @media (max-width: 800px) { .features { grid-template-columns: 1fr; } }
+  .feature {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px;
+  }
+  .feature h4 { margin:0 0 6px; font-size: 15px; color: var(--ink); }
+  .feature p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+  footer.site {
+    border-top: 1px solid var(--line); padding: 22px;
+    color: var(--muted); font-size: 13px; text-align:center;
+  }
 </style>
 </head>
 <body>
-  <p>Loading course… If you are not redirected, <a href="course.html">click here to enter the course</a>.</p>
-  <p style="margin-top:24px; font-size:13px; opacity:.6;">
-    Standalone Lesson 1 prototype: <a href="lesson1_standalone.html">lesson1_standalone.html</a>
-  </p>
+
+<header class="site">
+  <div class="row">
+    <div class="badge">G</div>
+    <div>
+      <h1>Genesis Digital Assets Academy</h1>
+      <div class="sub">Investigator training · cryptocurrency &amp; blockchain forensics</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h2>Training that turns investigators into crypto-literate operators.</h2>
+    <p class="lede">
+      Genesis Digital Assets Academy delivers conceptual and applied training in cryptocurrency,
+      blockchain forensics, and digital asset compliance. Programs are delivered through partner
+      agencies and private programs &mdash; sign in below to access your training portal.
+    </p>
+  </section>
+
+  <section class="panel" aria-labelledby="signin-h">
+    <h3 id="signin-h">Sign in to your training portal</h3>
+    <p class="note">Enter the email your program administrator used to enroll you. We'll email you a one-time sign-in link.</p>
+    <form class="signin" id="signinForm" autocomplete="on">
+      <input type="email" id="email" placeholder="you@agency.gov" autocomplete="email" required />
+      <button type="submit" id="signinBtn">Email me a sign-in link</button>
+    </form>
+    <div class="msg" id="msg"></div>
+
+    <div class="divider">or</div>
+
+    <p class="note" style="margin-bottom:10px;">Know your training portal address? Jump straight to it:</p>
+    <div class="slug-row">
+      <span class="prefix">mygenesis-training.com&nbsp;/</span>
+      <input type="text" id="slug" placeholder="your-program" pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" />
+      <button type="button" id="slugBtn">Go</button>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <h4>Conceptual foundations</h4>
+      <p>Wallets, addresses, transactions, mempool, mining &mdash; the model investigators need before tooling.</p>
+    </div>
+    <div class="feature">
+      <h4>Applied tracing</h4>
+      <p>UTXO &amp; account models, change detection, peel chains, exchange identification, and subpoena strategy.</p>
+    </div>
+    <div class="feature">
+      <h4>Verifiable certificates</h4>
+      <p>Each completion certificate carries a SHA-256 hash and a public verification page so partners can confirm authenticity.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  &copy; <span id="yr"></span> Genesis Digital Assets Academy
+  &middot; <a href="/admin">Program operators</a>
+</footer>
+
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+const msgEl = document.getElementById('msg');
+function showMsg(text, kind) {
+  msgEl.textContent = text;
+  msgEl.className = 'msg show ' + (kind || '');
+}
+
+// ---- Email sign-in (magic link) — auto-route to tenant after signin ----
+async function tenantForEmail(email) {
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return null;
+  const url = `${window.SUPABASE_URL}/rest/v1/tenants?email_domains=cs.{${encodeURIComponent(domain)}}&select=slug&limit=1`;
+  try {
+    const r = await fetch(url, {
+      headers: {
+        apikey: window.SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${window.SUPABASE_PUBLISHABLE_KEY}`
+      }
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return rows[0]?.slug || null;
+  } catch { return null; }
+}
+
+document.getElementById('signinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('signinBtn');
+  const email = document.getElementById('email').value.trim();
+  if (!email) return;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  showMsg('', '');
+
+  // Resolve tenant by email domain so the magic-link redirect lands on the right portal.
+  const slug = await tenantForEmail(email);
+  const target = slug ? `${window.location.origin}/${slug}` : `${window.location.origin}/`;
+
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: target }
+  });
+
+  btn.disabled = false; btn.textContent = 'Email me a sign-in link';
+  if (error) {
+    showMsg('Could not send link: ' + error.message, 'err');
+  } else {
+    showMsg('Check your inbox for a sign-in link from Genesis Digital Assets Academy.', 'ok');
+  }
+});
+
+// ---- Slug shortcut ----
+document.getElementById('slugBtn').addEventListener('click', () => {
+  const v = document.getElementById('slug').value.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(v)) {
+    showMsg('That doesn\u2019t look like a valid portal address. Use lowercase letters, numbers, and hyphens.', 'err');
+    return;
+  }
+  window.location.href = '/' + v;
+});
+document.getElementById('slug').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('slugBtn').click();
+});
+</script>
+
 </body>
 </html>

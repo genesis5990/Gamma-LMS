@@ -4,9 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<script src="auth.js"></script>
-<title>Crypto 101 for Law Enforcement — Genesis Digital Assets Academy</title>
+<script src="/config.js"></script>
+<script src="/tenant.js"></script>
+<script src="/auth.js"></script>
+<title>Crypto 101 for Investigators</title>
 <style>
   :root {
     --ink:        #0d1424;
@@ -269,10 +270,11 @@
 
 <header class="course">
   <div class="row">
-    <div class="badge">G</div>
+    <img data-tenant-logo="dark" hidden style="max-height:46px; max-width:220px; object-fit:contain;" alt="" />
+    <div class="badge" id="defaultBadge">G</div>
     <div>
-      <h1>Crypto 101 for Law Enforcement</h1>
-      <div class="sub">Genesis Digital Assets Academy</div>
+      <h1>Crypto 101 for Investigators</h1>
+      <div class="sub"><span data-tenant-name>Genesis Digital Assets Academy</span></div>
     </div>
     <div class="actions">
       <span id="userChip" style="font-size:13px; opacity:.8; margin-right:12px;"></span>
@@ -717,7 +719,7 @@ async function boot() {
   // Load both progress and course data in parallel
   const [serverProgress, data] = await Promise.all([
     window.loadProgress(),
-    fetch('course_data.json').then(r => r.json())
+    fetch('/course_data.json').then(r => r.json())
   ]);
   progress = serverProgress;
   COURSE = data;

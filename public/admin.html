@@ -4,9 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<script src="auth.js"></script>
-<title>Admin Dashboard — Crypto 101 LMS</title>
+<script src="/config.js"></script>
+<script src="/tenant.js"></script>
+<script src="/auth.js"></script>
+<title>Admin Dashboard</title>
 <style>
   :root {
     --ink:        #0d1424;
@@ -196,13 +197,14 @@
 
 <header class="course">
   <div class="row">
-    <div class="badge">G</div>
+    <img data-tenant-logo="dark" hidden style="max-height:46px; max-width:220px; object-fit:contain;" alt="" />
+    <div class="badge" id="defaultBadge">G</div>
     <div>
-      <h1>Crypto 101 — Admin Dashboard</h1>
-      <div class="sub">Genesis Digital Assets Academy</div>
+      <h1>Admin Dashboard</h1>
+      <div class="sub"><span data-tenant-name>Genesis Digital Assets Academy</span></div>
     </div>
     <div class="actions">
-      <a class="btn-ghost" href="course.html">↩ Back to course</a>
+      <a class="btn-ghost" id="backToCourseLink" href="/">↩ Back to course</a>
       <button class="btn-ghost" id="btnSignOut" style="display:none">Sign out</button>
     </div>
   </div>
@@ -330,7 +332,7 @@ let detailCache = new Map(); // user_id -> {lessons, quizzes}
     return;
   }
 
-  if (prof?.role !== 'super_admin') {
+  if (prof?.role !== 'super_admin' && prof?.role !== 'tenant_admin') {
     showForbidden(prof?.email || user.email);
     return;
   }
@@ -590,6 +592,15 @@ function fmtDate(s) {
   if (diff < 86400*14)  return Math.floor(diff/86400) + 'd ago';
   return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
 }
+
+// Update "Back to course" link once tenant resolves so it stays inside the slug.
+(async () => {
+  if (window.tenantReady) {
+    const t = await window.tenantReady;
+    const link = document.getElementById('backToCourseLink');
+    if (link && t && t.slug) link.setAttribute('href', '/' + t.slug);
+  }
+})();
 </script>
 
 </body>
