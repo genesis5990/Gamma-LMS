@@ -36,6 +36,8 @@ const SUPABASE_URL      = process.env.SUPABASE_URL || 'https://fyacdyarcfgngqetm
 const SUPABASE_PUB_KEY  = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_GuhUwx3z7xPerxTNNd2iEA_cqOOeOwI';
 const SUPABASE_SVC_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const PUBLIC_SITE_URL   = process.env.PUBLIC_SITE_URL || 'https://mygenesis-training.fly.dev';
+const RESEND_API_KEY    = process.env.RESEND_API_KEY || '';
+const RESEND_FROM       = process.env.RESEND_FROM || 'Genesis Digital Assets Academy <noreply@mygenesis-training.com>';
 
 let stripe = null;
 if (STRIPE_SECRET) {
@@ -150,18 +152,37 @@ app.post('/api/stripe/webhook',
         const courseId = session.metadata?.course_id || null;
         const email    = session.customer_details?.email || session.customer_email || null;
         if (courseId && email) {
-          await upsertPurchase({
+          const isPaid = session.payment_status === 'paid';
+          const amountCents = session.amount_total || CATALOG[courseId]?.amount_cents || 0;
+          const currency    = session.currency || 'usd';
+          const purchaseRow = await upsertPurchase({
             user_id:               session.client_reference_id || null,
             email,
             course_id:             courseId,
             stripe_session_id:     session.id,
             stripe_payment_intent: session.payment_intent || null,
             stripe_customer_id:    session.customer || null,
-            amount_cents:          session.amount_total || CATALOG[courseId]?.amount_cents || 0,
-            currency:              session.currency || 'usd',
-            status:                session.payment_status === 'paid' ? 'paid' : 'pending',
-            paid_at:               session.payment_status === 'paid' ? new Date().toISOString() : null
+            amount_cents:          amountCents,
+            currency,
+            status:                isPaid ? 'paid' : 'pending',
+            paid_at:               isPaid ? new Date().toISOString() : null
           });
+
+          if (isPaid) {
+            // Fire-and-await fulfillment, but never let failures block the 200 to Stripe.
+            try {
+              await fulfillPurchase({
+                email,
+                courseId,
+                sessionId: session.id,
+                amountCents,
+                currency,
+                purchaseId: Array.isArray(purchaseRow) ? purchaseRow[0]?.id : purchaseRow?.id
+              });
+            } catch (fulfillErr) {
+              console.warn('[stripe webhook] fulfillment error (non-fatal):', fulfillErr.message);
+            }
+          }
         }
       } else if (event.type === 'charge.refunded') {
         const charge = event.data.object;
@@ -250,6 +271,169 @@ async function markPurchaseRefunded(paymentIntent) {
     { status: 'refunded', refunded_at: new Date().toISOString() },
     `?stripe_payment_intent=eq.${encodeURIComponent(paymentIntent)}`
   );
+}
+
+// =====================================================================
+// PPC fulfillment (Phase 3.5)
+//   1. Look up auth user by email (existing buyer)
+//   2. If found: backfill purchases.user_id + upsert enrollments
+//      If not:  generate_link auto-creates the auth.users row, and the
+//               handle_new_user trigger does the linkage in-band
+//   3. Send branded Resend email with a magic-link sign-in button.
+// Webhook returns 200 even if email fails — purchase + enrollment are durable.
+// =====================================================================
+async function lookupUserIdByEmail(email) {
+  if (!SUPABASE_SVC_KEY) return null;
+  const url = `${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}&select=id&limit=1`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_SVC_KEY,
+      Authorization: `Bearer ${SUPABASE_SVC_KEY}`
+    }
+  });
+  if (!resp.ok) {
+    console.warn('[fulfill] profile lookup failed:', resp.status, await resp.text().catch(() => ''));
+    return null;
+  }
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) && rows[0]?.id ? rows[0].id : null;
+}
+
+async function generateMagicLink(email, redirectTo) {
+  if (!SUPABASE_SVC_KEY) return null;
+  const resp = await fetch(`${SUPABASE_URL}/auth/v1/admin/generate_link`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_SVC_KEY,
+      Authorization: `Bearer ${SUPABASE_SVC_KEY}`
+    },
+    body: JSON.stringify({
+      type: 'magiclink',
+      email,
+      options: { redirect_to: redirectTo }
+    })
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    console.warn('[fulfill] generate_link failed:', resp.status, txt);
+    return null;
+  }
+  const data = await resp.json().catch(() => ({}));
+  return data?.action_link || data?.properties?.action_link || null;
+}
+
+async function linkPurchaseAndEnroll(userId, email, courseId) {
+  // Backfill purchases.user_id for any paid rows under this email
+  await supabaseWrite(
+    'purchases',
+    'PATCH',
+    { user_id: userId },
+    `?email=eq.${encodeURIComponent(email)}&user_id=is.null&status=eq.paid`
+  ).catch((err) => {
+    console.warn('[fulfill] purchase backfill failed:', err.message);
+  });
+
+  // Upsert enrollment (user_id, course_id) — tenant_id NULL for PPC
+  await supabaseWrite(
+    'enrollments?on_conflict=user_id,course_id',
+    'POST',
+    { user_id: userId, course_id: courseId, status: 'active', tenant_id: null }
+  ).catch((err) => {
+    console.warn('[fulfill] enrollment upsert failed:', err.message);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function purchaseEmailHtml({ courseName, amountCents, currency, sessionId, magicLink }) {
+  const last8 = (sessionId || '').slice(-8);
+  const amount = (amountCents / 100).toFixed(2);
+  const cur    = (currency || 'usd').toUpperCase();
+  const date   = new Date().toUTCString();
+  const cname  = escapeHtml(courseName);
+  const link   = magicLink;
+
+  return `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0d1424;background:#f7f8fc;margin:0;padding:24px;">
+    <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #d9dfee;padding:32px;">
+      <h2 style="margin:0 0 12px;font-size:20px;">Your ${cname} access is ready.</h2>
+      <p style="margin:0 0 16px;color:#3a4666;">Thank you for purchasing <strong>${cname}</strong> ($${escapeHtml(amount)} ${escapeHtml(cur)}).</p>
+      <p style="margin:0 0 16px;color:#3a4666;">Click the button below to sign in and start the course. You're already enrolled — the link will sign you in automatically.</p>
+      <p style="margin:0 0 24px;text-align:center;">
+        <a href="${link}" style="display:inline-block;background:#1f63d6;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">Sign in to start the course</a>
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 16px;font-size:13px;color:#3a4666;">
+        <tr><td style="padding:6px 0;color:#5b6788;">Receipt</td><td style="padding:6px 0;text-align:right;">${escapeHtml(last8)}</td></tr>
+        <tr><td style="padding:6px 0;color:#5b6788;">Amount</td><td style="padding:6px 0;text-align:right;">$${escapeHtml(amount)} ${escapeHtml(cur)}</td></tr>
+        <tr><td style="padding:6px 0;color:#5b6788;">Date</td><td style="padding:6px 0;text-align:right;">${escapeHtml(date)}</td></tr>
+      </table>
+      <p style="margin:0 0 12px;color:#5b6788;font-size:13px;">This sign-in link is valid until used or for 30 days. If the button doesn't work, copy and paste this URL into your browser:</p>
+      <p style="margin:0 0 16px;word-break:break-all;color:#5b6788;font-size:12px;">${escapeHtml(link)}</p>
+      <p style="margin:0 0 16px;color:#5b6788;font-size:12px;">A separate receipt from Stripe will arrive shortly.</p>
+      <hr style="border:0;border-top:1px solid #d9dfee;margin:24px 0;" />
+      <p style="margin:0;color:#5b6788;font-size:12px;">Genesis Digital Assets Academy</p>
+    </div>
+  </body></html>`;
+}
+
+async function sendPurchaseEmail(to, subject, html) {
+  if (!RESEND_API_KEY) {
+    console.warn('[fulfill] RESEND_API_KEY not set — purchase email skipped');
+    return false;
+  }
+  const resp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${RESEND_API_KEY}`
+    },
+    body: JSON.stringify({ from: RESEND_FROM, to, subject, html })
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    console.warn('[fulfill] resend send failed:', resp.status, txt);
+    return false;
+  }
+  return true;
+}
+
+async function fulfillPurchase({ email, courseId, sessionId, amountCents, currency }) {
+  if (!SUPABASE_SVC_KEY) {
+    console.warn('[fulfill] SUPABASE_SERVICE_ROLE_KEY not set — skipping fulfillment');
+    return;
+  }
+
+  const courseName = CATALOG[courseId]?.name || courseId;
+  const redirectTo = `${PUBLIC_SITE_URL}/?welcome=1`;
+
+  // 1. Resolve existing user (if any) and link/enroll synchronously.
+  const userId = await lookupUserIdByEmail(email);
+  if (userId) {
+    await linkPurchaseAndEnroll(userId, email, courseId);
+  }
+  // For new buyers, generate_link below auto-creates the auth user, and
+  // the handle_new_user trigger (migration 0007) backfills purchase + enrollment.
+
+  // 2. Generate magic link and send email.
+  const magicLink = await generateMagicLink(email, redirectTo);
+  if (!magicLink) {
+    console.warn('[fulfill] no magic link generated; email not sent');
+    return;
+  }
+
+  const subject = `Your ${courseName} access is ready`;
+  const html    = purchaseEmailHtml({ courseName, amountCents, currency, sessionId, magicLink });
+  const sent    = await sendPurchaseEmail(email, subject, html);
+  if (!sent) {
+    console.warn('[fulfill] purchase email send failed for', email);
+  }
 }
 
 // =====================================================================
