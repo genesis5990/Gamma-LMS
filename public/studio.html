@@ -12,22 +12,28 @@
 </head>
 <body>
 
+  <!-- ===================== HEADER ===================== -->
   <header class="studio-header">
     <div class="studio-brand">
       <span class="studio-badge">CS</span>
       <span class="studio-title">Course Studio</span>
-      <span class="studio-version">v1</span>
+      <span class="studio-version" id="studio-version-tag">v2</span>
     </div>
+
+    <!-- breadcrumbs reflect current view -->
+    <nav class="studio-crumbs" id="studio-crumbs" aria-label="Breadcrumb"></nav>
+
     <div class="studio-headbar">
-      <button id="btn-toggle-preview" class="studio-btn" type="button" title="Toggle preview pane">Preview</button>
-      <button id="btn-discard"        class="studio-btn"           type="button" disabled>Discard</button>
-      <button id="btn-save"           class="studio-btn primary"   type="button" disabled>Save</button>
+      <span class="studio-savestate" id="studio-savestate" title="Autosave status">Idle</span>
+      <button id="btn-toggle-preview" class="studio-btn hidden" type="button" title="Toggle preview pane">Preview</button>
+      <button id="btn-discard"        class="studio-btn hidden" type="button" disabled>Discard</button>
+      <button id="btn-save"           class="studio-btn primary hidden" type="button" disabled>Save</button>
       <span class="studio-user" id="studio-user-label">…</span>
       <button id="btn-signout" class="studio-btn ghost" type="button">Sign out</button>
     </div>
   </header>
 
-  <!-- Auth gate: visible until we confirm a course-author signed in -->
+  <!-- ===================== AUTH GATE ===================== -->
   <div id="studio-gate" class="studio-gate hidden">
     <div class="studio-gate-card">
       <h1>Course Studio</h1>
@@ -42,56 +48,216 @@
     </div>
   </div>
 
-  <!-- Main 3-pane workspace -->
-  <main id="studio-main" class="studio-main hidden">
+  <!-- ===================== APP SHELL ===================== -->
+  <div id="studio-shell" class="studio-shell hidden">
 
-    <!-- LEFT: outline tree -->
-    <aside class="studio-pane studio-left" id="pane-left">
-      <div class="studio-pane-head">
-        <select id="course-picker" class="studio-select"></select>
-      </div>
-      <div class="studio-pane-body" id="outline-tree" aria-label="Course outline"></div>
-    </aside>
+    <!-- LEFT: persistent navigation rail -->
+    <nav class="studio-nav" id="studio-nav" aria-label="Studio navigation">
+      <a href="/studio"        class="studio-nav-link" data-route="dashboard"><span class="navicon">▦</span> Dashboard</a>
+      <a href="/studio/courses" class="studio-nav-link" data-route="courses"><span class="navicon">⚏</span> Courses</a>
+      <a href="/studio/media"  class="studio-nav-link" data-route="media"><span class="navicon">▣</span> Media Library</a>
+      <a href="/studio/users"  class="studio-nav-link" data-route="users"><span class="navicon">◉</span> Users</a>
+      <a href="/admin/requests" class="studio-nav-link" data-external><span class="navicon">⚑</span> Access Requests</a>
+      <div class="studio-nav-spacer"></div>
+      <a href="/" class="studio-nav-link" data-external><span class="navicon">↗</span> Live Site</a>
+      <a href="/preview/le-field-tactics" class="studio-nav-link" data-external><span class="navicon">↗</span> LE Preview</a>
+      <a href="/preview/btc-investigations" class="studio-nav-link" data-external><span class="navicon">↗</span> BTC Preview</a>
+    </nav>
 
-    <!-- CENTER: editor -->
-    <section class="studio-pane studio-center" id="pane-center">
-      <div class="studio-pane-head studio-toolbar" id="editor-toolbar">
-        <!-- toolbar gets injected based on what's selected -->
-      </div>
-      <div class="studio-pane-body" id="editor-host">
-        <div class="studio-empty-state">
-          <h2>Select a page from the outline</h2>
-          <p>Click any page, lesson, module, knowledge-check question, or final-exam question to begin editing.</p>
+    <!-- RIGHT: route-controlled main view -->
+    <main class="studio-view" id="studio-view"></main>
+
+  </div>
+
+  <!-- ===================== TEMPLATES ===================== -->
+
+  <!-- Dashboard view template -->
+  <template id="tpl-dashboard">
+    <section class="dash">
+      <header class="dash-head">
+        <div>
+          <h1>Studio dashboard</h1>
+          <p class="dash-sub">Authoring platform overview · <span id="dash-greeting">welcome back</span></p>
         </div>
+      </header>
+
+      <div class="dash-kpis" id="dash-kpis">
+        <!-- 8 KPI cards injected here -->
+      </div>
+
+      <section class="dash-section">
+        <header class="dash-section-head">
+          <h2>Courses</h2>
+          <div class="dash-section-actions">
+            <input id="dash-course-filter" class="studio-input" placeholder="Filter…" />
+          </div>
+        </header>
+        <div class="dash-courses" id="dash-courses"></div>
+      </section>
+
+      <section class="dash-section dash-cols">
+        <div class="dash-col">
+          <header class="dash-section-head">
+            <h2>Recent edits</h2>
+          </header>
+          <div class="dash-feed" id="dash-feed"></div>
+        </div>
+        <div class="dash-col">
+          <header class="dash-section-head">
+            <h2>Quick actions</h2>
+          </header>
+          <div class="dash-actions">
+            <a href="/studio/media" class="dash-action"><strong>Open Media Library</strong><span>Manage uploaded images and audio</span></a>
+            <a href="/admin/requests" class="dash-action"><strong>Review Access Requests</strong><span>Approve or deny pending users</span></a>
+            <a href="/courses" class="dash-action" target="_blank"><strong>View Public Catalog</strong><span>What students see at /courses</span></a>
+            <a href="https://supabase.com/dashboard/project/fyacdyarcfgngqetmaoc" class="dash-action" target="_blank" rel="noopener"><strong>Open Supabase</strong><span>Direct DB + storage admin</span></a>
+          </div>
+        </div>
+      </section>
+    </section>
+  </template>
+
+  <!-- Editor view template (the existing 3-pane workspace) -->
+  <template id="tpl-editor">
+    <div class="studio-main">
+
+      <!-- LEFT: outline tree -->
+      <aside class="studio-pane studio-left" id="pane-left">
+        <div class="studio-pane-head">
+          <select id="course-picker" class="studio-select"></select>
+        </div>
+        <div class="studio-pane-toolbar">
+          <button id="btn-add-module" class="studio-btn ghost" type="button" title="Add module">+ Module</button>
+          <button id="btn-validate"   class="studio-btn ghost" type="button" title="Run validation">Lint</button>
+        </div>
+        <div class="studio-pane-body" id="outline-tree" aria-label="Course outline"></div>
+      </aside>
+
+      <!-- CENTER: editor -->
+      <section class="studio-pane studio-center" id="pane-center">
+        <div class="studio-pane-head studio-toolbar" id="editor-toolbar"></div>
+        <div class="studio-editor-statusbar" id="editor-statusbar">
+          <span id="stat-words">0 words</span>
+          <span class="dot">·</span>
+          <span id="stat-chars">0 chars</span>
+          <span class="dot">·</span>
+          <span id="stat-read">0 min read</span>
+          <span class="grow"></span>
+          <span id="stat-validation"></span>
+        </div>
+        <div class="studio-pane-body" id="editor-host">
+          <div class="studio-empty-state">
+            <h2>Select a page from the outline</h2>
+            <p>Click any page, lesson, module, knowledge-check question, or final-exam question to begin editing.</p>
+            <p class="studio-shortcuts-hint">Shortcuts: <kbd>Ctrl/⌘+S</kbd> save · <kbd>Ctrl+B/I</kbd> bold/italic · <kbd>Ctrl+K</kbd> link · <kbd>Ctrl+1/2/3</kbd> heading · <kbd>Ctrl+F</kbd> find</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: metadata + preview -->
+      <aside class="studio-pane studio-right" id="pane-right">
+        <div class="studio-pane-head">
+          <span id="meta-title">Metadata</span>
+        </div>
+        <div class="studio-pane-body" id="meta-host"></div>
+      </aside>
+
+      <!-- PREVIEW pane (slides in) -->
+      <aside class="studio-preview hidden" id="pane-preview">
+        <div class="studio-pane-head">
+          <span>Preview</span>
+          <button id="btn-close-preview" class="studio-btn ghost" type="button">Close</button>
+        </div>
+        <div class="studio-pane-body" id="preview-host">
+          <div class="lesson-card" id="preview-card">
+            <div class="studio-empty-state"><p>Edit a page to see a live preview here.</p></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Find/replace bar -->
+      <div id="find-bar" class="studio-findbar hidden">
+        <input id="find-q" placeholder="Find…" />
+        <input id="find-r" placeholder="Replace…" />
+        <button id="find-prev" class="studio-btn ghost" type="button">↑</button>
+        <button id="find-next" class="studio-btn ghost" type="button">↓</button>
+        <button id="find-replace-one" class="studio-btn ghost" type="button">Replace</button>
+        <button id="find-replace-all" class="studio-btn ghost" type="button">All</button>
+        <button id="find-close" class="studio-btn ghost" type="button">✕</button>
+        <span id="find-count" class="studio-findbar-count"></span>
+      </div>
+
+    </div>
+  </template>
+
+  <!-- Media Library view template -->
+  <template id="tpl-media">
+    <section class="media">
+      <header class="dash-head">
+        <div>
+          <h1>Media Library</h1>
+          <p class="dash-sub">Images, audio, and PDFs uploaded to Supabase storage <code>course-assets</code> bucket.</p>
+        </div>
+        <div class="media-head-actions">
+          <input id="media-filter" class="studio-input" placeholder="Filter by filename or alt…" />
+          <select id="media-course-filter" class="studio-select"></select>
+          <label class="studio-btn primary">
+            Upload
+            <input id="media-upload-input" type="file" accept="image/*,audio/*,application/pdf" multiple style="display:none" />
+          </label>
+        </div>
+      </header>
+
+      <div id="media-dropzone" class="media-dropzone">
+        Drag & drop images, audio, or PDFs here to upload — or click <strong>Upload</strong> above.
+      </div>
+
+      <div id="media-grid" class="media-grid"></div>
+
+      <div id="media-empty" class="studio-empty-state hidden">
+        <h2>No assets yet</h2>
+        <p>Drop a file above to get started.</p>
       </div>
     </section>
+  </template>
 
-    <!-- RIGHT: metadata + preview -->
-    <aside class="studio-pane studio-right" id="pane-right">
-      <div class="studio-pane-head">
-        <span id="meta-title">Metadata</span>
-      </div>
-      <div class="studio-pane-body" id="meta-host"></div>
-    </aside>
-
-    <!-- PREVIEW (slides in from right when toggled) -->
-    <aside class="studio-preview hidden" id="pane-preview">
-      <div class="studio-pane-head">
-        <span>Preview</span>
-        <button id="btn-close-preview" class="studio-btn ghost" type="button">Close</button>
-      </div>
-      <div class="studio-pane-body" id="preview-host">
-        <div class="lesson-card" id="preview-card">
-          <div class="studio-empty-state"><p>Edit a page to see a live preview here.</p></div>
+  <!-- Users view template -->
+  <template id="tpl-users">
+    <section class="users">
+      <header class="dash-head">
+        <div>
+          <h1>Users</h1>
+          <p class="dash-sub">All registered profiles. Edit role to grant or revoke Studio access.</p>
         </div>
-      </div>
-    </aside>
+        <div class="media-head-actions">
+          <input id="users-filter" class="studio-input" placeholder="Filter by email, name, agency…" />
+          <select id="users-role-filter" class="studio-select">
+            <option value="">All roles</option>
+            <option value="super_admin">Super admin</option>
+            <option value="instructor">Instructor</option>
+            <option value="tenant_admin">Tenant admin</option>
+            <option value="student">Student</option>
+          </select>
+        </div>
+      </header>
+      <div id="users-table" class="users-table"></div>
+    </section>
+  </template>
 
-  </main>
+  <!-- Image-insert modal -->
+  <div id="modal-host" class="modal-host hidden">
+    <div class="modal-card" id="modal-card">
+      <div class="modal-head"><span id="modal-title">Insert image</span>
+        <button id="modal-close" class="studio-btn ghost">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-foot" id="modal-foot"></div>
+    </div>
+  </div>
 
   <!-- Toast for save success / errors -->
   <div id="studio-toast" class="studio-toast hidden"></div>
 
-  <script type="module" src="/studio.js"></script>
+  <script src="/studio.js"></script>
 </body>
 </html>

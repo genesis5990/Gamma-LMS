@@ -72,6 +72,10 @@ check "btc preview json"            200 "/preview/btc-investigations.course.json
 check "studio shell"                200 "/studio"                    "Studio"
 check "studio js"                   200 "/studio.js"                 "supabase"
 check "studio css"                  200 "/studio.css"                "studio"
+check "studio edit route"           200 "/studio/edit/le-field-tactics"  "Studio"
+check "studio media route"          200 "/studio/media"              "Studio"
+check "studio users route"          200 "/studio/users"              "Studio"
+check "studio courses route"        200 "/studio/courses"            "Studio"
 
 # ---- Fallback behavior -----------------------------------------------------
 # Unknown routes serve the neutral GDAA landing with a 404 status.

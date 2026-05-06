@@ -474,7 +474,8 @@ app.get('/preview/btc-investigations', (_req, res) => {
 // Server just serves the static shell; all data access goes through
 // the JS client + Supabase row-level security (is_course_author()).
 // =====================================================================
-app.get('/studio', (_req, res) => {
+// Studio v2 SPA — all /studio/* paths serve studio.html; client router handles them.
+app.get(/^\/studio(?:\/.*)?$/, (_req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(PUBLIC_DIR, 'studio.html'));
 });
