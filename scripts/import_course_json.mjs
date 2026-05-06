@@ -25,7 +25,7 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1);
 }
 
-async function rest(method, p, { body, params } = {}) {
+async function rest(method, p, { body, params, prefer } = {}) {
   const url = new URL(`${SUPABASE_URL}/rest/v1${p}`);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const res = await fetch(url, {
@@ -34,7 +34,7 @@ async function rest(method, p, { body, params } = {}) {
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
       'Content-Type': 'application/json',
-      Prefer: 'return=representation',
+      Prefer: prefer || 'return=representation',
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -66,8 +66,11 @@ async function upsertCourse(slug, course) {
     includes_disclaimer: !!course.includes_disclaimer,
     visibility: 'preview',
   };
-  const rows = await rest('POST', '/courses',
-    { params: { on_conflict: 'slug' }, body: payload });
+  const rows = await rest('POST', '/courses', {
+    params: { on_conflict: 'slug' },
+    body: payload,
+    prefer: 'return=representation,resolution=merge-duplicates',
+  });
   if (Array.isArray(rows) && rows.length) return rows[0];
   const got = await rest('GET', '/courses',
     { params: { slug: `eq.${slug}`, select: '*' } });
