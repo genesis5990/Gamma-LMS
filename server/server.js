@@ -463,6 +463,10 @@ app.get('/preview/le-field-tactics', (_req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(PUBLIC_DIR, 'preview', 'le-field-tactics.html'));
 });
+app.get('/preview/btc-investigations', (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'preview', 'btc-investigations.html'));
+});
 
 // =====================================================================
 // Access-request queue (super-admin global view)

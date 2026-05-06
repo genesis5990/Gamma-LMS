@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PREVIEW — Bitcoin Investigations</title>
+<link rel="stylesheet" href="/tenant-themes.css" />
+<link rel="stylesheet" href="/preview/le-preview.css" />
+<style>
+  :root {
+    --ink:        #0d1424;
+    --ink-2:      #1d2a47;
+    --paper:      #f7f8fc;
+    --paper-2:    #ffffff;
+    --line:       #d9dfee;
+    --line-2:     #e8ecf6;
+    --accent:     #1f63d6;
+    --accent-2:   #0a3d91;
+    --gold:       #c8a64a;
+    --good:       #2a9355;
+    --bad:        #c94545;
+    --warn:       #b97a09;
+    --muted:      #5b6788;
+    --shadow:     0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: var(--paper);
+  }
+  a { color: var(--accent-2); }
+
+  /* ===== Header chrome — same shell as course.html ===== */
+  header.course {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color: #fff;
+    border-bottom: 3px solid var(--gold);
+    padding: 14px 22px;
+  }
+  header.course .row { display:flex; align-items:center; gap:14px; max-width:1400px; margin:0 auto; }
+  header.course .badge {
+    width:46px; height:46px; border-radius:8px;
+    background: var(--gold); color: var(--ink);
+    display:grid; place-items:center; font-weight:800; font-size:18px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,.15);
+  }
+  header.course h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
+  header.course .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+  header.course .actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+  /* ===== Layout ===== */
+  .wrap { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 110px); }
+  @media (max-width: 900px) {
+    .wrap { grid-template-columns: 1fr; }
+    aside.sidebar { position: sticky; top: 0; z-index: 5; max-height: 50vh; overflow:auto; }
+  }
+
+  /* ===== Sidebar ===== */
+  aside.sidebar {
+    background: var(--paper-2);
+    border-right: 1px solid var(--line);
+    padding: 18px 14px 40px;
+  }
+  .module-block { margin-bottom: 10px; }
+  .module-head {
+    font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); padding: 12px 8px 6px; font-weight: 700;
+  }
+  .lesson-link {
+    display:flex; align-items:center; gap:10px;
+    padding: 9px 10px; border-radius: 6px;
+    cursor: pointer; user-select:none;
+    border: 1px solid transparent;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .lesson-link:hover { background: var(--paper); }
+  .lesson-link.active { background: #eef3ff; border-color: #c8d6f5; }
+  .lesson-link .lnum {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted); font-size: 12px; min-width: 32px;
+  }
+  .lesson-link .ltitle { flex:1; line-height:1.35; }
+  .lesson-link .qbadge {
+    font-size: 10px; padding: 2px 6px; border-radius: 999px;
+    background: #e8ecf6; color: var(--muted); margin-left: 4px;
+  }
+
+  /* ===== Main panel ===== */
+  main.content { padding: 28px clamp(20px, 4vw, 56px) 60px; min-width: 0; }
+  .crumb { font-size: 12px; color: var(--muted); margin-bottom: 8px; letter-spacing: .5px; text-transform: uppercase; }
+  .crumb b { color: var(--ink); font-weight: 600; }
+  h2.lesson-title {
+    font-size: 26px; line-height: 1.25; margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .lesson-meta { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+  .lesson-card {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow);
+    padding: 26px clamp(18px, 3vw, 32px);
+  }
+  .lesson-card h2 {
+    color: var(--ink-2); font-size: 20px; margin: 18px 0 10px;
+    border-left: 4px solid var(--accent); padding-left: 12px;
+  }
+  .lesson-card h3 { color: var(--ink-2); margin: 18px 0 8px; font-size: 17px; }
+  .lesson-card h4 { color: var(--ink-2); margin: 14px 0 6px; font-size: 15px; }
+  .lesson-card p { margin: 0 0 14px; }
+  .lesson-card ul, .lesson-card ol { margin: 6px 0 14px 22px; }
+  .lesson-card li { margin: 4px 0; }
+  .lesson-card a { color: var(--accent-2); }
+
+  /* Page navigation footer */
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 22px; gap: 10px; flex-wrap: wrap;
+  }
+  .pager .pageinfo { font-size: 13px; color: var(--muted); }
+  .btn {
+    padding: 10px 18px; border-radius: 6px; border: 1px solid transparent;
+    font-weight: 600; cursor: pointer; font-size: 14px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-2); }
+  .btn-secondary { background: #fff; color: var(--ink); border-color: var(--line); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent-2); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+</style>
+</head>
+<body data-tenant="deconflict">
+
+<div class="preview-banner">PREVIEW MODE — content review only · no auth · no progress saved</div>
+
+<header class="course">
+  <div class="row">
+    <img data-tenant-logo="dark" src="/assets/tenants/deconflict/transparent/Logo-With-Text.svg" style="height:46px; max-width:280px; object-fit:contain; border-radius:4px;" alt="Deconflict" />
+    <div class="badge" id="defaultBadge" style="display:none">D</div>
+    <div>
+      <h1 id="courseTitle">Bitcoin Investigations</h1>
+      <div class="sub"><span data-tenant-name>Deconflict</span></div>
+    </div>
+    <div class="actions">
+      <span style="font-size:12px; color:#aab2c8; letter-spacing:.5px;">PREVIEW</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content" id="content">Loading…</main>
+</div>
+
+<script>
+const COURSE_URL = '/preview/btc-investigations.course.json';
+let COURSE = null;
+
+// Flat list of "items" — each represents a screen on the right.
+// Types:
+//   'page'   { moduleIdx, lessonIdx, pageIdx, content }
+//   'kc'     { moduleIdx, kc }                       (knowledge check for a module)
+//   'final'  { questions }                           (final exam)
+let ITEMS = [];
+let cursor = 0;
+
+(async function init() {
+  try {
+    const r = await fetch(COURSE_URL, { cache: 'no-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    COURSE = await r.json();
+  } catch (err) {
+    document.getElementById('content').innerHTML =
+      '<div class="lesson-card"><h2>Failed to load course</h2><p>' + escapeHtml(String(err)) + '</p></div>';
+    return;
+  }
+  document.getElementById('courseTitle').textContent = COURSE.title || 'Preview';
+  document.title = 'PREVIEW — ' + (COURSE.title || 'Course');
+
+  buildItems();
+  buildSidebar();
+  render();
+  window.addEventListener('hashchange', () => {
+    const idx = hashToIndex();
+    if (idx != null && idx !== cursor) { cursor = idx; render(); }
+  });
+  const fromHash = hashToIndex();
+  if (fromHash != null) { cursor = fromHash; render(); }
+})();
+
+function buildItems() {
+  ITEMS = [];
+  COURSE.modules.forEach((m, mi) => {
+    (m.lessons || []).forEach((l, li) => {
+      (l.pages || []).forEach((p, pi) => {
+        ITEMS.push({ kind: 'page', moduleIdx: mi, lessonIdx: li, pageIdx: pi, content: p.content || '' });
+      });
+    });
+    if (m.knowledge_check && Array.isArray(m.knowledge_check.questions) && m.knowledge_check.questions.length) {
+      ITEMS.push({ kind: 'kc', moduleIdx: mi, kc: m.knowledge_check });
+    }
+  });
+  if (COURSE.final_exam && Array.isArray(COURSE.final_exam.questions) && COURSE.final_exam.questions.length) {
+    ITEMS.push({ kind: 'final', questions: COURSE.final_exam.questions });
+  }
+}
+
+function hashToIndex() {
+  const h = (location.hash || '').replace(/^#/, '');
+  if (!h) return null;
+  const n = parseInt(h, 10);
+  if (Number.isFinite(n) && n >= 0 && n < ITEMS.length) return n;
+  return null;
+}
+
+function buildSidebar() {
+  const sb = document.getElementById('sidebar');
+  const out = [];
+  COURSE.modules.forEach((m, mi) => {
+    out.push('<div class="module-block">');
+    out.push('<div class="module-head">' + escapeHtml(stripTags(m.title || ('Module ' + mi))) + '</div>');
+    (m.lessons || []).forEach((l, li) => {
+      const firstPageIdx = ITEMS.findIndex(it => it.kind === 'page' && it.moduleIdx === mi && it.lessonIdx === li);
+      if (firstPageIdx < 0) return;
+      out.push('<a class="lesson-link" data-idx="' + firstPageIdx + '" href="#' + firstPageIdx + '">');
+      out.push('<span class="lnum">' + escapeHtml(l.id || '') + '</span>');
+      out.push('<span class="ltitle">' + escapeHtml(stripTags(l.title || '')) + '</span>');
+      out.push('</a>');
+    });
+    const kcIdx = ITEMS.findIndex(it => it.kind === 'kc' && it.moduleIdx === mi);
+    if (kcIdx >= 0) {
+      out.push('<a class="lesson-link" data-idx="' + kcIdx + '" href="#' + kcIdx + '">');
+      out.push('<span class="lnum">KC</span>');
+      out.push('<span class="ltitle">Knowledge Check</span>');
+      out.push('<span class="qbadge">' + ITEMS[kcIdx].kc.questions.length + 'q</span>');
+      out.push('</a>');
+    }
+    out.push('</div>');
+  });
+  const finalIdx = ITEMS.findIndex(it => it.kind === 'final');
+  if (finalIdx >= 0) {
+    out.push('<div class="module-block">');
+    out.push('<div class="module-head">Final Exam</div>');
+    out.push('<a class="lesson-link" data-idx="' + finalIdx + '" href="#' + finalIdx + '">');
+    out.push('<span class="lnum">FE</span>');
+    out.push('<span class="ltitle">Final Exam</span>');
+    out.push('<span class="qbadge">' + ITEMS[finalIdx].questions.length + 'q</span>');
+    out.push('</a>');
+    out.push('</div>');
+  }
+  sb.innerHTML = out.join('');
+  sb.querySelectorAll('.lesson-link').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      cursor = parseInt(el.getAttribute('data-idx'), 10);
+      location.hash = String(cursor);
+      render();
+    });
+  });
+}
+
+function render() {
+  const item = ITEMS[cursor];
+  const main = document.getElementById('content');
+  document.querySelectorAll('.lesson-link').forEach(el => el.classList.remove('active'));
+
+  if (!item) { main.innerHTML = '<div class="lesson-card"><p>No content.</p></div>'; return; }
+
+  let html = '';
+  if (item.kind === 'page') {
+    const m = COURSE.modules[item.moduleIdx];
+    const l = m.lessons[item.lessonIdx];
+    const totalPagesInLesson = (l.pages || []).length;
+    html += '<div class="crumb"><b>' + escapeHtml(stripTags(m.title || '')) + '</b> · ' +
+            escapeHtml(stripTags(l.title || '')) + '</div>';
+    html += '<h2 class="lesson-title">' + escapeHtml(stripTags(l.title || '')) + '</h2>';
+    html += '<div class="lesson-meta">Page ' + (item.pageIdx + 1) + ' of ' + totalPagesInLesson + '</div>';
+    html += '<div class="lesson-card">' + (item.content || '') + '</div>';
+    html += renderPager();
+    // Highlight the lesson link
+    const firstPageIdx = ITEMS.findIndex(it => it.kind === 'page' && it.moduleIdx === item.moduleIdx && it.lessonIdx === item.lessonIdx);
+    const link = document.querySelector('.lesson-link[data-idx="' + firstPageIdx + '"]');
+    if (link) link.classList.add('active');
+  } else if (item.kind === 'kc') {
+    const m = COURSE.modules[item.moduleIdx];
+    html += '<div class="crumb"><b>' + escapeHtml(stripTags(m.title || '')) + '</b> · Knowledge Check</div>';
+    html += '<h2 class="lesson-title">Knowledge Check</h2>';
+    html += '<div class="lesson-meta">Pass threshold: ' + Math.round((COURSE.pass_threshold || 0.8) * 100) + '%. Re-takes allowed.</div>';
+    html += renderQuiz('kc-' + item.moduleIdx, item.kc.questions);
+    html += renderPager();
+    const link = document.querySelector('.lesson-link[data-idx="' + cursor + '"]');
+    if (link) link.classList.add('active');
+  } else if (item.kind === 'final') {
+    html += '<div class="crumb"><b>Final Exam</b></div>';
+    html += '<h2 class="lesson-title">Final Exam</h2>';
+    html += '<div class="lesson-meta">Pass threshold: ' + Math.round((COURSE.pass_threshold || 0.8) * 100) + '%. Re-takes allowed.</div>';
+    html += renderQuiz('final', item.questions);
+    html += renderPager();
+    const link = document.querySelector('.lesson-link[data-idx="' + cursor + '"]');
+    if (link) link.classList.add('active');
+  }
+
+  main.innerHTML = html;
+  wirePager();
+  wireQuiz();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function renderPager() {
+  const cur = cursor + 1;
+  const tot = ITEMS.length;
+  return '<div class="pager">' +
+    '<button class="btn btn-secondary" id="prevBtn"' + (cursor === 0 ? ' disabled' : '') + '>&larr; Prev</button>' +
+    '<span class="pageinfo">Item ' + cur + ' of ' + tot + '</span>' +
+    '<button class="btn btn-primary" id="nextBtn"' + (cursor >= tot - 1 ? ' disabled' : '') + '>Next &rarr;</button>' +
+    '</div>';
+}
+
+function wirePager() {
+  const prev = document.getElementById('prevBtn');
+  const next = document.getElementById('nextBtn');
+  if (prev) prev.addEventListener('click', () => { if (cursor > 0) { cursor--; location.hash = String(cursor); render(); } });
+  if (next) next.addEventListener('click', () => { if (cursor < ITEMS.length - 1) { cursor++; location.hash = String(cursor); render(); } });
+}
+
+function renderQuiz(slug, questions) {
+  let h = '<div class="kc-block"><div class="kc-meta">' + questions.length + ' questions</div>';
+  h += '<form id="quiz-' + slug + '" data-slug="' + slug + '" data-count="' + questions.length + '">';
+  questions.forEach((q, qi) => {
+    h += '<div class="kc-q" data-qi="' + qi + '" data-answer="' + q.answer + '">';
+    h += '<div class="stem">' + (qi + 1) + '. ' + escapeHtml(stripTags(q.q || '')) + '</div>';
+    h += '<ul class="opts">';
+    (q.options || []).forEach((opt, oi) => {
+      const id = slug + '-q' + qi + '-o' + oi;
+      h += '<li><label for="' + id + '" data-oi="' + oi + '">' +
+           '<input type="radio" id="' + id + '" name="' + slug + '-q' + qi + '" value="' + oi + '" />' +
+           '<span>' + escapeHtml(stripTags(opt)) + '</span></label></li>';
+    });
+    h += '</ul>';
+    h += '<div class="feedback"><strong class="status"></strong>' +
+         (q.ref ? '<span class="ref">Reference: ' + escapeHtml(stripTags(q.ref)) + '</span>' : '') +
+         '</div>';
+    h += '</div>';
+  });
+  h += '<div class="kc-actions">' +
+       '<button type="submit" class="btn btn-primary">Submit Answers</button>' +
+       '<button type="button" class="btn btn-secondary kc-reset">Reset</button>' +
+       '</div>';
+  h += '<div class="kc-result" style="display:none;"></div>';
+  h += '</form></div>';
+  return h;
+}
+
+function wireQuiz() {
+  document.querySelectorAll('form[id^="quiz-"]').forEach(form => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      gradeQuiz(form);
+    });
+    form.querySelector('.kc-reset')?.addEventListener('click', () => resetQuiz(form));
+  });
+}
+
+function gradeQuiz(form) {
+  const qs = form.querySelectorAll('.kc-q');
+  let correct = 0;
+  qs.forEach(q => {
+    const answer = parseInt(q.getAttribute('data-answer'), 10);
+    const picked = form.querySelector('input[name="' + form.dataset.slug + '-q' + q.dataset.qi + '"]:checked');
+    const pickedIdx = picked ? parseInt(picked.value, 10) : -1;
+    q.classList.add('graded');
+    q.classList.remove('correct', 'incorrect');
+    q.querySelectorAll('.opts label').forEach(lab => {
+      lab.classList.remove('is-correct', 'is-wrong-chosen');
+      const oi = parseInt(lab.getAttribute('data-oi'), 10);
+      if (oi === answer) lab.classList.add('is-correct');
+      if (oi === pickedIdx && pickedIdx !== answer) lab.classList.add('is-wrong-chosen');
+    });
+    const status = q.querySelector('.feedback .status');
+    if (pickedIdx === answer) {
+      q.classList.add('correct');
+      status.textContent = 'Correct.';
+      correct++;
+    } else {
+      q.classList.add('incorrect');
+      status.textContent = picked ? 'Incorrect.' : 'No answer selected.';
+    }
+  });
+  const total = qs.length;
+  const pct = total ? correct / total : 0;
+  const threshold = COURSE.pass_threshold || 0.8;
+  const passed = pct >= threshold;
+  const result = form.querySelector('.kc-result');
+  result.style.display = 'block';
+  result.classList.toggle('pass', passed);
+  result.classList.toggle('fail', !passed);
+  result.innerHTML =
+    (passed ? 'PASS' : 'FAIL') +
+    ' &mdash; scored ' + correct + ' / ' + total +
+    ' (' + Math.round(pct * 100) + '%, threshold ' + Math.round(threshold * 100) + '%).' +
+    (passed ? '' : ' Review references for incorrect answers above and re-take.');
+  result.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetQuiz(form) {
+  form.querySelectorAll('input[type=radio]').forEach(r => { r.checked = false; });
+  form.querySelectorAll('.kc-q').forEach(q => {
+    q.classList.remove('graded', 'correct', 'incorrect');
+    q.querySelectorAll('.opts label').forEach(lab => lab.classList.remove('is-correct', 'is-wrong-chosen'));
+  });
+  const result = form.querySelector('.kc-result');
+  if (result) { result.style.display = 'none'; result.textContent = ''; }
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+// For sidebar/lesson titles that contain HTML entities — strip tags but
+// preserve the visible text. We feed the result through escapeHtml after.
+function stripTags(s) {
+  return String(s).replace(/<[^>]*>/g, '');
+}
+</script>
+</body>
+</html>
