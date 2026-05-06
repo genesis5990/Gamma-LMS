@@ -483,8 +483,9 @@ async function renderMedia(view) {
   const tpl = document.getElementById('tpl-media');
   view.appendChild(tpl.content.cloneNode(true));
 
-  // load courses for filter
+  // load courses for filter (and cache for uploadFiles)
   const { data: courses } = await sb.from('courses').select('id, slug, title').order('slug');
+  state.allCoursesMeta = courses || state.allCoursesMeta || [];
   const sel = $('#media-course-filter');
   sel.innerHTML = '<option value="">All courses</option>' +
     (courses || []).map(c => `<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
@@ -579,10 +580,15 @@ async function renderMedia(view) {
     ev.preventDefault(); dz.classList.remove('is-drag');
   }));
   dz.addEventListener('drop', async (ev) => {
-    const files = Array.from(ev.dataTransfer?.files || []);
-    if (!files.length) return;
-    await uploadFiles(files, courseIdFilter || null);
-    load();
+    try {
+      const files = Array.from(ev.dataTransfer?.files || []);
+      if (!files.length) return;
+      await uploadFiles(files, courseIdFilter || null);
+      load();
+    } catch (err) {
+      console.error('media drop handler', err);
+      toast('Upload failed: ' + (err?.message || err), 'is-error');
+    }
   });
 
   load();
@@ -1873,9 +1879,25 @@ async function uploadOne(file, courseId, courseSlug) {
 }
 
 async function uploadFiles(files, courseId) {
-  const courseSlug = courseId
-    ? (state.allCoursesMeta.find(c => c.id === courseId)?.slug || state.courses.find(c => c.id === courseId)?.slug)
-    : null;
+  // Resolve course slug from any cache that happens to be populated.
+  // Both state.allCoursesMeta (dashboard/media) and state.courses (editor)
+  // can be undefined depending on which page the user visited first.
+  let courseSlug = null;
+  if (courseId) {
+    const meta = Array.isArray(state.allCoursesMeta) ? state.allCoursesMeta : [];
+    const editorList = Array.isArray(state.courses) ? state.courses : [];
+    courseSlug =
+      meta.find(c => c.id === courseId)?.slug ||
+      editorList.find(c => c.id === courseId)?.slug ||
+      null;
+    // Last-resort lookup if neither cache had it
+    if (!courseSlug) {
+      try {
+        const { data } = await sb.from('courses').select('slug').eq('id', courseId).maybeSingle();
+        courseSlug = data?.slug || null;
+      } catch (e) { /* non-fatal: upload still works without a slug */ }
+    }
+  }
   let success = 0, fail = 0;
   const total = files.length;
   for (let i = 0; i < total; i++) {
@@ -2263,6 +2285,28 @@ function stopAutosave() {
 window.addEventListener('beforeunload', (e) => {
   if (state.dirty.size) { e.preventDefault(); e.returnValue = ''; }
 });
+
+// Window-level drag guard: prevent the browser from navigating to / opening
+// files when the user drops slightly outside an in-app dropzone. Without
+// this, off-target drops cause the browser to load the file as a new page,
+// which looks like "drag-and-drop stopped working".
+window.addEventListener('dragover', (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+    e.preventDefault();
+  }
+}, false);
+window.addEventListener('drop', (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+    // If the drop landed on a real dropzone (media-dropzone or html-editor),
+    // those handlers already ran and called preventDefault on their own bubbling event.
+    // For anything else, swallow the event so the browser doesn't open the file.
+    const onMediaDz = e.target && e.target.closest && e.target.closest('#media-dropzone');
+    const onEditor  = e.target && e.target.closest && e.target.closest('#html-editor');
+    if (!onMediaDz && !onEditor) {
+      e.preventDefault();
+    }
+  }
+}, false);
 
 // =====================================================================
 // BOOTSTRAP
