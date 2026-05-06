@@ -1,0 +1,179 @@
+/* admin-nav.js
+ * Shared cross-page nav shown only to authenticated admin/instructor users.
+ * Include AFTER /config.js, the supabase UMD bundle, and /auth.js (when present).
+ * Safe to include on pages without auth.js — it will silently no-op when the
+ * Supabase UMD or config isn't available.
+ *
+ * Renders a slim fixed top bar with quick links between:
+ *   Dashboard · Access requests · Course Studio · Catalog · Live site · Sign out
+ * The current page is highlighted via prefix match on location.pathname.
+ */
+(function adminNavInit() {
+  if (window.__adminNavMounted) return;            // idempotent
+  window.__adminNavMounted = true;
+
+  // --- Bail early if dependencies aren't available -------------------------
+  if (typeof window.supabase === 'undefined') return;
+  if (!window.SUPABASE_URL || !window.SUPABASE_PUBLISHABLE_KEY) return;
+
+  // Reuse the existing supabase client created by auth.js if it leaked one,
+  // otherwise create a *read-only* client (no auto-refresh) that shares the
+  // same default localStorage session key, so we don't get a second
+  // GoTrueClient instance fighting auth.js for token refreshes.
+  let client;
+  try {
+    client = window.supabase.createClient(
+      window.SUPABASE_URL,
+      window.SUPABASE_PUBLISHABLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+    );
+  } catch (_e) { return; }
+
+  const ADMIN_ROLES = new Set(['super_admin', 'tenant_admin', 'instructor']);
+
+  const NAV_ITEMS = [
+    { href: '/admin',           label: 'Dashboard',       match: p => p === '/admin' || p === '/admin/' },
+    { href: '/admin/requests',  label: 'Access requests', match: p => p.startsWith('/admin/requests') },
+    { href: '/studio',          label: 'Course Studio',   match: p => p === '/studio' || p.startsWith('/studio/') || p === '/studio.html' },
+    { href: '/courses',         label: 'Catalog',         match: p => p === '/courses' || p === '/courses.html' },
+    { href: '/',                label: 'Live site',       match: p => p === '/' || p === '/index.html' },
+  ];
+
+  function injectStyles() {
+    if (document.getElementById('admin-nav-style')) return;
+    const css = `
+      :root { --admin-nav-h: 44px; }
+      body.has-admin-nav { padding-top: var(--admin-nav-h) !important; }
+      #admin-nav {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+        height: var(--admin-nav-h);
+        background: #0b1220; color: #e6edf6;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+        display: flex; align-items: center;
+        padding: 0 14px; gap: 10px;
+        font: 500 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        box-shadow: 0 1px 0 rgba(0,0,0,.25);
+      }
+      #admin-nav .brand {
+        font-weight: 700; letter-spacing: .02em;
+        color: #fff; opacity: .9; margin-right: 6px;
+        white-space: nowrap;
+      }
+      #admin-nav .brand .badge {
+        display: inline-block; margin-left: 6px;
+        font-size: 10px; padding: 2px 6px; border-radius: 999px;
+        background: rgba(99,179,237,.18); color: #9ec5fe;
+        border: 1px solid rgba(99,179,237,.35);
+        text-transform: uppercase; letter-spacing: .08em;
+      }
+      #admin-nav nav { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; flex: 1; }
+      #admin-nav a {
+        color: #d1dbe8; text-decoration: none;
+        padding: 6px 10px; border-radius: 6px;
+        border: 1px solid transparent;
+      }
+      #admin-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
+      #admin-nav a.is-current {
+        background: rgba(99,179,237,.16);
+        border-color: rgba(99,179,237,.35);
+        color: #fff;
+      }
+      #admin-nav .who { opacity: .7; font-size: 12px; margin-right: 8px; white-space: nowrap; }
+      #admin-nav .signout {
+        background: transparent; color: #d1dbe8;
+        border: 1px solid rgba(255,255,255,.18);
+        padding: 6px 10px; border-radius: 6px; cursor: pointer; font: inherit;
+      }
+      #admin-nav .signout:hover { background: rgba(255,255,255,.06); color: #fff; }
+      @media (max-width: 720px) {
+        :root { --admin-nav-h: auto; }
+        #admin-nav { padding: 6px 10px; gap: 6px; }
+        #admin-nav .who { display: none; }
+        #admin-nav nav a { padding: 5px 8px; font-size: 12px; }
+      }
+      @media print { #admin-nav { display: none !important; } body.has-admin-nav { padding-top: 0 !important; } }
+    `.trim();
+    const style = document.createElement('style');
+    style.id = 'admin-nav-style';
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function buildBar(role, email) {
+    const path = window.location.pathname;
+    const bar = document.createElement('div');
+    bar.id = 'admin-nav';
+    bar.setAttribute('role', 'navigation');
+    bar.setAttribute('aria-label', 'Admin navigation');
+
+    const brand = document.createElement('span');
+    brand.className = 'brand';
+    brand.innerHTML = 'Admin <span class="badge">' + escapeHtml(role.replace(/_/g, ' ')) + '</span>';
+    bar.appendChild(brand);
+
+    const nav = document.createElement('nav');
+    NAV_ITEMS.forEach(item => {
+      const a = document.createElement('a');
+      a.href = item.href;
+      a.textContent = item.label;
+      if (item.match(path)) a.classList.add('is-current');
+      nav.appendChild(a);
+    });
+    bar.appendChild(nav);
+
+    if (email) {
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = email;
+      bar.appendChild(who);
+    }
+
+    const out = document.createElement('button');
+    out.type = 'button';
+    out.className = 'signout';
+    out.textContent = 'Sign out';
+    out.addEventListener('click', async () => {
+      try { await client.auth.signOut(); } catch (_e) {}
+      // Best-effort: also clear the auth.js client by reloading.
+      window.location.href = '/';
+    });
+    bar.appendChild(out);
+
+    document.body.classList.add('has-admin-nav');
+    document.body.insertBefore(bar, document.body.firstChild);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function maybeMount() {
+    let session = null;
+    try {
+      const { data } = await client.auth.getSession();
+      session = data && data.session;
+    } catch (_e) { return; }
+    if (!session || !session.user) return;
+
+    let role = null;
+    try {
+      const { data, error } = await client
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (error) return;
+      role = data && data.role;
+    } catch (_e) { return; }
+
+    if (!ADMIN_ROLES.has(role)) return;
+    injectStyles();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => buildBar(role, session.user.email));
+    } else {
+      buildBar(role, session.user.email);
+    }
+  }
+
+  maybeMount();
+})();
