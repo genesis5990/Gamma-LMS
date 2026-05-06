@@ -1,6 +1,6 @@
 {
   "name": "mygenesis-training",
-  "version": "0.4.15",
+  "version": "0.4.16",
   "description": "Crypto 101 LMS for law enforcement \u2014 production site for mygenesis-training.com",
   "private": true,
   "main": "server/server.js",

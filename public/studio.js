@@ -310,26 +310,48 @@ async function renderDashboard(view, coursesOnly) {
   const courses = coursesRes.data || [];
   state.allCoursesMeta = courses;
 
-  // Per-course stats (modules / lessons / pages) — one batch query
+  // Per-course stats (modules / lessons / pages) — flat IN-clause queries (no nested embed filters)
   const versionIds = courses.map(c => c.current_version_id).filter(Boolean);
-  const [perCourseModules, perCourseLessons, perCoursePages] = versionIds.length ? await Promise.all([
-    sb.from('modules').select('id, course_version_id').in('course_version_id', versionIds),
-    sb.from('lessons').select('id, modules!inner(course_version_id)').in('modules.course_version_id', versionIds),
-    sb.from('pages').select('id, lessons!inner(modules!inner(course_version_id))').in('lessons.modules.course_version_id', versionIds),
-  ]) : [{data:[]},{data:[]},{data:[]}];
+  let perCourseModulesData = [];
+  let perCourseLessonsData = [];
+  let perCoursePagesData = [];
+  const moduleIdToVersion = {};
+  const lessonIdToVersion = {};
+  if (versionIds.length) {
+    const modsRes = await sb.from('modules').select('id, course_version_id').in('course_version_id', versionIds);
+    if (modsRes.error) console.error('dashboard modules', modsRes.error);
+    perCourseModulesData = modsRes.data || [];
+    for (const m of perCourseModulesData) moduleIdToVersion[m.id] = m.course_version_id;
+    const moduleIds = perCourseModulesData.map(m => m.id);
+    if (moduleIds.length) {
+      const lessRes = await sb.from('lessons').select('id, module_id').in('module_id', moduleIds);
+      if (lessRes.error) console.error('dashboard lessons', lessRes.error);
+      perCourseLessonsData = lessRes.data || [];
+      for (const l of perCourseLessonsData) lessonIdToVersion[l.id] = moduleIdToVersion[l.module_id];
+      const lessonIds = perCourseLessonsData.map(l => l.id);
+      if (lessonIds.length) {
+        const pgsRes = await sb.from('pages').select('id, lesson_id').in('lesson_id', lessonIds);
+        if (pgsRes.error) console.error('dashboard pages', pgsRes.error);
+        perCoursePagesData = pgsRes.data || [];
+      }
+    }
+  }
+  const perCourseModules = { data: perCourseModulesData };
+  const perCourseLessons = { data: perCourseLessonsData };
+  const perCoursePages   = { data: perCoursePagesData };
 
   const statsByVersion = {};
-  for (const m of (perCourseModules.data || [])) {
+  for (const m of perCourseModulesData) {
     statsByVersion[m.course_version_id] = statsByVersion[m.course_version_id] || { modules: 0, lessons: 0, pages: 0 };
     statsByVersion[m.course_version_id].modules++;
   }
-  for (const l of (perCourseLessons.data || [])) {
-    const v = l.modules?.course_version_id; if (!v) continue;
+  for (const l of perCourseLessonsData) {
+    const v = moduleIdToVersion[l.module_id]; if (!v) continue;
     statsByVersion[v] = statsByVersion[v] || { modules: 0, lessons: 0, pages: 0 };
     statsByVersion[v].lessons++;
   }
-  for (const p of (perCoursePages.data || [])) {
-    const v = p.lessons?.modules?.course_version_id; if (!v) continue;
+  for (const p of perCoursePagesData) {
+    const v = lessonIdToVersion[p.lesson_id]; if (!v) continue;
     statsByVersion[v] = statsByVersion[v] || { modules: 0, lessons: 0, pages: 0 };
     statsByVersion[v].pages++;
   }
@@ -724,35 +746,63 @@ async function loadCourse(courseId) {
   renderCrumbs({ label: 'Studio', href: '/studio' }, { label: 'Editor', href: '/studio/courses' }, { label: state.course.title });
 
   const versionId = state.course.current_version_id;
-  const [versionRes, modulesRes, lessonsRes, pagesRes, kcRes, finalRes] = await Promise.all([
+
+  // Step 1: version + modules + final exam (depend only on versionId)
+  const [versionRes, modulesRes, finalRes] = await Promise.all([
     sb.from('course_versions').select('*').eq('id', versionId).maybeSingle(),
     sb.from('modules').select('*').eq('course_version_id', versionId).order('position'),
-    sb.from('lessons').select('*, modules!inner(course_version_id)').eq('modules.course_version_id', versionId).order('position'),
-    sb.from('pages').select('*, lessons!inner(module_id, modules!inner(course_version_id))').eq('lessons.modules.course_version_id', versionId).order('position'),
-    sb.from('module_quiz_questions').select('*, modules!inner(course_version_id)').eq('modules.course_version_id', versionId).order('position'),
     sb.from('final_exam_questions').select('*').eq('course_version_id', versionId).order('position'),
   ]);
-  for (const r of [versionRes, modulesRes, lessonsRes, pagesRes, kcRes, finalRes]) {
-    if (r.error) { toast('Load failed: ' + r.error.message, 'is-error'); console.error(r.error); return; }
+  for (const r of [versionRes, modulesRes, finalRes]) {
+    if (r.error) { toast('Load failed: ' + r.error.message, 'is-error'); console.error('loadCourse step1', r.error); return; }
   }
   state.version = versionRes.data;
+  const moduleRows = modulesRes.data || [];
+  const moduleIds = moduleRows.map(m => m.id);
+
+  // Step 2: lessons + KC questions (filter by module_id IN moduleIds)
+  let lessonRows = [];
+  let kcRows = [];
+  if (moduleIds.length) {
+    const [lessonsRes, kcRes] = await Promise.all([
+      sb.from('lessons').select('*').in('module_id', moduleIds).order('position'),
+      sb.from('module_quiz_questions').select('*').in('module_id', moduleIds).order('position'),
+    ]);
+    for (const r of [lessonsRes, kcRes]) {
+      if (r.error) { toast('Load failed: ' + r.error.message, 'is-error'); console.error('loadCourse step2', r.error); return; }
+    }
+    lessonRows = lessonsRes.data || [];
+    kcRows = kcRes.data || [];
+  }
+  const lessonIds = lessonRows.map(l => l.id);
+
+  // Step 3: pages (filter by lesson_id IN lessonIds)
+  let pageRows = [];
+  if (lessonIds.length) {
+    const pagesRes = await sb.from('pages').select('*').in('lesson_id', lessonIds).order('position');
+    if (pagesRes.error) { toast('Load failed: ' + pagesRes.error.message, 'is-error'); console.error('loadCourse step3', pagesRes.error); return; }
+    pageRows = pagesRes.data || [];
+  }
+
+  // Group lessons by module, pages by lesson, KC by module
   const lessonsByModule = new Map();
-  for (const l of (lessonsRes.data || [])) {
-    delete l.modules;
-    (lessonsByModule.get(l.module_id) || lessonsByModule.set(l.module_id, []).get(l.module_id)).push(l);
+  for (const l of lessonRows) {
+    if (!lessonsByModule.has(l.module_id)) lessonsByModule.set(l.module_id, []);
+    lessonsByModule.get(l.module_id).push(l);
     l.pages = []; l._kc = [];
   }
   const pagesByLesson = new Map();
-  for (const p of (pagesRes.data || [])) {
-    delete p.lessons;
-    (pagesByLesson.get(p.lesson_id) || pagesByLesson.set(p.lesson_id, []).get(p.lesson_id)).push(p);
+  for (const p of pageRows) {
+    if (!pagesByLesson.has(p.lesson_id)) pagesByLesson.set(p.lesson_id, []);
+    pagesByLesson.get(p.lesson_id).push(p);
   }
   const kcByModule = new Map();
-  for (const q of (kcRes.data || [])) {
-    delete q.modules;
-    (kcByModule.get(q.module_id) || kcByModule.set(q.module_id, []).get(q.module_id)).push(q);
+  for (const q of kcRows) {
+    if (!kcByModule.has(q.module_id)) kcByModule.set(q.module_id, []);
+    kcByModule.get(q.module_id).push(q);
   }
-  state.modules = (modulesRes.data || []).map(m => ({
+  const modulesRowsForState = moduleRows;
+  state.modules = modulesRowsForState.map(m => ({
     ...m,
     lessons: (lessonsByModule.get(m.id) || []).map(l => ({
       ...l,
