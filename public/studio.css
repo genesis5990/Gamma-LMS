@@ -1064,3 +1064,45 @@ body {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-accent, #1f63d6) 22%, transparent);
 }
 .outline-node[title] { cursor: pointer; }
+
+/* ===== Inline audio narration controls (editor only) ===== */
+#html-editor audio {
+  display: block;
+  max-width: 100%;
+  margin: 12px 0;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  border-radius: 6px;
+  transition: outline-color .12s;
+}
+#html-editor audio:hover { outline-color: color-mix(in srgb, var(--st-accent, #1f63d6) 30%, transparent); }
+#html-editor audio:focus,
+#html-editor audio.is-active { outline-color: var(--st-accent, #1f63d6); }
+.inline-audio-bar {
+  position: absolute;
+  z-index: 950;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--st-line);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .15);
+  font-size: 12.5px;
+  user-select: none;
+}
+.inline-audio-bar.hidden { display: none; }
+.inline-audio-bar button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 4px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--st-ink, #0f172a);
+  line-height: 1.2;
+}
+.inline-audio-bar button:hover { background: var(--st-paper-2, #f3f5fb); border-color: var(--st-line); }
+.inline-audio-bar button.danger { color: #b42318; }
+.inline-audio-bar button.danger:hover { background: #fef3f2; border-color: #fda29b; }
