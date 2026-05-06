@@ -78,6 +78,31 @@ function debounce(fn, ms) {
   let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+// derivePageTitle: prefer p.title, else first heading text from body_html,
+// else first paragraph snippet, else "Untitled page". Used by the outline.
+function derivePageTitle(p) {
+  if (!p) return 'Untitled page';
+  if (p.title && String(p.title).trim()) return String(p.title).trim();
+  const html = String(p.body_html || '');
+  if (!html) return 'Untitled page';
+  // First heading h1–h6
+  const h = html.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
+  if (h) {
+    const txt = h[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (txt) return txt.length > 80 ? txt.slice(0, 77) + '…' : txt;
+  }
+  // First paragraph
+  const para = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  if (para) {
+    const txt = para[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (txt) return txt.length > 80 ? txt.slice(0, 77) + '…' : txt;
+  }
+  // Fallback: any text
+  const stripped = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  if (stripped) return stripped.length > 80 ? stripped.slice(0, 77) + '…' : stripped;
+  return 'Untitled page';
+}
+
 // ---------- toast ---------------------------------------------------
 function toast(msg, kind = '') {
   const el = $('#studio-toast');
