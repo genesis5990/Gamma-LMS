@@ -9,6 +9,7 @@ RUN npm install --omit=dev --no-audit --no-fund
 # Copy app source
 COPY server ./server
 COPY public ./public
+COPY scripts ./scripts
 
 ENV NODE_ENV=production
 ENV PORT=8080
