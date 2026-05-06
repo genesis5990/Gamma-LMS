@@ -1930,8 +1930,10 @@ async function uploadFiles(files, courseId) {
 // Adds Move up / Move down / Edit URL / Delete buttons to every <audio>
 // element inside the editor. Implemented as a one-time global init so
 // repeated page navigation doesn't pile up stale listeners.
+const __INLINE_AUDIO_DEBUG = false;
 let __inlineAudioInit = false;
 let __inlineAudioActive = null;
+let __inlineAudioHideTimer = null;
 
 function __inlineAudioBar() {
   let bar = document.getElementById('inline-audio-bar');
@@ -1972,29 +1974,76 @@ function __inlineAudioHide() {
 }
 
 function __inlineAudioShow(audio) {
+  if (__inlineAudioHideTimer) { clearTimeout(__inlineAudioHideTimer); __inlineAudioHideTimer = null; }
   __inlineAudioActive = audio;
+  if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] show', audio);
   __inlineAudioPosition();
+}
+
+function __inlineAudioResolveAudio(e) {
+  // 1) Direct closest from click target
+  let audio = e.target && e.target.closest && e.target.closest('audio');
+  if (audio) return audio;
+  // 2) Activeelement (focused audio)
+  const ae = document.activeElement;
+  if (ae && ae.closest && ae.closest('audio')) return ae.closest('audio');
+  // 3) elementFromPoint at click coordinates (handles shadow-DOM retargeting)
+  if (typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (el && el.closest) {
+      const a = el.closest('audio');
+      if (a) return a;
+    }
+  }
+  return null;
 }
 
 function __inlineAudioInitOnce() {
   if (__inlineAudioInit) return;
   __inlineAudioInit = true;
   __inlineAudioBar(); // ensure created
+  if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] init');
 
   // Capture-phase listener on document: if the click target is an <audio>
   // inside the live editor, show the bar. We do NOT call preventDefault so
   // the native player still plays/pauses normally.
   document.addEventListener('click', (e) => {
-    const audio = e.target.closest && e.target.closest('audio');
+    const audio = __inlineAudioResolveAudio(e);
     const inEditor = audio && audio.closest && audio.closest('#html-editor');
+    if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] click', { target: e.target, audio, inEditor: !!inEditor });
     if (audio && inEditor) {
       __inlineAudioShow(audio);
       return;
     }
     // Click landed outside editor and outside the bar -> hide
-    if (!e.target.closest('#html-editor') && !e.target.closest('#inline-audio-bar')) {
+    const t = e.target;
+    if (t && t.closest && !t.closest('#html-editor') && !t.closest('#inline-audio-bar')) {
       __inlineAudioHide();
     }
+  }, true);
+
+  // Focus-based fallback. Native <audio controls> sometimes consume clicks
+  // inside their shadow-DOM controls — but a focusin still fires on the
+  // <audio> host element when the user clicks it.
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    const audio = t && t.closest && t.closest('audio');
+    const inEditor = audio && audio.closest && audio.closest('#html-editor');
+    if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] focusin', { target: t, audio, inEditor: !!inEditor });
+    if (audio && inEditor) __inlineAudioShow(audio);
+  }, true);
+
+  // Hide when focus moves outside both the editor audio and the toolbar.
+  // Small timeout lets focus move INTO the toolbar buttons before we hide.
+  document.addEventListener('focusout', (e) => {
+    if (__inlineAudioHideTimer) clearTimeout(__inlineAudioHideTimer);
+    __inlineAudioHideTimer = setTimeout(() => {
+      const ae = document.activeElement;
+      const stillOnAudio = ae && ae.closest && ae.closest('audio') && ae.closest('#html-editor');
+      const onToolbar    = ae && ae.closest && ae.closest('#inline-audio-bar');
+      if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] focusout settle', { ae, stillOnAudio: !!stillOnAudio, onToolbar: !!onToolbar });
+      if (!stillOnAudio && !onToolbar) __inlineAudioHide();
+    }, 150);
   }, true);
 
   // Toolbar button clicks
@@ -2061,6 +2110,10 @@ function wireInlineAudioControls(editor, _page) {
   // Hide bar when this editor instance is removed from DOM
   __inlineAudioHide();
 }
+
+// Install global audio listeners unconditionally at module load so the
+// toolbar works on first render — independent of editor wiring path.
+try { __inlineAudioInitOnce(); } catch (_) {}
 
 function wireDropAndPaste(editor, page) {
   // drag over highlight
