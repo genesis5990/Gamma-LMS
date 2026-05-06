@@ -1713,41 +1713,47 @@ async function openAudioPicker(pageId, onPick) {
       const searchEl = host.querySelector('#audio-picker-search');
       const uploadBtn = host.querySelector('#audio-picker-upload');
 
+      // Show ALL audio assets the current user can access (RLS scopes
+      // them to courses the user authors). Narration is often reusable
+      // across courses, so we don't filter to the current course only.
       let rows = [];
       try {
-        const q = sb.from('course_assets')
+        const { data, error } = await sb.from('course_assets')
           .select('id, filename, public_url, byte_size, mime_type, created_at, course_id')
           .eq('kind', 'audio')
           .order('created_at', { ascending: false })
-          .limit(200);
-        if (courseId) q.or(`course_id.eq.${courseId},course_id.is.null`);
-        const { data, error } = await q;
+          .limit(500);
         if (error) throw error;
         rows = data || [];
       } catch (err) {
+        console.error('audio picker load', err);
         listEl.innerHTML = `<div class="studio-empty-state is-error"><p>Could not load audio assets: ${escapeHtml(err.message)}</p></div>`;
         return;
       }
 
       const render = (filter = '') => {
+        try {
         const f = filter.trim().toLowerCase();
         const filtered = f ? rows.filter(r => (r.filename || '').toLowerCase().includes(f)) : rows;
         if (!filtered.length) {
           listEl.innerHTML = `<div class="studio-empty-state"><p>No audio assets ${f ? 'match that search' : 'in the library yet'}.</p><p>Use “Upload new…” above to add one.</p></div>`;
           return;
         }
-        listEl.innerHTML = filtered.map(r => `
+        listEl.innerHTML = filtered.map(r => {
+          const fromOther = courseId && r.course_id && r.course_id !== courseId;
+          const tag = fromOther ? '<span class="audio-picker-tag" title="From a different course">other course</span>' : (r.course_id ? '' : '<span class="audio-picker-tag">shared</span>');
+          return `
           <div class="audio-picker-row" data-url="${escapeHtml(r.public_url)}">
             <div class="audio-picker-meta">
-              <div class="audio-picker-name">${escapeHtml(r.filename || '(untitled)')}</div>
+              <div class="audio-picker-name">${escapeHtml(r.filename || '(untitled)')} ${tag}</div>
               <div class="audio-picker-sub">${formatBytes(r.byte_size)} · ${escapeHtml(r.mime_type || 'audio')} · ${fmtRelTime(r.created_at)}</div>
               <audio controls preload="none" src="${escapeHtml(r.public_url)}" style="width:100%; margin-top:6px;"></audio>
             </div>
             <div class="audio-picker-actions">
               <button type="button" class="studio-btn is-primary" data-act="pick">Use this</button>
             </div>
-          </div>
-        `).join('');
+          </div>`;
+        }).join('');
         listEl.querySelectorAll('.audio-picker-row').forEach(rowEl => {
           rowEl.querySelector('[data-act="pick"]').addEventListener('click', () => {
             const url = rowEl.getAttribute('data-url');
@@ -1756,6 +1762,10 @@ async function openAudioPicker(pageId, onPick) {
             closeModal();
           });
         });
+        } catch (err) {
+          console.error('audio picker render', err);
+          listEl.innerHTML = `<div class="studio-empty-state is-error"><p>Could not render list: ${escapeHtml(err.message)}</p></div>`;
+        }
       };
       render();
       searchEl.addEventListener('input', () => render(searchEl.value));
