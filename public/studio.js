@@ -1928,89 +1928,87 @@ async function uploadFiles(files, courseId) {
 
 // ---------- inline-audio overlay controls -----------------------
 // Adds Move up / Move down / Edit URL / Delete buttons to every <audio>
-// element inside the editor. The overlay is only visible while editing
-// (it's a sibling element, never serialized into body_html).
-function wireInlineAudioControls(editor, page) {
-  if (!editor) return;
+// element inside the editor. Implemented as a one-time global init so
+// repeated page navigation doesn't pile up stale listeners.
+let __inlineAudioInit = false;
+let __inlineAudioActive = null;
 
-  // Wrap each <audio> in an editor-only container with action buttons
-  function decorate() {
-    const audios = editor.querySelectorAll('audio:not([data-decorated])');
-    audios.forEach(a => {
-      a.setAttribute('data-decorated', '1');
-      // mark contenteditable=false on the audio so cursor doesn't get trapped inside
-      a.setAttribute('contenteditable', 'false');
-      // make sure it has controls
-      a.setAttribute('controls', '');
-    });
-  }
-  decorate();
-  // re-decorate whenever the user pastes / drops / types new content
-  const mo = new MutationObserver(() => decorate());
-  mo.observe(editor, { childList: true, subtree: true });
-
-  // Floating toolbar (single instance, repositioned next to the active audio)
+function __inlineAudioBar() {
   let bar = document.getElementById('inline-audio-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'inline-audio-bar';
-    bar.className = 'inline-audio-bar hidden';
-    bar.contentEditable = 'false';
-    bar.innerHTML = `
-      <button type="button" data-act="up"     title="Move up">▲</button>
-      <button type="button" data-act="down"   title="Move down">▼</button>
-      <button type="button" data-act="edit"   title="Edit URL">Edit URL</button>
-      <button type="button" data-act="delete" class="danger" title="Delete">Delete</button>
-    `;
-    document.body.appendChild(bar);
+  if (bar) return bar;
+  bar = document.createElement('div');
+  bar.id = 'inline-audio-bar';
+  bar.className = 'inline-audio-bar hidden';
+  bar.setAttribute('contenteditable', 'false');
+  bar.innerHTML = `
+    <button type="button" data-act="up"     title="Move up">▲</button>
+    <button type="button" data-act="down"   title="Move down">▼</button>
+    <button type="button" data-act="edit"   title="Edit URL">Edit URL</button>
+    <button type="button" data-act="delete" class="danger" title="Delete">Delete</button>
+  `;
+  document.body.appendChild(bar);
+  return bar;
+}
+
+function __inlineAudioPosition() {
+  const bar = __inlineAudioBar();
+  const a = __inlineAudioActive;
+  if (!a || !document.body.contains(a)) {
+    bar.classList.add('hidden');
+    __inlineAudioActive = null;
+    return;
   }
+  bar.classList.remove('hidden');
+  // measure after un-hiding so offsetHeight is real
+  const ar = a.getBoundingClientRect();
+  const top = window.scrollY + ar.top - bar.offsetHeight - 6;
+  bar.style.top  = (top < window.scrollY + 4 ? window.scrollY + ar.bottom + 6 : top) + 'px';
+  bar.style.left = (window.scrollX + ar.left) + 'px';
+}
 
-  let activeAudio = null;
+function __inlineAudioHide() {
+  __inlineAudioActive = null;
+  __inlineAudioBar().classList.add('hidden');
+}
 
-  function positionBar() {
-    if (!activeAudio || !document.body.contains(activeAudio)) {
-      bar.classList.add('hidden');
-      activeAudio = null;
+function __inlineAudioShow(audio) {
+  __inlineAudioActive = audio;
+  __inlineAudioPosition();
+}
+
+function __inlineAudioInitOnce() {
+  if (__inlineAudioInit) return;
+  __inlineAudioInit = true;
+  __inlineAudioBar(); // ensure created
+
+  // Capture-phase listener on document: if the click target is an <audio>
+  // inside the live editor, show the bar. We do NOT call preventDefault so
+  // the native player still plays/pauses normally.
+  document.addEventListener('click', (e) => {
+    const audio = e.target.closest && e.target.closest('audio');
+    const inEditor = audio && audio.closest && audio.closest('#html-editor');
+    if (audio && inEditor) {
+      __inlineAudioShow(audio);
       return;
     }
-    const r = activeAudio.getBoundingClientRect();
-    bar.classList.remove('hidden');
-    bar.style.top  = (window.scrollY + r.top - bar.offsetHeight - 6) + 'px';
-    bar.style.left = (window.scrollX + r.left) + 'px';
-  }
-
-  function show(audio) {
-    activeAudio = audio;
-    positionBar();
-  }
-  function hide() {
-    activeAudio = null;
-    bar.classList.add('hidden');
-  }
-
-  // Click on an audio element selects it for editing
-  editor.addEventListener('click', (e) => {
-    const a = e.target.closest('audio');
-    if (a) { e.preventDefault(); show(a); }
-    else if (!e.target.closest('#inline-audio-bar')) hide();
-  });
-  // Hide when clicking elsewhere
-  document.addEventListener('mousedown', (e) => {
-    if (!editor.contains(e.target) && !bar.contains(e.target)) hide();
+    // Click landed outside editor and outside the bar -> hide
+    if (!e.target.closest('#html-editor') && !e.target.closest('#inline-audio-bar')) {
+      __inlineAudioHide();
+    }
   }, true);
-  // Reposition on scroll/resize
-  window.addEventListener('scroll', positionBar, true);
-  window.addEventListener('resize', positionBar);
 
-  // Toolbar actions
-  bar.addEventListener('click', (e) => {
+  // Toolbar button clicks
+  __inlineAudioBar().addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act]');
-    if (!btn || !activeAudio) return;
+    if (!btn) return;
+    const audio = __inlineAudioActive;
+    if (!audio || !document.body.contains(audio)) { __inlineAudioHide(); return; }
     const act = btn.dataset.act;
-    const audio = activeAudio;
-    const block = audio.closest('figure, p, div') === editor ? audio : (audio.parentElement && audio.parentElement !== editor ? audio.parentElement : audio);
-    // The element to physically move is the audio itself (or its wrapping <figure>/<p> if it's the only child).
-    const target = (audio.parentElement && audio.parentElement !== editor && audio.parentElement.children.length === 1) ? audio.parentElement : audio;
+    // The element to physically move/delete is the wrapping figure/p if the audio
+    // is its only child; otherwise the audio itself.
+    const parent = audio.parentElement;
+    const target = (parent && parent.id !== 'html-editor' && parent.children.length === 1) ? parent : audio;
+    const editor = audio.closest('#html-editor');
 
     if (act === 'up') {
       const prev = target.previousElementSibling;
@@ -2025,29 +2023,43 @@ function wireInlineAudioControls(editor, page) {
       const trimmed = String(url).trim();
       if (!trimmed) { toast('URL cannot be empty', 'is-error'); return; }
       audio.setAttribute('src', trimmed);
-      // force the player to reload the new source
       try { audio.load(); } catch (_) {}
     } else if (act === 'delete') {
       if (!confirm('Delete this audio narration block from the page?\n\nThe file in the media library is not affected.')) return;
       target.remove();
-      hide();
+      __inlineAudioHide();
     }
-    // notify the editor so autosave fires
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-    setTimeout(positionBar, 0);
+    if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(__inlineAudioPosition, 0);
   });
 
-  // Keyboard shortcuts when an audio is selected
+  // Reposition on scroll/resize
+  window.addEventListener('scroll', __inlineAudioPosition, true);
+  window.addEventListener('resize', __inlineAudioPosition);
+
+  // Esc to dismiss
   document.addEventListener('keydown', (e) => {
-    if (!activeAudio || bar.classList.contains('hidden')) return;
-    if (e.key === 'Escape') { hide(); return; }
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      // only if the editor itself is focused, not a form control
-      if (document.activeElement && document.activeElement.matches('input, textarea')) return;
-      e.preventDefault();
-      bar.querySelector('[data-act="delete"]').click();
-    }
+    if (e.key === 'Escape' && __inlineAudioActive) __inlineAudioHide();
   });
+}
+
+function wireInlineAudioControls(editor, _page) {
+  if (!editor) return;
+  __inlineAudioInitOnce();
+  // Decorate existing audio elements so the cursor doesn't get trapped inside them
+  const decorate = () => {
+    editor.querySelectorAll('audio:not([data-decorated])').forEach(a => {
+      a.setAttribute('data-decorated', '1');
+      a.setAttribute('contenteditable', 'false');
+      a.setAttribute('controls', '');
+      a.style.cursor = 'pointer';
+    });
+  };
+  decorate();
+  const mo = new MutationObserver(decorate);
+  mo.observe(editor, { childList: true, subtree: true });
+  // Hide bar when this editor instance is removed from DOM
+  __inlineAudioHide();
 }
 
 function wireDropAndPaste(editor, page) {

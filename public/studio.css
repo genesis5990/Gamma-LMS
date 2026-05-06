@@ -1080,18 +1080,19 @@ body {
 #html-editor audio.is-active { outline-color: var(--st-accent, #1f63d6); }
 .inline-audio-bar {
   position: absolute;
-  z-index: 950;
+  z-index: 9999;
   display: inline-flex;
   gap: 4px;
-  padding: 4px;
+  padding: 5px;
   background: #fff;
-  border: 1px solid var(--st-line);
+  border: 1px solid var(--st-accent, #1f63d6);
   border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, .15);
+  box-shadow: 0 6px 22px rgba(15, 23, 42, .22);
   font-size: 12.5px;
   user-select: none;
+  pointer-events: auto;
 }
-.inline-audio-bar.hidden { display: none; }
+.inline-audio-bar.hidden { display: none !important; }
 .inline-audio-bar button {
   appearance: none;
   border: 1px solid transparent;
