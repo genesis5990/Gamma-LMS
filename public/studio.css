@@ -954,3 +954,71 @@ body {
   color: #fff;
   font-size: 12.5px;
 }
+
+/* ===== Audio narration meta block ===== */
+.field.audio-field { display: flex; flex-direction: column; gap: 8px; }
+.meta-audio-player {
+  background: var(--st-paper);
+  border: 1px solid var(--st-line);
+  border-radius: 6px;
+  padding: 8px;
+}
+.meta-audio-player.is-empty {
+  background: repeating-linear-gradient(
+    45deg, var(--st-paper), var(--st-paper) 10px,
+    color-mix(in srgb, var(--st-paper) 92%, var(--st-line)) 10px,
+    color-mix(in srgb, var(--st-paper) 92%, var(--st-line)) 20px
+  );
+}
+.meta-audio-player audio { display: block; }
+.meta-audio-empty {
+  font-size: 12.5px; color: var(--st-muted);
+  padding: 14px 6px; text-align: center;
+}
+.meta-audio-actions {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.meta-audio-actions .studio-btn.is-danger {
+  background: #fff;
+  border-color: color-mix(in srgb, #c94545 50%, var(--st-line));
+  color: #b03333;
+}
+.meta-audio-actions .studio-btn.is-danger:hover {
+  background: #fdf1f1; border-color: #b03333; color: #8a2424;
+}
+.studio-btn-link {
+  font-size: 12.5px; color: var(--st-accent, #1f63d6);
+  text-decoration: underline; margin-left: 4px;
+}
+.studio-btn-link:hover { color: #0a3d91; }
+
+/* ===== Audio picker modal ===== */
+.audio-picker-toolbar {
+  display: flex; gap: 8px; margin-bottom: 12px;
+}
+.audio-picker-toolbar input[type="search"] {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--st-line);
+  border-radius: 5px;
+  font: inherit; font-size: 13px;
+}
+.audio-picker-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 60vh; overflow-y: auto;
+}
+.audio-picker-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--st-line);
+  border-radius: 6px;
+  background: var(--st-paper);
+}
+.audio-picker-row:hover { border-color: color-mix(in srgb, var(--st-accent, #1f63d6) 50%, var(--st-line)); }
+.audio-picker-meta { flex: 1; min-width: 0; }
+.audio-picker-name {
+  font-weight: 600; font-size: 13.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.audio-picker-sub { color: var(--st-muted); font-size: 11.5px; margin-top: 2px; }
+.audio-picker-actions { flex-shrink: 0; align-self: center; }

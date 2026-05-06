@@ -1419,7 +1419,20 @@ function renderMeta() {
           <option value="interactive" ${ref.page.page_type==='interactive'?'selected':''}>Interactive</option>
         </select>
       </div>
-      <div class="field"><label>Audio narration URL</label><input id="meta-audio" type="text" value="${escapeHtml(ref.page.audio_url || '')}" placeholder="(none)"/></div>
+      <div class="field audio-field">
+        <label>Audio narration</label>
+        <div id="meta-audio-player" class="meta-audio-player ${ref.page.audio_url ? '' : 'is-empty'}">
+          ${ref.page.audio_url
+            ? `<audio controls preload="metadata" src="${escapeHtml(ref.page.audio_url)}" style="width:100%"></audio>`
+            : `<div class="meta-audio-empty">No narration assigned to this page.</div>`}
+        </div>
+        <input id="meta-audio" type="text" value="${escapeHtml(ref.page.audio_url || '')}" placeholder="https://&hellip; or pick from library" spellcheck="false"/>
+        <div class="meta-audio-actions">
+          <button type="button" class="studio-btn" id="meta-audio-pick">${ref.page.audio_url ? 'Replace from library' : 'Pick from library'}</button>
+          ${ref.page.audio_url ? `<button type="button" class="studio-btn is-danger" id="meta-audio-clear">Remove narration</button>` : ''}
+          ${ref.page.audio_url ? `<a class="studio-btn-link" href="${escapeHtml(ref.page.audio_url)}" target="_blank" rel="noopener">Open in new tab</a>` : ''}
+        </div>
+      </div>
       <div class="meta-info">
         Lesson: <strong>${escapeHtml(ref.lesson.title)}</strong><br>
         Module: ${escapeHtml(ref.module.title)}<br>
@@ -1429,7 +1442,36 @@ function renderMeta() {
     </form>`;
     $('#meta-title-in').addEventListener('input', e => stagePagePatch(ref.page.id, { title: e.target.value }));
     $('#meta-type').addEventListener('change',     e => stagePagePatch(ref.page.id, { page_type: e.target.value }));
-    $('#meta-audio').addEventListener('input',     e => stagePagePatch(ref.page.id, { audio_url: e.target.value || null }));
+    const refreshAudioBlock = (newUrl) => {
+      stagePagePatch(ref.page.id, { audio_url: newUrl || null });
+      // Re-render the meta pane so the player + buttons reflect the new value.
+      // Schedule on next tick so the patch is applied before re-render reads state.
+      setTimeout(() => renderMeta('page', ref.page.id), 0);
+    };
+    $('#meta-audio').addEventListener('input', e => {
+      // Live URL edit: update the staged patch and the player src without
+      // re-rendering the whole meta pane (so focus stays in the input).
+      const v = e.target.value.trim();
+      stagePagePatch(ref.page.id, { audio_url: v || null });
+      const player = $('#meta-audio-player');
+      if (player) {
+        if (v) {
+          player.classList.remove('is-empty');
+          player.innerHTML = `<audio controls preload="metadata" src="${escapeHtml(v)}" style="width:100%"></audio>`;
+        } else {
+          player.classList.add('is-empty');
+          player.innerHTML = `<div class="meta-audio-empty">No narration assigned to this page.</div>`;
+        }
+      }
+    });
+    const pickBtn = $('#meta-audio-pick');
+    if (pickBtn) pickBtn.addEventListener('click', () => openAudioPicker(ref.page.id, refreshAudioBlock));
+    const clearBtn = $('#meta-audio-clear');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      if (!confirm('Remove the audio narration from this page? The audio file itself will not be deleted from the media library.')) return;
+      refreshAudioBlock(null);
+      toast('Narration removed (save to apply)');
+    });
     return;
   }
 
@@ -1492,6 +1534,108 @@ function renderMeta() {
 
   titleEl.textContent = 'Metadata';
   host.innerHTML = '';
+}
+
+// ---------- audio narration picker -------------------------------
+// Opens a modal listing audio assets in course_assets for the current course.
+// onPick(url) is invoked with the chosen public_url, or null if cleared.
+async function openAudioPicker(pageId, onPick) {
+  const courseId = state.course?.id;
+  openModal({
+    title: 'Pick audio narration',
+    bodyHtml: `
+      <div class="audio-picker">
+        <div class="audio-picker-toolbar">
+          <input id="audio-picker-search" type="search" placeholder="Search by filename…" />
+          <button type="button" class="studio-btn" id="audio-picker-upload">Upload new…</button>
+        </div>
+        <div id="audio-picker-list" class="audio-picker-list"><div class="studio-empty-state"><p>Loading…</p></div></div>
+      </div>
+    `,
+    footHtml: `
+      <button type="button" class="studio-btn" id="modal-cancel">Cancel</button>
+    `,
+    onMount: async (host) => {
+      host.querySelector('#modal-cancel').addEventListener('click', closeModal);
+      const listEl = host.querySelector('#audio-picker-list');
+      const searchEl = host.querySelector('#audio-picker-search');
+      const uploadBtn = host.querySelector('#audio-picker-upload');
+
+      let rows = [];
+      try {
+        const q = sb.from('course_assets')
+          .select('id, filename, public_url, byte_size, mime_type, created_at, course_id')
+          .eq('kind', 'audio')
+          .order('created_at', { ascending: false })
+          .limit(200);
+        if (courseId) q.or(`course_id.eq.${courseId},course_id.is.null`);
+        const { data, error } = await q;
+        if (error) throw error;
+        rows = data || [];
+      } catch (err) {
+        listEl.innerHTML = `<div class="studio-empty-state is-error"><p>Could not load audio assets: ${escapeHtml(err.message)}</p></div>`;
+        return;
+      }
+
+      const render = (filter = '') => {
+        const f = filter.trim().toLowerCase();
+        const filtered = f ? rows.filter(r => (r.filename || '').toLowerCase().includes(f)) : rows;
+        if (!filtered.length) {
+          listEl.innerHTML = `<div class="studio-empty-state"><p>No audio assets ${f ? 'match that search' : 'in the library yet'}.</p><p>Use “Upload new…” above to add one.</p></div>`;
+          return;
+        }
+        listEl.innerHTML = filtered.map(r => `
+          <div class="audio-picker-row" data-url="${escapeHtml(r.public_url)}">
+            <div class="audio-picker-meta">
+              <div class="audio-picker-name">${escapeHtml(r.filename || '(untitled)')}</div>
+              <div class="audio-picker-sub">${formatBytes(r.byte_size)} · ${escapeHtml(r.mime_type || 'audio')} · ${fmtRelTime(r.created_at)}</div>
+              <audio controls preload="none" src="${escapeHtml(r.public_url)}" style="width:100%; margin-top:6px;"></audio>
+            </div>
+            <div class="audio-picker-actions">
+              <button type="button" class="studio-btn is-primary" data-act="pick">Use this</button>
+            </div>
+          </div>
+        `).join('');
+        listEl.querySelectorAll('.audio-picker-row').forEach(rowEl => {
+          rowEl.querySelector('[data-act="pick"]').addEventListener('click', () => {
+            const url = rowEl.getAttribute('data-url');
+            onPick(url);
+            toast('Narration assigned (save to apply)', 'is-saved');
+            closeModal();
+          });
+        });
+      };
+      render();
+      searchEl.addEventListener('input', () => render(searchEl.value));
+
+      uploadBtn.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'audio/*';
+        input.addEventListener('change', async () => {
+          const file = input.files && input.files[0];
+          if (!file) return;
+          listEl.innerHTML = `<div class="studio-empty-state"><p>Uploading “${escapeHtml(file.name)}”…</p></div>`;
+          try {
+            const row = await uploadOne(file, courseId, state.course?.slug);
+            onPick(row.public_url);
+            toast('Audio uploaded and assigned (save to apply)', 'is-saved');
+            closeModal();
+          } catch (err) {
+            listEl.innerHTML = `<div class="studio-empty-state is-error"><p>Upload failed: ${escapeHtml(err.message)}</p></div>`;
+          }
+        });
+        input.click();
+      });
+    }
+  });
+}
+
+function formatBytes(n) {
+  if (!n && n !== 0) return '—';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(2) + ' MB';
 }
 
 // ---------- preview pane -----------------------------------------
