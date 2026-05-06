@@ -46,6 +46,15 @@ async function rest(method, p, { body, params } = {}) {
   return txt ? JSON.parse(txt) : null;
 }
 
+function normalizePassThreshold(v) {
+  if (v === undefined || v === null || v === '') return 80;
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 80;
+  // 0 < x <= 1  => fraction, scale to percent
+  // 1 < x <= 100 => already percent
+  return n <= 1 ? Math.round(n * 100) : Math.round(n);
+}
+
 async function upsertCourse(slug, course) {
   const payload = {
     slug,
@@ -53,7 +62,7 @@ async function upsertCourse(slug, course) {
     description: course.description ?? null,
     audience: course.audience ?? null,
     prerequisites: course.prerequisites ?? null,
-    pass_threshold: parseInt(course.pass_threshold ?? 80, 10),
+    pass_threshold: normalizePassThreshold(course.pass_threshold),
     includes_disclaimer: !!course.includes_disclaimer,
     visibility: 'preview',
   };
