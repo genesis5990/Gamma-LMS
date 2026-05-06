@@ -22,7 +22,8 @@ const RESERVED = new Set([
   'assets', 'favicon.ico', 'robots.txt', 'sitemap.xml',
   'auth.js', 'config.js', 'tenant.js', 'course_data.json',
   'course.html', 'admin.html', 'index.html', 'courses.html', 'admin-requests.html',
-  'verify', 'health', 'api', 'courses', 'preview'
+  'verify', 'health', 'api', 'courses', 'preview', 'studio',
+  'studio.html', 'studio.js', 'studio.css'
 ]);
 
 // Slugs are URL-safe lowercase: a-z 0-9 - (3-40 chars).
@@ -469,6 +470,16 @@ app.get('/preview/btc-investigations', (_req, res) => {
 });
 
 // =====================================================================
+// Studio (authoring UI) — auth-gated client-side via Supabase RLS.
+// Server just serves the static shell; all data access goes through
+// the JS client + Supabase row-level security (is_course_author()).
+// =====================================================================
+app.get('/studio', (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'studio.html'));
+});
+
+// =====================================================================
 // Access-request queue (super-admin global view)
 // =====================================================================
 app.get('/admin/requests', (_req, res) => {
@@ -518,7 +529,7 @@ app.get(/^\/([^\/]+)(?:\/(admin)?\/?)?$/, (req, res, next) => {
 app.use(express.static(PUBLIC_DIR, {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
-    if (/(course\.html|admin\.html|admin-requests\.html|courses\.html|index\.html|config\.js|auth\.js|tenant\.js|admin-welcome\.js|tenant-themes\.css|course_data\.json)$/.test(filePath)) {
+    if (/(course\.html|admin\.html|admin-requests\.html|courses\.html|index\.html|studio\.html|studio\.js|studio\.css|config\.js|auth\.js|tenant\.js|admin-welcome\.js|tenant-themes\.css|course_data\.json)$/.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }

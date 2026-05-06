@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Course Studio</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/config.js"></script>
+  <script src="/auth.js"></script>
+  <link rel="stylesheet" href="/preview/le-preview.css" />
+  <link rel="stylesheet" href="/studio.css" />
+</head>
+<body>
+
+  <header class="studio-header">
+    <div class="studio-brand">
+      <span class="studio-badge">CS</span>
+      <span class="studio-title">Course Studio</span>
+      <span class="studio-version">v1</span>
+    </div>
+    <div class="studio-headbar">
+      <button id="btn-toggle-preview" class="studio-btn" type="button" title="Toggle preview pane">Preview</button>
+      <button id="btn-discard"        class="studio-btn"           type="button" disabled>Discard</button>
+      <button id="btn-save"           class="studio-btn primary"   type="button" disabled>Save</button>
+      <span class="studio-user" id="studio-user-label">…</span>
+      <button id="btn-signout" class="studio-btn ghost" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Auth gate: visible until we confirm a course-author signed in -->
+  <div id="studio-gate" class="studio-gate hidden">
+    <div class="studio-gate-card">
+      <h1>Course Studio</h1>
+      <p id="studio-gate-msg">Checking access…</p>
+      <form id="studio-gate-form" class="studio-gate-form hidden">
+        <label>Email
+          <input type="email" id="studio-gate-email" placeholder="you@agency.gov" required />
+        </label>
+        <button type="submit" class="studio-btn primary">Send magic link</button>
+      </form>
+      <p id="studio-gate-error" class="studio-gate-error hidden"></p>
+    </div>
+  </div>
+
+  <!-- Main 3-pane workspace -->
+  <main id="studio-main" class="studio-main hidden">
+
+    <!-- LEFT: outline tree -->
+    <aside class="studio-pane studio-left" id="pane-left">
+      <div class="studio-pane-head">
+        <select id="course-picker" class="studio-select"></select>
+      </div>
+      <div class="studio-pane-body" id="outline-tree" aria-label="Course outline"></div>
+    </aside>
+
+    <!-- CENTER: editor -->
+    <section class="studio-pane studio-center" id="pane-center">
+      <div class="studio-pane-head studio-toolbar" id="editor-toolbar">
+        <!-- toolbar gets injected based on what's selected -->
+      </div>
+      <div class="studio-pane-body" id="editor-host">
+        <div class="studio-empty-state">
+          <h2>Select a page from the outline</h2>
+          <p>Click any page, lesson, module, knowledge-check question, or final-exam question to begin editing.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: metadata + preview -->
+    <aside class="studio-pane studio-right" id="pane-right">
+      <div class="studio-pane-head">
+        <span id="meta-title">Metadata</span>
+      </div>
+      <div class="studio-pane-body" id="meta-host"></div>
+    </aside>
+
+    <!-- PREVIEW (slides in from right when toggled) -->
+    <aside class="studio-preview hidden" id="pane-preview">
+      <div class="studio-pane-head">
+        <span>Preview</span>
+        <button id="btn-close-preview" class="studio-btn ghost" type="button">Close</button>
+      </div>
+      <div class="studio-pane-body" id="preview-host">
+        <div class="lesson-card" id="preview-card">
+          <div class="studio-empty-state"><p>Edit a page to see a live preview here.</p></div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Toast for save success / errors -->
+  <div id="studio-toast" class="studio-toast hidden"></div>
+
+  <script type="module" src="/studio.js"></script>
+</body>
+</html>
