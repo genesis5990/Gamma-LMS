@@ -773,15 +773,15 @@ function renderOutline() {
   const root = $('#outline-tree');
   if (!root) return;
   const html = [];
-  html.push(`<div class="outline-node outline-course is-course-root" data-kind="course" data-id="${state.course.id}">
+  html.push(`<div class="outline-node outline-course is-course-root" data-kind="course" data-id="${state.course.id}" title="Click to edit · double-click to rename">
     <span class="outline-icon">C</span>
-    <span class="outline-label">${escapeHtml(state.course.title)}</span>
+    <span class="outline-label" data-rename="course">${escapeHtml(state.course.title)}</span>
   </div>`);
   for (const m of state.modules) {
     html.push(`<div class="outline-children">`);
-    html.push(`<div class="outline-node outline-module" draggable="true" data-kind="module" data-id="${m.id}">
+    html.push(`<div class="outline-node outline-module" draggable="true" data-kind="module" data-id="${m.id}" title="Click to edit · double-click to rename">
       <span class="outline-icon">M</span>
-      <span class="outline-label">${escapeHtml(m.title)}</span>
+      <span class="outline-label" data-rename="module">${escapeHtml(m.title)}</span>
       <span class="outline-meta">${m.lessons.length}L</span>
       <span class="outline-node-actions">
         <button data-act="add-lesson" title="Add lesson">+L</button>
@@ -791,9 +791,9 @@ function renderOutline() {
       </span>
     </div>`);
     for (const l of m.lessons) {
-      html.push(`<div class="outline-node outline-lesson" draggable="true" data-kind="lesson" data-id="${l.id}">
+      html.push(`<div class="outline-node outline-lesson" draggable="true" data-kind="lesson" data-id="${l.id}" title="Click to edit · double-click to rename">
         <span class="outline-icon">L</span>
-        <span class="outline-label">${escapeHtml(l.title)}</span>
+        <span class="outline-label" data-rename="lesson">${escapeHtml(l.title)}</span>
         <span class="outline-meta">${l.pages.length}p</span>
         <span class="outline-node-actions">
           <button data-act="add-page" title="Add page">+P</button>
@@ -803,9 +803,11 @@ function renderOutline() {
       </div>`);
       for (let i = 0; i < l.pages.length; i++) {
         const p = l.pages[i];
-        html.push(`<div class="outline-node outline-page" draggable="true" data-kind="page" data-id="${p.id}">
-          <span class="outline-icon">·</span>
-          <span class="outline-label">Page ${i+1}${p.title ? ': ' + escapeHtml(p.title) : ''}</span>
+        const pageLabel = derivePageTitle(p);
+        const isDerived = !(p.title && p.title.trim());
+        html.push(`<div class="outline-node outline-page" draggable="true" data-kind="page" data-id="${p.id}" title="Double-click to rename">
+          <span class="outline-icon">${i+1}</span>
+          <span class="outline-label${isDerived ? ' is-derived' : ''}" data-rename="page">${escapeHtml(pageLabel)}</span>
           <span class="outline-node-actions">
             <button data-act="dup" title="Duplicate">⎘</button>
             <button data-act="del" title="Delete">✕</button>
@@ -867,6 +869,8 @@ function renderOutline() {
     n.addEventListener('click', (e) => {
       // ignore action-button clicks (handled below)
       if (e.target.closest('.outline-node-actions')) return;
+      // ignore label clicks while in inline-rename mode
+      if (e.target.closest('.outline-label.is-renaming')) return;
       selectNode(n.dataset.kind, n.dataset.id);
     });
   });
@@ -877,9 +881,76 @@ function renderOutline() {
       handleOutlineAction(node.dataset.kind, node.dataset.id, btn.dataset.act);
     });
   });
+  // double-click on a label → inline rename (course/module/lesson/page)
+  root.querySelectorAll('.outline-label[data-rename]').forEach(label => {
+    label.addEventListener('dblclick', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      startInlineRename(label);
+    });
+  });
 
   // drag-and-drop reorder
   wireOutlineReorder(root);
+}
+
+// Inline rename: replace the <span> with an <input>, save on Enter/blur, cancel on Esc.
+// Stages the change via the appropriate stage*Patch and refreshes labels.
+function startInlineRename(labelEl) {
+  if (!labelEl || labelEl.classList.contains('is-renaming')) return;
+  const node = labelEl.closest('.outline-node');
+  if (!node) return;
+  const kind = labelEl.dataset.rename;       // 'course' | 'module' | 'lesson' | 'page'
+  const id   = node.dataset.id;
+
+  // Resolve current title from state (not the label, which may show a derived snippet for pages)
+  let current = '';
+  if (kind === 'course') current = state.course.title || '';
+  else if (kind === 'module') current = (findModule(id)?.title) || '';
+  else if (kind === 'lesson') current = (findLesson(id)?.lesson.title) || '';
+  else if (kind === 'page')   current = (findPage(id)?.page.title) || '';
+
+  const original = labelEl.innerHTML;
+  labelEl.classList.add('is-renaming');
+  labelEl.innerHTML = `<input type="text" class="outline-rename-input" value="${escapeHtml(current)}" placeholder="${kind === 'page' ? 'Page title (optional)' : 'Title'}" />`;
+  const input = labelEl.querySelector('input');
+  input.focus();
+  input.select();
+
+  let done = false;
+  const finish = (commit) => {
+    if (done) return; done = true;
+    const next = (input.value || '').trim();
+    labelEl.classList.remove('is-renaming');
+    if (!commit || next === current) {
+      labelEl.innerHTML = original;
+      return;
+    }
+    // For pages, an empty value clears the title (falls back to derived).
+    // For course/module/lesson, an empty value is rejected.
+    if (kind !== 'page' && !next) {
+      labelEl.innerHTML = original;
+      toast('Title cannot be empty', 'is-error');
+      return;
+    }
+    if (kind === 'course') stageCoursePatch({ title: next });
+    else if (kind === 'module') stageModulePatch(id, { title: next });
+    else if (kind === 'lesson') stageLessonPatch(id, { title: next });
+    else if (kind === 'page')   stagePagePatch(id, { title: next || null });
+    // Re-render outline so labels (incl. derived page titles) refresh.
+    renderOutline();
+    // Auto-save the rename so the user doesn't have to hit Save.
+    saveDirty();
+    // If the renamed node is currently selected, refresh its meta pane too.
+    if (state.selection && state.selection.kind === kind && state.selection.id === id) {
+      renderMeta();
+    }
+    toast('Renamed', 'is-saved');
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
 }
 
 function wireOutlineReorder(root) {

@@ -1022,3 +1022,34 @@ body {
 }
 .audio-picker-sub { color: var(--st-muted); font-size: 11.5px; margin-top: 2px; }
 .audio-picker-actions { flex-shrink: 0; align-self: center; }
+
+/* ===== Outline labels: derived page titles + inline rename ===== */
+.outline-label.is-derived {
+  font-style: italic;
+  opacity: .82;
+}
+.outline-label.is-derived::before {
+  content: "";  /* reserve room if needed; keep clean */
+}
+.outline-node[data-kind="page"] .outline-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  font-size: 10.5px; font-weight: 700;
+  background: color-mix(in srgb, var(--st-accent, #1f63d6) 12%, transparent);
+  color: color-mix(in srgb, var(--st-accent, #1f63d6) 80%, var(--st-ink, #0d1424));
+  border-radius: 4px;
+}
+.outline-label.is-renaming {
+  flex: 1; min-width: 0;
+}
+.outline-rename-input {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--st-accent, #1f63d6);
+  border-radius: 4px;
+  font: inherit; font-size: 12.5px;
+  background: #fff;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-accent, #1f63d6) 22%, transparent);
+}
+.outline-node[title] { cursor: pointer; }
