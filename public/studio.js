@@ -1465,7 +1465,7 @@ function renderPageToolbar() {
     <span class="toolbar-divider"></span>
     <button data-cmd="image-upload"    type="button" title="Upload + insert image">📷 Image</button>
     <button data-cmd="image-library"   type="button" title="Insert from library">Library</button>
-    <button data-cmd="audio"           type="button" title="Insert audio by URL">Audio</button>
+    <button data-cmd="audio"           type="button" title="Insert audio (library, upload, or URL)">Audio</button>
     <span class="toolbar-divider"></span>
     <button data-cmd="undo"            type="button" title="Undo (Ctrl+Z)">↶</button>
     <button data-cmd="redo"            type="button" title="Redo (Ctrl+Y)">↷</button>
@@ -1503,8 +1503,14 @@ function wirePageToolbar() {
         case 'image-upload': await onUploadImageFromToolbar(); break;
         case 'image-library': await onPickFromLibrary(); break;
         case 'audio': {
-          const url = prompt('Audio URL (mp3 / wav / m4a):', '');
-          if (url) insertHTML(`<audio controls src="${escapeHtml(url)}"></audio>`);
+          const ref = state.selection?.kind === 'page' ? findPage(state.selection.id) : null;
+          openAudioInsertModal({
+            editor: ed(),
+            page: ref?.page || null,
+            courseId: state.course?.id || null,
+            courseSlug: state.course?.slug || null,
+            onInsert: (html) => { insertHTML(html); trigger(); },
+          });
           break;
         }
         case 'callout-info':    insertHTML('<div class="callout"><p><strong>Note:</strong> </p></div>'); break;
@@ -1820,6 +1826,289 @@ async function openAudioPicker(pageId, onPick) {
       });
     }
   });
+}
+
+// ---------- in-editor audio insert modal -------------------------
+// Three-tab modal (Library / Upload / Paste URL) used by the page-editor
+// toolbar Audio button. Inserts <audio controls src="…"></audio> at the
+// current caret. Singleton state via module-level vars.
+let __audioInsertCtx = null;        // { editor, page, courseId, courseSlug, onInsert }
+let __audioInsertActiveTab = 'library';
+let __audioInsertChosenUrl = null;
+let __audioInsertChosenName = '';
+let __audioInsertLibraryRows = null;        // cached rows
+let __audioInsertCoursesMeta = null;        // cached course list for filter
+let __audioInsertLibraryFilters = { text: '', course: '' };
+
+function openAudioInsertModal(ctx) {
+  __audioInsertCtx = ctx || {};
+  __audioInsertActiveTab = 'library';
+  __audioInsertChosenUrl = null;
+  __audioInsertChosenName = '';
+  __audioInsertLibraryFilters = { text: '', course: '' };
+
+  openModal({
+    title: 'Insert audio',
+    bodyHtml: `
+      <div class="audio-insert-modal">
+        <div class="audio-insert-tabs" role="tablist">
+          <button type="button" class="audio-insert-tab" data-tab="library" role="tab" aria-selected="true">Library</button>
+          <button type="button" class="audio-insert-tab" data-tab="upload" role="tab" aria-selected="false">Upload</button>
+          <button type="button" class="audio-insert-tab" data-tab="url" role="tab" aria-selected="false">Paste URL</button>
+        </div>
+        <div id="audio-insert-panel" class="audio-insert-panel"></div>
+      </div>
+    `,
+    footHtml: `
+      <span id="audio-insert-chosen" class="audio-insert-chosen"></span>
+      <button type="button" class="studio-btn" id="audio-insert-cancel">Cancel</button>
+      <button type="button" class="studio-btn primary" id="audio-insert-commit" disabled>Insert</button>
+    `,
+    onMount: (host) => {
+      host.querySelector('#audio-insert-cancel').addEventListener('click', closeModal);
+      host.querySelector('#audio-insert-commit').addEventListener('click', () => {
+        if (!__audioInsertChosenUrl) return;
+        __audioInsertCommit(__audioInsertChosenUrl);
+      });
+      host.querySelectorAll('.audio-insert-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          __audioInsertActiveTab = btn.dataset.tab;
+          __audioInsertRender();
+        });
+      });
+      // ESC handler scoped to this modal lifetime
+      const escHandler = (e) => {
+        if (e.key === 'Escape' && !host.classList.contains('hidden')) {
+          closeModal();
+        }
+        if (host.classList.contains('hidden')) {
+          document.removeEventListener('keydown', escHandler);
+        }
+      };
+      document.addEventListener('keydown', escHandler);
+      __audioInsertRender();
+    },
+  });
+}
+
+function __audioInsertSetChosen(url, name) {
+  __audioInsertChosenUrl = url || null;
+  __audioInsertChosenName = name || '';
+  const commit = document.querySelector('#audio-insert-commit');
+  const chosen = document.querySelector('#audio-insert-chosen');
+  if (commit) commit.disabled = !url;
+  if (chosen) chosen.textContent = url ? `Selected: ${name || url}` : '';
+}
+
+function __audioInsertRender() {
+  const panel = document.querySelector('#audio-insert-panel');
+  if (!panel) return;
+  document.querySelectorAll('.audio-insert-tab').forEach(b => {
+    const on = b.dataset.tab === __audioInsertActiveTab;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.classList.toggle('is-active', on);
+  });
+  if (__audioInsertActiveTab === 'library') {
+    panel.innerHTML = `
+      <div class="audio-insert-toolbar">
+        <input id="audio-insert-search" type="search" placeholder="Search by filename or alt text…" />
+        <select id="audio-insert-course"><option value="">All courses</option></select>
+      </div>
+      <div id="audio-insert-list" class="audio-picker-list"><div class="studio-empty-state"><p>Loading…</p></div></div>
+    `;
+    panel.querySelector('#audio-insert-search').value = __audioInsertLibraryFilters.text || '';
+    panel.querySelector('#audio-insert-search').addEventListener('input', e => {
+      __audioInsertLibraryFilters.text = e.target.value;
+      __audioInsertRenderLibraryList();
+    });
+    panel.querySelector('#audio-insert-course').addEventListener('change', e => {
+      __audioInsertLibraryFilters.course = e.target.value;
+      __audioInsertRenderLibraryList();
+    });
+    __audioInsertLoadLibrary();
+  } else if (__audioInsertActiveTab === 'upload') {
+    const ctx = __audioInsertCtx || {};
+    const target = ctx.courseSlug ? `course “${escapeHtml(ctx.courseSlug)}”` : 'shared library';
+    panel.innerHTML = `
+      <div class="audio-insert-upload">
+        <div id="audio-insert-drop" class="audio-insert-drop">
+          <p>Drag &amp; drop an audio file here</p>
+          <p class="muted">or</p>
+          <button type="button" class="studio-btn" id="audio-insert-choose">Choose file…</button>
+          <input id="audio-insert-file" type="file" accept="audio/*" hidden />
+          <p class="muted" style="margin-top:10px">Will be saved to the ${target}.</p>
+        </div>
+        <div id="audio-insert-progress" class="audio-insert-progress hidden">
+          <div class="audio-insert-progress-label">Uploading…</div>
+          <div class="audio-insert-progress-bar"><div class="audio-insert-progress-fill"></div></div>
+        </div>
+      </div>
+    `;
+    const fileInp = panel.querySelector('#audio-insert-file');
+    panel.querySelector('#audio-insert-choose').addEventListener('click', () => fileInp.click());
+    fileInp.addEventListener('change', () => {
+      const f = fileInp.files && fileInp.files[0];
+      if (f) __audioInsertHandleUpload(f);
+    });
+    const dz = panel.querySelector('#audio-insert-drop');
+    ['dragenter','dragover'].forEach(t => dz.addEventListener(t, ev => { ev.preventDefault(); dz.classList.add('is-drag'); }));
+    ['dragleave','drop'].forEach(t => dz.addEventListener(t, ev => { ev.preventDefault(); dz.classList.remove('is-drag'); }));
+    dz.addEventListener('drop', ev => {
+      const f = Array.from(ev.dataTransfer?.files || []).find(x => (x.type || '').startsWith('audio/'));
+      if (f) __audioInsertHandleUpload(f);
+      else toast('Drop an audio file', 'is-error');
+    });
+  } else if (__audioInsertActiveTab === 'url') {
+    panel.innerHTML = `
+      <div class="audio-insert-url">
+        <label for="audio-insert-url-input">Audio URL</label>
+        <input id="audio-insert-url-input" type="text" placeholder="https://example.com/clip.mp3" spellcheck="false" />
+        <p class="muted">Paste a URL to an external audio file (e.g., a CDN you own).</p>
+      </div>
+    `;
+    const inp = panel.querySelector('#audio-insert-url-input');
+    if (__audioInsertActiveTab === 'url' && __audioInsertChosenUrl && !__audioInsertChosenName) {
+      inp.value = __audioInsertChosenUrl;
+    }
+    inp.addEventListener('input', () => {
+      const v = inp.value.trim();
+      if (v) __audioInsertSetChosen(v, v.split('/').pop() || v);
+      else __audioInsertSetChosen(null, '');
+    });
+    setTimeout(() => inp.focus(), 0);
+  }
+}
+
+async function __audioInsertLoadLibrary() {
+  const listEl = document.querySelector('#audio-insert-list');
+  const courseSel = document.querySelector('#audio-insert-course');
+  if (!listEl) return;
+  try {
+    if (!__audioInsertLibraryRows) {
+      const { data, error } = await sb.from('course_assets')
+        .select('id, filename, public_url, byte_size, mime_type, duration_seconds, created_at, course_id, alt_text')
+        .eq('kind', 'audio')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      __audioInsertLibraryRows = data || [];
+    }
+    if (!__audioInsertCoursesMeta) {
+      if (Array.isArray(state.allCoursesMeta) && state.allCoursesMeta.length) {
+        __audioInsertCoursesMeta = state.allCoursesMeta;
+      } else {
+        const { data: courses } = await sb.from('courses').select('id, slug, title').order('slug');
+        __audioInsertCoursesMeta = courses || [];
+      }
+    }
+    if (courseSel && courseSel.options.length <= 1) {
+      courseSel.innerHTML =
+        '<option value="">All courses</option>' +
+        '<option value="__shared__">Shared (no course)</option>' +
+        (__audioInsertCoursesMeta || []).map(c => `<option value="${c.id}">${escapeHtml(c.title || c.slug)}</option>`).join('');
+      if (__audioInsertLibraryFilters.course) courseSel.value = __audioInsertLibraryFilters.course;
+    }
+  } catch (err) {
+    console.error('audio insert library load', err);
+    listEl.innerHTML = `<div class="studio-empty-state is-error"><p>Could not load audio assets: ${escapeHtml(err.message)}</p></div>`;
+    return;
+  }
+  __audioInsertRenderLibraryList();
+}
+
+function __audioInsertRenderLibraryList() {
+  const listEl = document.querySelector('#audio-insert-list');
+  if (!listEl) return;
+  const rows = __audioInsertLibraryRows || [];
+  const courseById = {};
+  for (const c of (__audioInsertCoursesMeta || [])) courseById[c.id] = c;
+  const f = (__audioInsertLibraryFilters.text || '').trim().toLowerCase();
+  const cf = __audioInsertLibraryFilters.course || '';
+  const filtered = rows.filter(r => {
+    if (cf === '__shared__') { if (r.course_id) return false; }
+    else if (cf) { if (r.course_id !== cf) return false; }
+    if (f) {
+      const hay = ((r.filename || '') + ' ' + (r.alt_text || '')).toLowerCase();
+      if (!hay.includes(f)) return false;
+    }
+    return true;
+  });
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="studio-empty-state"><p>No audio assets ${f || cf ? 'match those filters' : 'in the library yet'}.</p><p>Use the Upload tab to add one.</p></div>`;
+    return;
+  }
+  listEl.innerHTML = filtered.map(r => {
+    const courseLabel = r.course_id
+      ? (courseById[r.course_id]?.title || courseById[r.course_id]?.slug || '—')
+      : 'Shared';
+    const dur = (r.duration_seconds != null && !Number.isNaN(Number(r.duration_seconds)))
+      ? ` · ${Math.round(Number(r.duration_seconds))}s` : '';
+    const isChosen = __audioInsertChosenUrl === r.public_url;
+    return `
+    <div class="audio-picker-row audio-insert-row${isChosen ? ' is-chosen' : ''}" data-url="${escapeHtml(r.public_url)}" data-name="${escapeHtml(r.filename || '')}">
+      <div class="audio-picker-meta">
+        <div class="audio-picker-name">${escapeHtml(r.filename || '(untitled)')} <span class="audio-picker-tag">${escapeHtml(courseLabel)}</span></div>
+        <div class="audio-picker-sub">${formatBytes(r.byte_size)} · ${escapeHtml(r.mime_type || 'audio')}${dur} · ${fmtRelTime(r.created_at)}</div>
+        <audio controls preload="none" src="${escapeHtml(r.public_url)}" style="width:100%; margin-top:6px;"></audio>
+      </div>
+      <div class="audio-picker-actions">
+        <button type="button" class="studio-btn" data-act="choose">${isChosen ? 'Selected' : 'Select'}</button>
+      </div>
+    </div>`;
+  }).join('');
+  listEl.querySelectorAll('.audio-insert-row').forEach(rowEl => {
+    rowEl.querySelector('[data-act="choose"]').addEventListener('click', () => {
+      const url = rowEl.getAttribute('data-url');
+      const name = rowEl.getAttribute('data-name') || url;
+      __audioInsertSetChosen(url, name);
+      __audioInsertRenderLibraryList();
+    });
+  });
+}
+
+async function __audioInsertHandleUpload(file) {
+  const panel = document.querySelector('#audio-insert-panel');
+  const prog = document.querySelector('#audio-insert-progress');
+  const fill = panel && panel.querySelector('.audio-insert-progress-fill');
+  const drop = panel && panel.querySelector('#audio-insert-drop');
+  if (!panel) return;
+  if (!(file.type || '').startsWith('audio/')) { toast('Not an audio file', 'is-error'); return; }
+  if (drop) drop.classList.add('is-busy');
+  if (prog) {
+    prog.classList.remove('hidden');
+    if (fill) fill.style.width = '15%';
+  }
+  try {
+    const ctx = __audioInsertCtx || {};
+    if (fill) fill.style.width = '40%';
+    const row = await uploadOne(file, ctx.courseId || null, ctx.courseSlug || null);
+    if (fill) fill.style.width = '100%';
+    // refresh library cache so the new row appears when user switches tabs
+    __audioInsertLibraryRows = null;
+    __audioInsertSetChosen(row.public_url, row.filename || file.name);
+    toast('Audio uploaded', 'is-saved');
+    __audioInsertActiveTab = 'library';
+    __audioInsertRender();
+  } catch (err) {
+    console.error('audio insert upload', err);
+    if (drop) drop.classList.remove('is-busy');
+    if (prog) prog.classList.add('hidden');
+    toast('Upload failed: ' + err.message, 'is-error');
+  }
+}
+
+function __audioInsertCommit(url) {
+  const ctx = __audioInsertCtx || {};
+  const editor = ctx.editor;
+  const html = `<audio controls src="${escapeHtml(url)}"></audio><p><br></p>`;
+  if (editor) {
+    editor.focus();
+    document.execCommand('insertHTML', false, html);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if (typeof ctx.onInsert === 'function') {
+    ctx.onInsert(html);
+  }
+  closeModal();
 }
 
 function formatBytes(n) {

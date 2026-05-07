@@ -1039,6 +1039,111 @@ body {
 }
 .audio-picker-actions { flex-shrink: 0; align-self: center; }
 
+/* ===== In-editor audio insert modal (Library / Upload / Paste URL) ===== */
+.audio-insert-modal { display: flex; flex-direction: column; gap: 12px; }
+.audio-insert-tabs {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--st-line);
+  margin-bottom: 4px;
+}
+.audio-insert-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  padding: 7px 14px;
+  font: inherit; font-size: 13px;
+  color: var(--st-muted);
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -1px;
+}
+.audio-insert-tab:hover { color: var(--st-ink); }
+.audio-insert-tab.is-active,
+.audio-insert-tab[aria-selected="true"] {
+  color: var(--st-ink);
+  background: var(--st-paper-2);
+  border-color: var(--st-line);
+  border-bottom-color: var(--st-paper-2);
+  font-weight: 600;
+}
+.audio-insert-panel { min-height: 240px; }
+.audio-insert-toolbar {
+  display: flex; gap: 8px; margin-bottom: 12px;
+}
+.audio-insert-toolbar input[type="search"] {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--st-line);
+  border-radius: 5px;
+  font: inherit; font-size: 13px;
+}
+.audio-insert-toolbar select {
+  padding: 7px 10px;
+  border: 1px solid var(--st-line);
+  border-radius: 5px;
+  font: inherit; font-size: 13px;
+  background: #fff;
+}
+.audio-insert-row.is-chosen {
+  border-color: var(--st-accent, #1f63d6);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-accent, #1f63d6) 18%, transparent);
+}
+.audio-insert-row.is-chosen [data-act="choose"] {
+  background: var(--st-accent, #1f63d6);
+  color: #fff;
+  border-color: var(--st-accent, #1f63d6);
+}
+.audio-insert-upload { display: flex; flex-direction: column; gap: 12px; }
+.audio-insert-drop {
+  border: 2px dashed var(--st-line);
+  border-radius: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  background: var(--st-paper);
+  transition: border-color .15s, background .15s;
+}
+.audio-insert-drop.is-drag {
+  border-color: var(--st-accent, #1f63d6);
+  background: color-mix(in srgb, var(--st-accent, #1f63d6) 6%, var(--st-paper));
+}
+.audio-insert-drop.is-busy { opacity: .6; pointer-events: none; }
+.audio-insert-drop p { margin: 4px 0; }
+.audio-insert-drop p.muted { color: var(--st-muted); font-size: 12.5px; }
+.audio-insert-progress {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.audio-insert-progress.hidden { display: none; }
+.audio-insert-progress-label { font-size: 12.5px; color: var(--st-muted); }
+.audio-insert-progress-bar {
+  height: 8px;
+  background: var(--st-paper);
+  border: 1px solid var(--st-line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.audio-insert-progress-fill {
+  width: 0%; height: 100%;
+  background: var(--st-accent, #1f63d6);
+  transition: width .25s;
+}
+.audio-insert-url { display: flex; flex-direction: column; gap: 6px; }
+.audio-insert-url label { font-size: 12.5px; color: var(--st-muted); font-weight: 500; }
+.audio-insert-url input[type="text"] {
+  padding: 8px 10px;
+  border: 1px solid var(--st-line);
+  border-radius: 5px;
+  font: inherit; font-size: 13px;
+}
+.audio-insert-url p.muted { font-size: 12px; color: var(--st-muted); margin: 0; }
+.audio-insert-chosen {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--st-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 260px;
+}
+
 /* ===== Outline labels: derived page titles + inline rename ===== */
 .outline-label.is-derived {
   font-style: italic;
