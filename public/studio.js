@@ -484,44 +484,65 @@ async function renderMedia(view) {
   view.appendChild(tpl.content.cloneNode(true));
 
   // load courses for filter (and cache for uploadFiles)
-  const { data: courses } = await sb.from('courses').select('id, slug, title').order('slug');
+  const { data: courses, error: coursesErr } = await sb.from('courses').select('id, slug, title').order('slug');
+  if (coursesErr) console.warn('media: courses fetch failed', coursesErr);
   state.allCoursesMeta = courses || state.allCoursesMeta || [];
   const sel = $('#media-course-filter');
-  sel.innerHTML = '<option value="">All courses</option>' +
-    (courses || []).map(c => `<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+  // 'All courses' (default), then 'Shared (no course)', then one option per course
+  sel.innerHTML =
+    '<option value="">All courses</option>' +
+    '<option value="__shared__">Shared (no course)</option>' +
+    (state.allCoursesMeta || []).map(c => `<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');
+
+  // map id -> course meta for chip rendering
+  const courseById = {};
+  for (const c of state.allCoursesMeta || []) courseById[c.id] = c;
 
   let assets = [];
-  let courseIdFilter = '';
+  let courseIdFilter = '';   // '' = all, '__shared__' = course_id IS NULL, else uuid
   let textFilter = '';
 
   async function load() {
-    const q = sb.from('course_assets')
-      .select('id, course_id, kind, storage_path, public_url, filename, mime_type, byte_size, width, height, alt_text, created_at')
-      .order('created_at', { ascending: false }).limit(500);
-    if (courseIdFilter) q.eq('course_id', courseIdFilter);
-    const { data, error } = await q;
+    // Always fetch ALL accessible assets (RLS already filters); we filter client-side
+    // so the "All courses" / "Shared" / per-course toggle is instant and rows with
+    // course_id = NULL are never silently dropped by an .eq() filter.
+    const { data, error } = await sb.from('course_assets')
+      .select('id, course_id, kind, storage_path, public_url, filename, mime_type, byte_size, width, height, duration_seconds, alt_text, uploaded_by, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500);
     if (error) { toast('Load failed: ' + error.message, 'is-error'); return; }
     assets = data || [];
     render();
   }
   function render() {
     const f = textFilter.toLowerCase();
-    const items = assets.filter(a =>
-      !f ||
-      (a.filename || '').toLowerCase().includes(f) ||
-      (a.alt_text || '').toLowerCase().includes(f)
-    );
+    const items = assets.filter(a => {
+      // Course filter
+      if (courseIdFilter === '__shared__') {
+        if (a.course_id) return false;
+      } else if (courseIdFilter) {
+        if (a.course_id !== courseIdFilter) return false;
+      }
+      // Text filter (filename or alt)
+      if (f && !((a.filename || '').toLowerCase().includes(f) ||
+                 (a.alt_text || '').toLowerCase().includes(f))) return false;
+      return true;
+    });
     $('#media-empty').classList.toggle('hidden', items.length > 0);
     $('#media-grid').innerHTML = items.map(a => {
       const isImg = (a.mime_type || '').startsWith('image/');
       const thumb = isImg
         ? `<img src="${escapeHtml(a.public_url)}" alt="${escapeHtml(a.alt_text || '')}" loading="lazy" />`
         : `<span>${escapeHtml((a.mime_type || 'file').split('/')[0])}</span>`;
+      const courseLabel = a.course_id
+        ? (courseById[a.course_id]?.title || courseById[a.course_id]?.slug || '—')
+        : 'Shared';
       return `<div class="media-card" data-id="${a.id}">
         <div class="media-thumb">${thumb}</div>
         <div class="media-meta">
           <div class="media-name" title="${escapeHtml(a.filename || '')}">${escapeHtml(a.filename || 'untitled')}</div>
           <div class="media-info">
+            <span class="media-course">${escapeHtml(courseLabel)}</span>
             <span>${fmtBytes(a.byte_size)}</span>
             ${a.width ? `<span>${a.width}×${a.height}</span>` : ''}
             <span>${fmtRelTime(a.created_at)}</span>
@@ -561,13 +582,20 @@ async function renderMedia(view) {
   }
 
   $('#media-filter').addEventListener('input', e => { textFilter = e.target.value; render(); });
-  sel.addEventListener('change', e => { courseIdFilter = e.target.value; load(); });
+  sel.addEventListener('change', e => { courseIdFilter = e.target.value; render(); });
+
+  // When uploading from this page, pass the *real* course_id only when a single
+  // course is selected. 'All courses' and 'Shared (no course)' both upload
+  // shared (course_id = NULL).
+  function uploadCourseId() {
+    return (courseIdFilter && courseIdFilter !== '__shared__') ? courseIdFilter : null;
+  }
 
   // Click-upload
   $('#media-upload-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = '';
-    await uploadFiles(files, courseIdFilter || null);
+    await uploadFiles(files, uploadCourseId());
     load();
   });
 
@@ -583,7 +611,7 @@ async function renderMedia(view) {
     try {
       const files = Array.from(ev.dataTransfer?.files || []);
       if (!files.length) return;
-      await uploadFiles(files, courseIdFilter || null);
+      await uploadFiles(files, uploadCourseId());
       load();
     } catch (err) {
       console.error('media drop handler', err);

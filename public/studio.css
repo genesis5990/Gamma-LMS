@@ -760,6 +760,11 @@ body {
   font-size: 10.5px; color: var(--st-muted);
   display: flex; gap: 6px; flex-wrap: wrap;
 }
+.media-card .media-course {
+  background: var(--st-line-2); color: var(--st-ink-2);
+  padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600;
+  max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .media-card .media-actions {
   display: flex; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--st-line-2);
   background: var(--st-paper);
