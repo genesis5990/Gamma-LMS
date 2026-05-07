@@ -3,253 +3,665 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Genesis Digital Assets Academy</title>
-<meta name="description" content="Investigator training in cryptocurrency, blockchain forensics, and digital asset compliance — delivered through partner agencies and private programs." />
+<title>Genesis Digital Assets Academy — Training for investigators and agencies</title>
+<meta name="description" content="Tamper-evident training for blockchain investigators and law-enforcement agencies. Browse courses, earn verifiable certificates, or stand up your own white-label academy." />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
-<script src="/admin-nav.js" defer></script>
 <style>
   :root {
-    --ink:    #0d1424;
-    --ink-2:  #1d2a47;
-    --paper:  #f7f8fc;
-    --paper-2:#ffffff;
-    --line:   #d9dfee;
-    --accent: #1f63d6;
-    --accent-2: #0a3d91;
-    --gold:   #c8a64a;
-    --muted:  #5b6788;
+    --ink: #060A16;
+    --ink-2: #0d1424;
+    --gold: #c8a64a;
+    --gold-soft: #e6c87a;
+    --muted: #5b6788;
+    --line: #e1e6f3;
+    --surface: #f7f7fb;
+    --paper: #ffffff;
   }
   * { box-sizing: border-box; }
-  html, body { margin:0; padding:0; }
+  html, body { margin: 0; padding: 0; }
   body {
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: var(--ink); background: var(--paper);
-    min-height: 100vh; display:flex; flex-direction:column;
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--accent-2); }
+  a { color: var(--ink-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
 
-  header.site {
-    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
-    color:#fff; border-bottom: 3px solid var(--gold);
-    padding: 14px 22px;
+  /* ---- Header ---- */
+  .site-header {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0);
+    border-bottom: 1px solid transparent;
+    transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
   }
-  header.site .row { display:flex; align-items:center; gap:14px; max-width:1200px; margin:0 auto; }
-  header.site .badge {
-    width:46px; height:46px; border-radius:8px;
-    background: var(--gold); color: var(--ink);
-    display:grid; place-items:center; font-weight:800; font-size:18px;
+  .site-header.is-scrolled {
+    background: rgba(255,255,255,.92);
+    border-bottom-color: var(--line);
+    box-shadow: 0 1px 0 rgba(13,20,36,.04);
   }
-  header.site h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
-  header.site .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+  .nav {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; gap: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+  .brand svg { display: block; }
+  .brand-mark { width: 34px; height: 34px; }
+  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: .2px; }
+  .brand-name b { color: var(--gold); font-weight: 700; }
+  .brand-sub { font-size: 11px; color: var(--muted); margin-top: -2px; letter-spacing: .8px; text-transform: uppercase; }
+  .nav-links { display: flex; align-items: center; gap: 16px; }
+  .nav-links a { font-size: 14px; color: var(--ink-2); }
+  .nav-links .btn { font-size: 14px; padding: 8px 16px; border-radius: 8px; }
 
-  main {
-    flex:1; max-width: 980px; margin: 0 auto; padding: 56px clamp(20px, 4vw, 40px);
-    width: 100%;
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 20px; font-size: 15px; font-weight: 600;
+    border-radius: 10px; border: 1px solid transparent;
+    transition: transform .04s ease, background .15s ease, color .15s ease, border-color .15s ease;
+    text-decoration: none;
   }
-  .hero h2 {
-    font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin: 0 0 14px;
-    color: var(--ink); font-weight: 700;
-  }
-  .hero p.lede { font-size: 18px; color: var(--muted); margin: 0 0 28px; max-width: 720px; }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: #1a2444; text-decoration: none; }
+  .btn-gold { background: var(--gold); color: var(--ink); }
+  .btn-gold:hover { background: var(--gold-soft); text-decoration: none; }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn-ghost:hover { background: var(--surface); text-decoration: none; }
+  .btn:active { transform: translateY(1px); }
 
-  .panel {
-    background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
-    padding: 28px; box-shadow: 0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
-    margin-top: 36px;
+  /* ---- Hero ---- */
+  .hero {
+    background:
+      radial-gradient(circle at 78% 30%, rgba(200,166,74,.18) 0%, transparent 55%),
+      linear-gradient(180deg, var(--ink) 0%, #0a1124 100%);
+    color: #fff;
+    padding: 96px 24px 88px;
+    border-bottom: 1px solid #1c2440;
   }
-  .panel h3 { margin: 0 0 6px; font-size: 18px; }
-  .panel p.note { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+  .hero-grid {
+    max-width: 1200px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center;
+  }
+  .hero-eyebrow {
+    display: inline-block;
+    font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 14px;
+  }
+  .hero h1 {
+    font-size: 38px; line-height: 1.1; margin: 0 0 18px;
+    letter-spacing: -.5px; font-weight: 700;
+  }
+  .hero p.lede {
+    font-size: 18px; color: rgba(255,255,255,.78); margin: 0 0 30px; max-width: 580px;
+  }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .hero-trust {
+    margin-top: 36px; display: flex; flex-wrap: wrap; gap: 24px;
+    font-size: 13px; color: rgba(255,255,255,.55);
+  }
+  .hero-trust strong { color: #fff; font-weight: 600; }
 
-  form.signin {
-    display:grid; gap: 12px;
-    grid-template-columns: 1fr auto;
-    align-items: start;
+  .cert-mock {
+    display: none; /* shown at lg */
+    background: #fff; color: var(--ink);
+    border: 1px solid #d9dfee; border-radius: 12px;
+    padding: 26px;
+    box-shadow: 0 30px 60px rgba(0,0,0,.45);
+    transform: rotate(-2deg);
+    position: relative;
   }
-  @media (max-width: 600px) {
-    form.signin { grid-template-columns: 1fr; }
+  .cert-mock::before {
+    content: ''; position: absolute; inset: 6px;
+    border: 1px solid var(--gold); border-radius: 8px; pointer-events: none;
   }
-  form.signin input {
-    padding: 12px 14px; font-size: 15px; border: 1px solid var(--line);
-    border-radius: 8px; background: #fff; color: var(--ink); width: 100%;
+  .cert-mock h4 {
+    margin: 6px 0 4px; font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted); text-align: center;
   }
-  form.signin input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  form.signin button {
-    padding: 12px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
-    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
-    white-space: nowrap;
-  }
-  form.signin button:hover { background: var(--accent-2); }
-  form.signin button:disabled { opacity: .5; cursor: not-allowed; }
-
-  .divider {
-    text-align:center; margin: 18px 0; color: var(--muted); font-size: 13px;
-    text-transform: uppercase; letter-spacing: 1.2px;
-  }
-
-  .slug-row { display:flex; gap:10px; align-items:center; }
-  .slug-row .prefix { color: var(--muted); font-size: 14px; white-space: nowrap; }
-  .slug-row input {
-    flex:1; padding: 10px 12px; font-size: 14px; border: 1px solid var(--line);
-    border-radius: 6px;
-  }
-  .slug-row button {
-    padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
-    background: var(--ink); color: #fff; border: 0; border-radius: 6px;
+  .cert-mock h2 { margin: 4px 0 18px; font-size: 16px; text-align: center; letter-spacing: .8px; }
+  .cert-mock .name { font-size: 22px; text-align: center; margin: 14px 0 4px; font-weight: 700; }
+  .cert-mock .for { font-size: 12px; text-align: center; color: var(--muted); margin: 4px 0; }
+  .cert-mock .course { font-size: 14px; text-align: center; margin: 4px 0 18px; font-weight: 600; }
+  .cert-mock .meta {
+    display: flex; justify-content: space-between; gap: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 9.5px; color: var(--muted);
+    border-top: 1px solid var(--line); padding-top: 10px;
   }
 
-  .msg { font-size: 14px; padding: 10px 12px; border-radius: 6px; margin-top: 12px; display:none; }
-  .msg.show { display:block; }
-  .msg.ok  { background: #d8f0e2; color: #1b6b3d; }
-  .msg.err { background: #fbe0e0; color: #8a1a1a; }
-
-  .features {
-    display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 36px;
+  @media (min-width: 960px) {
+    .hero h1 { font-size: 52px; }
+    .hero { padding: 120px 24px 110px; }
+    .hero-grid { grid-template-columns: 1.1fr .9fr; gap: 60px; }
+    .cert-mock { display: block; }
   }
-  @media (max-width: 800px) { .features { grid-template-columns: 1fr; } }
-  .feature {
-    background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px;
-    padding: 20px;
+  @media (min-width: 1200px) {
+    .hero h1 { font-size: 60px; }
   }
-  .feature h4 { margin:0 0 6px; font-size: 15px; color: var(--ink); }
-  .feature p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
 
-  footer.site {
-    border-top: 1px solid var(--line); padding: 22px;
-    color: var(--muted); font-size: 13px; text-align:center;
+  /* ---- Section base ---- */
+  .section { padding: 80px 24px; }
+  .section-narrow { max-width: 1100px; margin: 0 auto; }
+  .section h2 {
+    font-size: 30px; margin: 0 0 12px; letter-spacing: -.3px;
+  }
+  .section p.lede {
+    color: var(--muted); font-size: 16px; max-width: 720px; margin: 0 0 36px;
+  }
+  .section.alt { background: var(--surface); }
+
+  /* ---- Three-feature grid ---- */
+  .three-feature {
+    display: grid; gap: 20px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 720px) { .three-feature { grid-template-columns: repeat(3, 1fr); } }
+  .feat {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 14px; padding: 28px;
+  }
+  .feat-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(200,166,74,.16); color: var(--gold); margin-bottom: 14px;
+  }
+  .feat h3 { margin: 4px 0 8px; font-size: 18px; }
+  .feat p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+
+  /* ---- How it works ---- */
+  .steps {
+    display: grid; gap: 20px;
+    grid-template-columns: 1fr;
+    counter-reset: step;
+    margin-top: 40px;
+  }
+  @media (min-width: 720px) {
+    .steps { grid-template-columns: repeat(4, 1fr); position: relative; }
+    .steps::before {
+      content: ''; position: absolute; top: 22px; left: 12.5%; right: 12.5%;
+      height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+  }
+  .step {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 12px; padding: 22px; position: relative;
+  }
+  .step-num {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--ink); color: var(--gold);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px; margin-bottom: 14px;
+    border: 2px solid var(--gold);
+  }
+  .step h3 { margin: 4px 0 6px; font-size: 16px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* ---- Cert preview block ---- */
+  .cert-block {
+    display: grid; gap: 32px; grid-template-columns: 1fr; align-items: center;
+  }
+  @media (min-width: 960px) { .cert-block { grid-template-columns: 1fr 1fr; } }
+  .cert-block .cert-mock { transform: none; display: block; }
+
+  /* ---- Catalog ---- */
+  .catalog {
+    display: grid; gap: 22px;
+    grid-template-columns: 1fr;
+    margin-top: 32px;
+  }
+  @media (min-width: 720px) { .catalog { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1100px) { .catalog { grid-template-columns: repeat(3, 1fr); } }
+  .course-card {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .course-card:hover { transform: translateY(-2px); box-shadow: 0 18px 30px rgba(13,20,36,.08); text-decoration: none; }
+  .course-thumb {
+    aspect-ratio: 16/9;
+    background:
+      radial-gradient(circle at 70% 30%, rgba(200,166,74,.45), transparent 60%),
+      linear-gradient(135deg, var(--ink), #0c1325);
+    color: var(--gold-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 38px; font-weight: 700; letter-spacing: 2px;
+  }
+  .course-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .course-body { padding: 18px 20px 22px; flex: 1; display: flex; flex-direction: column; }
+  .course-body h3 { margin: 0 0 8px; font-size: 17px; color: var(--ink); }
+  .course-body p { margin: 0 0 14px; color: var(--muted); font-size: 14px; flex: 1; }
+  .course-body .course-cta { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .course-body .course-cta::after { content: ' →'; color: var(--gold); }
+
+  /* ---- Org row ---- */
+  .org-row {
+    background: var(--ink); color: #fff;
+    border-radius: 16px; padding: 36px 28px;
+    display: grid; gap: 20px; grid-template-columns: 1fr; align-items: center;
+  }
+  @media (min-width: 720px) { .org-row { grid-template-columns: 1.4fr 1fr; padding: 44px; } }
+  .org-row h2 { margin: 0 0 8px; color: #fff; font-size: 24px; }
+  .org-row p { margin: 0; color: rgba(255,255,255,.7); font-size: 15px; }
+  .org-form {
+    display: flex; gap: 8px; background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.18); border-radius: 12px;
+    padding: 6px;
+  }
+  .org-form input {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: #fff; font-size: 15px; padding: 10px 12px;
+  }
+  .org-form input::placeholder { color: rgba(255,255,255,.4); }
+
+  /* ---- Footer ---- */
+  .site-footer {
+    background: var(--ink); color: rgba(255,255,255,.6);
+    padding: 48px 24px;
+  }
+  .site-footer .inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center;
+    font-size: 13px;
+  }
+  .site-footer a { color: rgba(255,255,255,.78); }
+  .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+
+  /* ---- Modals ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(13,20,36,.86);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px; z-index: 9999;
+  }
+  .overlay.is-open { display: flex; }
+  .overlay-card {
+    background: #fff; color: var(--ink);
+    padding: 32px; border-radius: 14px; max-width: 440px; width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,.4);
+  }
+  .overlay-card h2 { margin: 0 0 6px; font-size: 22px; }
+  .overlay-card p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  .overlay-card input {
+    width: 100%; padding: 12px 14px; font-size: 15px;
+    border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;
+    margin-bottom: 12px;
+  }
+  .overlay-card .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .overlay-msg { font-size: 13px; min-height: 18px; color: var(--muted); margin: 6px 0 0; }
+  .overlay-msg.is-ok  { color: #1b6b3d; }
+  .overlay-msg.is-err { color: #8a1a1a; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .site-header, .btn, .course-card { transition: none; }
   }
 </style>
 </head>
-<body>
+<body data-page="landing">
 
-<header class="site">
-  <div class="row">
-    <div class="badge">G</div>
-    <div>
-      <h1>Genesis Digital Assets Academy</h1>
-      <div class="sub">Investigator training · cryptocurrency &amp; blockchain forensics</div>
-    </div>
+<!-- ============== Sticky header ============== -->
+<header class="site-header" id="siteHeader">
+  <div class="nav">
+    <a class="brand" href="/" aria-label="Genesis Digital Assets Academy home">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="2" y="2" width="36" height="36" rx="8" fill="#060A16"/>
+        <path d="M20 8 L30 14 L30 26 L20 32 L10 26 L10 14 Z" fill="none" stroke="#c8a64a" stroke-width="2"/>
+        <text x="20" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="700" font-size="14" fill="#c8a64a">G</text>
+      </svg>
+      <span>
+        <span class="brand-name">Genesis <b>Digital</b> Academy</span>
+        <div class="brand-sub">Investigator training</div>
+      </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#catalog">Browse courses</a>
+      <a href="/verify">Verify a certificate</a>
+      <button type="button" class="btn btn-primary" id="navSignIn">Sign in</button>
+    </nav>
   </div>
 </header>
 
-<main>
-  <section class="hero">
-    <h2>Training that turns investigators into crypto-literate operators.</h2>
-    <p class="lede">
-      Genesis Digital Assets Academy delivers conceptual and applied training in cryptocurrency,
-      blockchain forensics, and digital asset compliance. Programs are delivered through partner
-      agencies and private programs &mdash; sign in below to access your training portal.
-    </p>
-  </section>
-
-  <section class="panel" aria-labelledby="signin-h">
-    <h3 id="signin-h">Sign in to your training portal</h3>
-    <p class="note">Enter the email your program administrator used to enroll you. We'll email you a one-time sign-in link.</p>
-    <form class="signin" id="signinForm" autocomplete="on">
-      <input type="email" id="email" placeholder="you@agency.gov" autocomplete="email" required />
-      <button type="submit" id="signinBtn">Email me a sign-in link</button>
-    </form>
-    <div class="msg" id="msg"></div>
-
-    <div class="divider">or</div>
-
-    <p class="note" style="margin-bottom:10px;">Know your training portal address? Jump straight to it:</p>
-    <div class="slug-row">
-      <span class="prefix">mygenesis-training.com&nbsp;/</span>
-      <input type="text" id="slug" placeholder="your-program" pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" />
-      <button type="button" id="slugBtn">Go</button>
+<!-- ============== Hero ============== -->
+<section class="hero">
+  <div class="hero-grid">
+    <div>
+      <span class="hero-eyebrow">For investigators · agencies · the public</span>
+      <h1>Train investigators. Trace blockchains. Build the next generation.</h1>
+      <p class="lede">Genesis Digital Academy delivers practical, evidence-grade training in cryptocurrency investigation — from on-chain tracing to courtroom-ready expert testimony.</p>
+      <div class="hero-actions">
+        <a href="#catalog" class="btn btn-gold">Browse public catalog</a>
+        <button type="button" class="btn btn-ghost" id="ctaOrg" style="color:#fff; border-color:rgba(255,255,255,.3);">Enter your organization</button>
+      </div>
+      <div class="hero-trust">
+        <span><strong>Tamper-evident</strong> SHA-256 certificates</span>
+        <span><strong>White-label</strong> for partner agencies</span>
+        <span><strong>Self-paced</strong> with progress sync</span>
+      </div>
     </div>
-  </section>
+    <aside class="cert-mock" aria-hidden="true">
+      <h4>Genesis Digital Assets Academy</h4>
+      <h2>CERTIFICATE OF COMPLETION</h2>
+      <p class="for">This certifies that</p>
+      <div class="name">Det. Sarah Chen</div>
+      <p class="for">has successfully completed</p>
+      <div class="course">Crypto 101 for Investigators</div>
+      <div class="meta">
+        <span>ID&nbsp;3f2a9c1e…</span>
+        <span>verify at /verify</span>
+      </div>
+    </aside>
+  </div>
+</section>
 
-  <section class="features">
-    <div class="feature">
-      <h4>Conceptual foundations</h4>
-      <p>Wallets, addresses, transactions, mempool, mining &mdash; the model investigators need before tooling.</p>
+<!-- ============== Three-feature grid ============== -->
+<section class="section">
+  <div class="section-narrow">
+    <h2>Built for the people who follow the money.</h2>
+    <p class="lede">A learning platform shaped by working investigators, defense practitioners, and agency training officers.</p>
+    <div class="three-feature">
+      <article class="feat">
+        <span class="feat-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L20 6 L20 14 L12 22 L4 14 L4 6 Z"/><circle cx="12" cy="11" r="3"/></svg>
+        </span>
+        <h3>For Investigators</h3>
+        <p>Case-driven modules, knowledge checks, and a verifiable certificate path for cryptocurrency tracing — from your first UTXO to expert testimony.</p>
+      </article>
+      <article class="feat">
+        <span class="feat-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10 H21"/><path d="M9 4 V20"/></svg>
+        </span>
+        <h3>For Agencies</h3>
+        <p>White-label tenants with custom branding, learner management, gated enrollment by domain or invite, and per-tenant catalogs of internal training.</p>
+      </article>
+      <article class="feat">
+        <span class="feat-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12 H21"/><path d="M12 3 a14 14 0 0 1 0 18 a14 14 0 0 1 0 -18"/></svg>
+        </span>
+        <h3>For The Public</h3>
+        <p>Free public courses with the same certificate-of-completion path. Anyone can verify a graduate's credential at <code>/verify/&lt;hash&gt;</code>.</p>
+      </article>
     </div>
-    <div class="feature">
-      <h4>Applied tracing</h4>
-      <p>UTXO &amp; account models, change detection, peel chains, exchange identification, and subpoena strategy.</p>
-    </div>
-    <div class="feature">
-      <h4>Verifiable certificates</h4>
-      <p>Each completion certificate carries a SHA-256 hash and a public verification page so partners can confirm authenticity.</p>
-    </div>
-  </section>
-</main>
+  </div>
+</section>
 
-<footer class="site">
-  &copy; <span id="yr"></span> Genesis Digital Assets Academy
-  &middot; <a href="/admin">Program operators</a>
+<!-- ============== How it works ============== -->
+<section class="section alt">
+  <div class="section-narrow">
+    <h2>How it works</h2>
+    <p class="lede">Sign in, work through the lessons at your pace, take the knowledge checks, and pick up your certificate.</p>
+    <ol class="steps" aria-label="How it works">
+      <li class="step"><div class="step-num">1</div><h3>Browse</h3><p>Pick a course from the public catalog or enter your organization's portal.</p></li>
+      <li class="step"><div class="step-num">2</div><h3>Sign in</h3><p>Magic-link email — no password to remember. Agency invites are honoured.</p></li>
+      <li class="step"><div class="step-num">3</div><h3>Learn</h3><p>Read, listen, and take knowledge checks at your own pace. Progress syncs across devices.</p></li>
+      <li class="step"><div class="step-num">4</div><h3>Earn</h3><p>Complete the course to receive a hash-verified certificate of completion.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============== Cert preview block ============== -->
+<section class="section">
+  <div class="section-narrow">
+    <div class="cert-block">
+      <div>
+        <h2>Every certificate is verifiable.</h2>
+        <p class="lede">Each Genesis certificate includes a tamper-evident SHA-256 hash. Anyone — a hiring agency, a court, a partner — can verify a graduate's credential by entering the hash at the public verifier. No login required.</p>
+        <a href="/verify" class="btn btn-primary">Verify a certificate</a>
+      </div>
+      <aside class="cert-mock" aria-hidden="true">
+        <h4>Genesis Digital Assets Academy</h4>
+        <h2>CERTIFICATE OF COMPLETION</h2>
+        <p class="for">This certifies that</p>
+        <div class="name">Officer J. Rivera</div>
+        <p class="for">has successfully completed</p>
+        <div class="course">Crypto 101 for Investigators</div>
+        <div class="meta">
+          <span>ID&nbsp;a91f7c…</span>
+          <span>verify at /verify</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============== Catalog ============== -->
+<section class="section alt" id="catalog">
+  <div class="section-narrow">
+    <h2>Public course catalog</h2>
+    <p class="lede">Open enrollment — sign in to start.</p>
+    <div class="catalog" id="catalogGrid"></div>
+    <p id="catalogEmpty" style="display:none; color:var(--muted); margin-top:20px;">More public courses are launching soon.</p>
+  </div>
+</section>
+
+<!-- ============== Org sign-in row ============== -->
+<section class="section">
+  <div class="section-narrow">
+    <div class="org-row">
+      <div>
+        <h2>Already with a partner agency?</h2>
+        <p>Enter your organization's slug to reach your branded portal.</p>
+        <p style="margin-top:6px; font-size:13px;">Currently serving: <strong style="color:#c8a64a;">deconflict</strong></p>
+      </div>
+      <form class="org-form" id="orgForm" autocomplete="off">
+        <input id="orgSlug" type="text" placeholder="your-org-slug" pattern="[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])" aria-label="Organization slug" />
+        <button type="submit" class="btn btn-gold">Go →</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============== Footer ============== -->
+<footer class="site-footer">
+  <div class="inner">
+    <span>&copy; <span id="year"></span> Genesis Digital Assets Academy</span>
+    <div class="footer-links">
+      <a href="#catalog">Browse courses</a>
+      <a href="/verify">Verify certificate</a>
+      <a href="/health">Status</a>
+    </div>
+  </div>
 </footer>
 
+<!-- ============== Sign-in modal (reuses same id auth.js looks for) ============== -->
+<div class="overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="signInTitle">
+  <div class="overlay-card">
+    <h2 id="signInTitle">Sign in to Genesis Digital Academy</h2>
+    <p>Enter your work email — we'll send a one-click sign-in link.</p>
+    <form id="signInForm">
+      <input id="signInEmail" type="email" autocomplete="email" required placeholder="officer@youragency.gov" />
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" id="signInCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="signInSend">Send sign-in link</button>
+      </div>
+    </form>
+    <p class="overlay-msg" id="signInMsg"></p>
+  </div>
+</div>
+
+<!-- ============== Org slug modal ============== -->
+<div class="overlay" id="orgOverlay" role="dialog" aria-modal="true" aria-labelledby="orgTitle">
+  <div class="overlay-card">
+    <h2 id="orgTitle">Enter your organization</h2>
+    <p>Type your organization's slug (e.g. <code>deconflict</code>). You'll land on its branded portal.</p>
+    <form id="orgModalForm">
+      <input id="orgModalSlug" type="text" autocomplete="off" required placeholder="your-org-slug" />
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" id="orgCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Go to portal</button>
+      </div>
+    </form>
+    <p class="overlay-msg" id="orgMsg"></p>
+  </div>
+</div>
+
 <script>
-document.getElementById('yr').textContent = new Date().getFullYear();
+(function () {
+  const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
+  document.getElementById('year').textContent = new Date().getFullYear();
 
-// Single shared Supabase client. admin-nav.js (deferred) will reuse this
-// via window.supabaseClient instead of creating its own GoTrueClient.
-const sb = window.supabaseClient
-  || (window.supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY));
-const msgEl = document.getElementById('msg');
-function showMsg(text, kind) {
-  msgEl.textContent = text;
-  msgEl.className = 'msg show ' + (kind || '');
-}
+  // Sticky-header scroll state
+  const header = document.getElementById('siteHeader');
+  const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
 
-// ---- Email sign-in (magic link) — auto-route to tenant after signin ----
-async function tenantForEmail(email) {
-  const domain = email.split('@')[1]?.toLowerCase();
-  if (!domain) return null;
-  const url = `${window.SUPABASE_URL}/rest/v1/tenants?email_domains=cs.{${encodeURIComponent(domain)}}&select=slug&limit=1`;
-  try {
-    const r = await fetch(url, {
-      headers: {
-        apikey: window.SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${window.SUPABASE_PUBLISHABLE_KEY}`
-      }
+  // Single shared Supabase client (matches v0.4.33 contract).
+  window.supabaseClient = window.supabaseClient
+    || supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+  const sb = window.supabaseClient;
+
+  // ---------- Catalog (public) ----------
+  // The courses table requires authenticated reads (courses_public_read is
+  // TO authenticated). Fall back to /api/public-config which already serves
+  // the public catalog metadata.
+  async function loadCatalog() {
+    const grid = document.getElementById('catalogGrid');
+    const empty = document.getElementById('catalogEmpty');
+    try {
+      const r = await fetch('/api/public-config', { cache: 'no-cache' });
+      const cfg = await r.json();
+      const items = Array.isArray(cfg.catalog) ? cfg.catalog : [];
+      if (!items.length) { empty.style.display = 'block'; return; }
+      grid.innerHTML = items.map(c => {
+        const initials = (c.name || c.course_id || 'C').replace(/[^A-Z0-9]/gi, '').slice(0, 3).toUpperCase() || 'C';
+        const desc = c.description ? String(c.description).slice(0, 180) : '';
+        return `
+          <a class="course-card" href="/courses?course=${encodeURIComponent(c.course_id)}">
+            <div class="course-thumb">${initials}</div>
+            <div class="course-body">
+              <h3>${escapeHtml(c.name || c.course_id)}</h3>
+              <p>${escapeHtml(desc)}</p>
+              <span class="course-cta">View course</span>
+            </div>
+          </a>`;
+      }).join('');
+    } catch (err) {
+      console.warn('catalog load failed', err);
+      empty.style.display = 'block';
+    }
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+  }
+
+  // ---------- Auth modal ----------
+  const authOverlay = document.getElementById('authOverlay');
+  const signInMsg = document.getElementById('signInMsg');
+  const openAuth = () => { authOverlay.classList.add('is-open'); setTimeout(() => document.getElementById('signInEmail').focus(), 0); };
+  const closeAuth = () => { authOverlay.classList.remove('is-open'); signInMsg.textContent = ''; };
+  document.getElementById('navSignIn').addEventListener('click', openAuth);
+  document.getElementById('signInCancel').addEventListener('click', closeAuth);
+  authOverlay.addEventListener('click', (e) => { if (e.target === authOverlay) closeAuth(); });
+  // Expose so other scripts (admin-nav etc.) can open the same modal.
+  window.openAuthOverlay = openAuth;
+
+  async function tenantForEmail(email) {
+    const domain = (email.split('@')[1] || '').toLowerCase();
+    if (!domain) return null;
+    const url = `${window.SUPABASE_URL}/rest/v1/tenants?email_domains=cs.{${encodeURIComponent(domain)}}&select=slug&limit=1`;
+    try {
+      const r = await fetch(url, {
+        headers: {
+          apikey: window.SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${window.SUPABASE_PUBLISHABLE_KEY}`
+        }
+      });
+      if (!r.ok) return null;
+      const rows = await r.json();
+      return rows[0]?.slug || null;
+    } catch { return null; }
+  }
+
+  document.getElementById('signInForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('signInEmail').value.trim();
+    if (!email) return;
+    const btn = document.getElementById('signInSend');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    signInMsg.className = 'overlay-msg'; signInMsg.textContent = '';
+
+    // Route the magic-link redirect to the user's tenant dashboard if known.
+    const slug = await tenantForEmail(email);
+    const target = slug
+      ? `${window.location.origin}/${slug}/dashboard`
+      : `${window.location.origin}/dashboard`;
+    const { error } = await sb.auth.signInWithOtp({
+      email, options: { emailRedirectTo: target }
     });
-    if (!r.ok) return null;
-    const rows = await r.json();
-    return rows[0]?.slug || null;
-  } catch { return null; }
-}
-
-document.getElementById('signinForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('signinBtn');
-  const email = document.getElementById('email').value.trim();
-  if (!email) return;
-  btn.disabled = true; btn.textContent = 'Sending…';
-  showMsg('', '');
-
-  // Resolve tenant by email domain so the magic-link redirect lands on the right portal.
-  const slug = await tenantForEmail(email);
-  const target = slug ? `${window.location.origin}/${slug}` : `${window.location.origin}/`;
-
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: target }
+    btn.disabled = false; btn.textContent = 'Send sign-in link';
+    if (error) {
+      signInMsg.classList.add('is-err'); signInMsg.textContent = 'Could not send link: ' + error.message;
+    } else {
+      signInMsg.classList.add('is-ok');
+      signInMsg.textContent = 'Sign-in link sent. Check your inbox.';
+    }
   });
 
-  btn.disabled = false; btn.textContent = 'Email me a sign-in link';
-  if (error) {
-    showMsg('Could not send link: ' + error.message, 'err');
-  } else {
-    showMsg('Check your inbox for a sign-in link from Genesis Digital Assets Academy.', 'ok');
-  }
-});
+  // ---------- Org slug modal ----------
+  const orgOverlay = document.getElementById('orgOverlay');
+  const orgMsg = document.getElementById('orgMsg');
+  const openOrg = () => { orgOverlay.classList.add('is-open'); setTimeout(() => document.getElementById('orgModalSlug').focus(), 0); };
+  const closeOrg = () => { orgOverlay.classList.remove('is-open'); orgMsg.textContent = ''; };
+  document.getElementById('ctaOrg').addEventListener('click', openOrg);
+  document.getElementById('orgCancel').addEventListener('click', closeOrg);
+  orgOverlay.addEventListener('click', (e) => { if (e.target === orgOverlay) closeOrg(); });
 
-// ---- Slug shortcut ----
-document.getElementById('slugBtn').addEventListener('click', () => {
-  const v = document.getElementById('slug').value.trim().toLowerCase();
-  if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(v)) {
-    showMsg('That doesn\u2019t look like a valid portal address. Use lowercase letters, numbers, and hyphens.', 'err');
-    return;
+  function gotoSlug(raw) {
+    const v = (raw || '').trim().toLowerCase();
+    if (!SLUG_RE.test(v)) {
+      orgMsg.className = 'overlay-msg is-err';
+      orgMsg.textContent = 'Use lowercase letters, numbers, hyphens (3–40 chars).';
+      return false;
+    }
+    window.location.href = '/' + v + '/';
+    return true;
   }
-  window.location.href = '/' + v;
-});
-document.getElementById('slug').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('slugBtn').click();
-});
+  document.getElementById('orgModalForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    gotoSlug(document.getElementById('orgModalSlug').value);
+  });
+  document.getElementById('orgForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = document.getElementById('orgSlug').value.trim().toLowerCase();
+    if (!SLUG_RE.test(v)) {
+      // Inline error: open modal with prefill so the user sees the validation copy
+      document.getElementById('orgModalSlug').value = v;
+      openOrg();
+      orgMsg.className = 'overlay-msg is-err';
+      orgMsg.textContent = 'Use lowercase letters, numbers, hyphens (3–40 chars).';
+      return;
+    }
+    window.location.href = '/' + v + '/';
+  });
+
+  // Escape closes any open modal.
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (authOverlay.classList.contains('is-open')) closeAuth();
+    if (orgOverlay.classList.contains('is-open')) closeOrg();
+  });
+
+  // Already signed in? Send to /dashboard so / doesn't dead-end signed-in users.
+  (async () => {
+    try {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session && data.session.user) {
+        // Only auto-redirect if the URL has no fragment/state pointing elsewhere.
+        if (!window.location.hash && window.location.search.indexOf('stay=1') === -1) {
+          window.location.replace('/dashboard');
+        }
+      }
+    } catch { /* noop */ }
+  })();
+
+  loadCatalog();
+})();
 </script>
 
 </body>

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard — Genesis Digital Assets Academy</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="/config.js"></script>
+<script src="/tenant.js"></script>
+<script src="/auth.js"></script>
+<style>
+  :root {
+    --ink: #060A16;
+    --ink-2: #0d1424;
+    --gold: #c8a64a;
+    --gold-soft: #e6c87a;
+    --muted: #5b6788;
+    --line: #e1e6f3;
+    --surface: #f7f7fb;
+    --paper: #ffffff;
+    --good: #1b6b3d;
+    --bad: #8a1a1a;
+    --brand-ink: var(--ink);
+    --brand-bg: var(--gold);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: var(--surface);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--ink-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+
+  /* ---- Header ---- */
+  .top {
+    background: var(--brand-ink); color: #fff;
+    padding: 14px 22px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border-bottom: 3px solid var(--brand-bg);
+  }
+  .top .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .top .left img { height: 36px; max-width: 200px; object-fit: contain; }
+  .top .left .badge-fb {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--gold); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .top h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  .top .right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .top .user-chip { background: rgba(255,255,255,.08); padding: 6px 10px; border-radius: 999px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top .btn-out {
+    background: transparent; border: 1px solid rgba(255,255,255,.25);
+    color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 13px;
+  }
+  .top .btn-out:hover { background: rgba(255,255,255,.08); }
+
+  /* ---- Top progress strip ---- */
+  .progress-strip {
+    height: 3px; background: linear-gradient(90deg, var(--gold) 0%, var(--gold-soft) 50%, var(--gold) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 0 0; } to { background-position: -200% 0; } }
+  .progress-strip.is-done { display: none; }
+
+  /* ---- Layout ---- */
+  main {
+    max-width: 1100px; margin: 0 auto;
+    padding: 24px 22px 80px;
+    display: grid; gap: 22px;
+  }
+  .card {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 24px;
+    box-shadow: 0 1px 0 rgba(13,20,36,.02);
+  }
+  .card h2 {
+    margin: 0 0 14px; font-size: 17px; letter-spacing: .2px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .card h2 .h2-sub { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .empty {
+    color: var(--muted); font-size: 14px; padding: 14px 16px;
+    background: var(--surface); border: 1px dashed var(--line); border-radius: 10px;
+  }
+  .err {
+    color: var(--bad); font-size: 14px; padding: 14px 16px;
+    background: #fdf3f3; border: 1px solid #f5c2c2; border-radius: 10px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .err button { background: var(--bad); color: #fff; border: 0; padding: 6px 12px; border-radius: 6px; }
+
+  /* ---- Profile card ---- */
+  .profile {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--ink); color: var(--gold);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 22px; overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-text { flex: 1; min-width: 200px; }
+  .profile-text strong { display: block; font-size: 17px; }
+  .profile-text span { color: var(--muted); font-size: 13.5px; }
+
+  /* ---- Continue learning ---- */
+  .continue {
+    display: grid; grid-template-columns: 1fr; gap: 16px; align-items: center;
+  }
+  @media (min-width: 720px) { .continue { grid-template-columns: 1fr auto; } }
+  .progressbar { height: 8px; background: var(--surface); border-radius: 999px; overflow: hidden; margin: 8px 0; border: 1px solid var(--line); }
+  .progressbar > div { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); }
+
+  /* ---- Course grids ---- */
+  .grid {
+    display: grid; gap: 14px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1100px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .ccard {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .ccard h3 { margin: 0; font-size: 15px; }
+  .ccard p { margin: 0; color: var(--muted); font-size: 13.5px; flex: 1; }
+  .ccard .meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); }
+
+  /* ---- Buttons ---- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 14px; font-size: 13.5px; font-weight: 600;
+    border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+  }
+  .btn.primary { background: var(--ink); color: #fff; }
+  .btn.primary:hover { background: #1a2444; }
+  .btn.gold { background: var(--gold); color: var(--ink); }
+  .btn.gold:hover { background: var(--gold-soft); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.ghost:hover { background: var(--surface); }
+
+  /* ---- Tables (testing center, attempts) ---- */
+  table.rows { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.rows th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--line); }
+  table.rows td { padding: 10px; border-bottom: 1px solid var(--line); }
+  table.rows tr:last-child td { border-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.ok { background: #e8f5ec; color: var(--good); }
+  .pill.bad { background: #fbecec; color: var(--bad); }
+  .pill.muted { background: var(--surface); color: var(--muted); }
+
+  /* ---- Resources ---- */
+  .res-search {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 14px;
+  }
+  .res-group { margin-bottom: 18px; }
+  .res-group h4 { margin: 6px 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+  .res-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .res-row:last-child { border-bottom: 0; }
+  .res-kind { width: 36px; height: 36px; border-radius: 6px; background: var(--surface); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink-2); flex-shrink: 0; }
+  .res-kind.html { background: #e7eefb; color: #1f4ea8; }
+  .res-kind.pdf  { background: #fbe7e7; color: #8b1a1a; }
+  .res-kind.docx { background: #e7f3ed; color: #0e6e3b; }
+  .res-kind.link { background: #fbf3df; color: #8a6209; }
+  .res-info { flex: 1; min-width: 0; }
+  .res-info strong { display: block; font-size: 13.5px; }
+  .res-info span { color: var(--muted); font-size: 12.5px; }
+
+  /* ---- Cert cards ---- */
+  .cert-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .cert-grid { grid-template-columns: repeat(2, 1fr); } }
+  .cert {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; background: var(--paper);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .cert .cert-name { font-size: 15px; font-weight: 700; }
+  .cert .cert-when { font-size: 12.5px; color: var(--muted); }
+  .cert .cert-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--muted); word-break: break-all; }
+  .cert .cert-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+  /* ---- Modals ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(13,20,36,.86);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px; z-index: 9999;
+  }
+  .overlay.is-open { display: flex; }
+  .overlay-card {
+    background: #fff; color: var(--ink); padding: 28px;
+    border-radius: 14px; max-width: 560px; width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,.4);
+    max-height: 88vh; overflow: auto;
+  }
+  .overlay-card.lg { max-width: 880px; }
+  .overlay-card h2 { margin: 0 0 6px; font-size: 18px; }
+  .overlay-card p.sub { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
+  .overlay-card label { display: block; font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); margin: 10px 0 4px; }
+  .overlay-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+  .overlay-card .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .overlay-msg { font-size: 13px; min-height: 18px; color: var(--muted); margin-top: 6px; }
+  .overlay-msg.is-ok { color: var(--good); }
+  .overlay-msg.is-err { color: var(--bad); }
+  .overlay-html { background: var(--surface); padding: 14px 16px; border-radius: 8px; max-height: 60vh; overflow: auto; font-size: 14px; line-height: 1.55; }
+  .overlay-pdf object { width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 8px; }
+
+  /* ---- Sign-in gate (when not authed) ---- */
+  .gate {
+    max-width: 460px; margin: 80px auto;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+    padding: 32px; text-align: center;
+  }
+  .gate h2 { margin: 0 0 8px; font-size: 22px; }
+  .gate p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  .gate input { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+
+  /* ---- Print: cert only ---- */
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea { position: absolute; inset: 0; padding: 40px; }
+    .top, main, .progress-strip, .overlay { display: none !important; }
+  }
+  #printArea {
+    position: fixed; top: -9999px; left: -9999px;
+    width: 11in; height: 8.5in;
+    background: #fff; padding: 60px;
+    border: 6px solid var(--ink);
+  }
+  #printArea .pa-inner { border: 2px solid var(--gold); height: 100%; padding: 40px; text-align: center; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  #printArea h3 { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin: 0; }
+  #printArea h1 { font-size: 30px; margin: 4px 0; }
+  #printArea .name { font-size: 36px; margin: 22px 0 6px; }
+  #printArea .for { color: var(--muted); margin: 4px 0; }
+  #printArea .course { font-size: 22px; margin: 6px 0 28px; font-weight: 700; }
+  #printArea .pa-meta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="left">
+    <img data-tenant-logo="dark" hidden alt="" />
+    <span class="badge-fb" data-tenant-fallback>G</span>
+    <h1 id="dashTitle">Dashboard</h1>
+  </div>
+  <div class="right">
+    <span class="user-chip" id="userChip" hidden></span>
+    <button type="button" class="btn-out" id="signOutBtn" hidden>Sign out</button>
+  </div>
+</header>
+
+<div class="progress-strip" id="loadStrip"></div>
+
+<!-- Sign-in gate when not authed -->
+<div class="gate" id="signInGate" hidden>
+  <h2>Sign in to your dashboard</h2>
+  <p>Enter your email — we'll send a one-click sign-in link.</p>
+  <form id="gateForm">
+    <input id="gateEmail" type="email" autocomplete="email" required placeholder="you@youragency.gov" />
+    <button type="submit" class="btn primary" style="width:100%;">Send sign-in link</button>
+  </form>
+  <p class="overlay-msg" id="gateMsg"></p>
+</div>
+
+<main id="dashboardRoot" hidden>
+  <!-- Each section renders independently. -->
+  <section class="card" id="profileCard"></section>
+  <section class="card" id="continueCard" hidden></section>
+  <section class="card" id="enrolledCard"></section>
+  <section class="card" id="availableCard"></section>
+  <section class="card" id="testingCard"></section>
+  <section class="card" id="resourcesCard"></section>
+  <section class="card" id="certificatesCard"></section>
+</main>
+
+<!-- Edit profile modal -->
+<div class="overlay" id="editOverlay" role="dialog" aria-modal="true">
+  <div class="overlay-card">
+    <h2>Edit profile</h2>
+    <p class="sub">Your full name appears on certificates of completion.</p>
+    <form id="editForm">
+      <label for="editFullName">Full name</label>
+      <input id="editFullName" type="text" required maxlength="120" />
+      <label for="editAvatar">Avatar URL (optional)</label>
+      <input id="editAvatar" type="url" placeholder="https://…" />
+      <div class="actions">
+        <button type="button" class="btn ghost" id="editCancel">Cancel</button>
+        <button type="submit" class="btn primary" id="editSave">Save</button>
+      </div>
+      <p class="overlay-msg" id="editMsg"></p>
+    </form>
+  </div>
+</div>
+
+<!-- HTML resource viewer -->
+<div class="overlay" id="htmlOverlay" role="dialog" aria-modal="true">
+  <div class="overlay-card lg">
+    <h2 id="htmlOverlayTitle">Resource</h2>
+    <div class="overlay-html" id="htmlOverlayBody"></div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="htmlOverlayClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF resource viewer -->
+<div class="overlay" id="pdfOverlay" role="dialog" aria-modal="true">
+  <div class="overlay-card lg overlay-pdf">
+    <h2 id="pdfOverlayTitle">Document</h2>
+    <object id="pdfOverlayObject" type="application/pdf" data="">
+      <p>This PDF can't be embedded. <a id="pdfOverlayDownload" href="#" target="_blank" rel="noopener">Open in a new tab</a>.</p>
+    </object>
+    <div class="actions">
+      <button type="button" class="btn primary" id="pdfOverlayClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print-only certificate area -->
+<div id="printArea" aria-hidden="true">
+  <div class="pa-inner">
+    <h3 data-tenant-name>Genesis Digital Assets Academy</h3>
+    <h1>Certificate of Completion</h1>
+    <p class="for">This certifies that</p>
+    <div class="name" id="paName">—</div>
+    <p class="for">has successfully completed</p>
+    <div class="course" id="paCourse">—</div>
+    <div class="pa-meta">
+      <span id="paId">ID —</span>
+      <span id="paDate">—</span>
+    </div>
+  </div>
+</div>
+
+<script src="/dashboard.js"></script>
+</body>
+</html>

@@ -22,8 +22,9 @@ const RESERVED = new Set([
   'assets', 'favicon.ico', 'robots.txt', 'sitemap.xml',
   'auth.js', 'config.js', 'tenant.js', 'course_data.json',
   'course.html', 'admin.html', 'index.html', 'courses.html', 'admin-requests.html',
-  'verify', 'health', 'api', 'courses', 'preview', 'studio',
-  'studio.html', 'studio.js', 'studio.css'
+  'verify', 'health', 'api', 'courses', 'preview', 'studio', 'dashboard',
+  'studio.html', 'studio.js', 'studio.css',
+  'dashboard.html', 'dashboard.js'
 ]);
 
 // Slugs are URL-safe lowercase: a-z 0-9 - (3-40 chars).
@@ -707,6 +708,22 @@ app.get(/^\/([^\/]+)\/admin\/requests\/?$/, (req, res, next) => {
   return res.sendFile(path.join(PUBLIC_DIR, 'admin-requests.html'));
 });
 
+// Genesis dashboard (no tenant)
+app.get('/dashboard', (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html'));
+});
+
+// Tenant dashboard
+app.get(/^\/([^\/]+)\/dashboard\/?$/, (req, res, next) => {
+  const slug = req.params[0].toLowerCase();
+  if (RESERVED.has(slug)) return next();
+  if (!SLUG_RE.test(slug)) return next();
+  res.set('X-Tenant-Slug', slug);
+  res.set('Cache-Control', 'no-cache');
+  return res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html'));
+});
+
 app.get(/^\/([^\/]+)(?:\/(admin)?\/?)?$/, (req, res, next) => {
   const slug = req.params[0].toLowerCase();
   const sub  = req.params[1];
@@ -733,7 +750,7 @@ app.get(/^\/([^\/]+)(?:\/(admin)?\/?)?$/, (req, res, next) => {
 app.use(express.static(PUBLIC_DIR, {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
-    if (/(course\.html|admin\.html|admin-requests\.html|courses\.html|index\.html|studio\.html|studio\.js|studio\.css|config\.js|auth\.js|tenant\.js|admin-welcome\.js|tenant-themes\.css|course_data\.json)$/.test(filePath)) {
+    if (/(course\.html|admin\.html|admin-requests\.html|courses\.html|index\.html|studio\.html|studio\.js|studio\.css|dashboard\.html|dashboard\.js|config\.js|auth\.js|tenant\.js|admin-welcome\.js|tenant-themes\.css|course_data\.json)$/.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');
     }
   }

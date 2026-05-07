@@ -19,13 +19,35 @@ window.supabaseClient = sb;
 
 let _user = null;
 
+// Post-sign-in redirect: send users from generic landing pages into their
+// dashboard. Only fires on transitions to a signed-in state, and only on
+// the bare landing paths so existing /course.html, /admin*, /studio* flows
+// stay put. Skips if the URL already targets a dashboard.
+function _postSignInRedirect() {
+  const path = window.location.pathname;
+  if (/\/dashboard\/?$/.test(path)) return;
+  if (path === '/') {
+    window.location.replace('/dashboard');
+    return;
+  }
+  // Tenant landing root: /{slug}/ (no further segments)
+  const m = path.match(/^\/([a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9]))\/?$/i);
+  if (m) {
+    window.location.replace('/' + m[1].toLowerCase() + '/dashboard');
+  }
+}
+
 window.authReady = (async () => {
   // Handle magic-link callback (?code=... or #access_token=...)
   const { data } = await sb.auth.getSession();
   _user = data.session?.user || null;
 
-  sb.auth.onAuthStateChange((_event, session) => {
+  sb.auth.onAuthStateChange((event, session) => {
+    const wasNull = !_user;
     _user = session?.user || null;
+    if (wasNull && _user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+      try { _postSignInRedirect(); } catch { /* noop */ }
+    }
   });
 
   // Phase 3: detect a gating rejection from handle_new_user (insufficient_privilege)

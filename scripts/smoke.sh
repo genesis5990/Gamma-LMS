@@ -48,7 +48,9 @@ check() {
 
 # ---- Core endpoints --------------------------------------------------------
 check "health endpoint"            200 "/health"           '"ok"'
-check "root redirect/landing"      200 "/"
+check "root landing page"          200 "/"                'data-page="landing"'
+check "Genesis dashboard route"    200 "/dashboard"        'id="dashboardRoot"'
+check "tenant dashboard route"     200 "/deconflict/dashboard"  'id="dashboardRoot"'
 check "course shell"               200 "/course.html"      "Crypto 101"
 check "admin shell"                 200 "/admin.html"       "Admin Dashboard"
 check "supabase config"            200 "/config.js"        "SUPABASE_URL"
