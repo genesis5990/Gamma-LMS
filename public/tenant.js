@@ -142,10 +142,10 @@
       return window.tenant;
     }
 
-    // Fetch tenant config (anonymous; tenants table has public-read RLS)
-    const url = `${window.SUPABASE_URL}/rest/v1/tenants`
+    // Fetch tenant branding (anonymous; tenants_public view exposes safe columns only).
+    const url = `${window.SUPABASE_URL}/rest/v1/tenants_public`
       + `?slug=eq.${encodeURIComponent(slugFromUrl)}`
-      + `&select=id,slug,name,logo_url,logo_url_white,primary_color,secondary_color,billing_status,contact_email,enrollment_mode`;
+      + `&select=id,slug,name,logo_url,logo_url_white,primary_color,secondary_color,enrollment_mode`;
     try {
       const resp = await fetch(url, {
         headers: {

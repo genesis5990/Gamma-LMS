@@ -101,6 +101,35 @@ async function getOrCreatePriceId(courseId) {
 
 app.use(compression());
 
+// Security headers (HSTS, CSP, X-Frame, nosniff, Referrer-Policy, Permissions-Policy).
+// Applied to every response. CSP allow-list mirrors actual loads:
+//   * Supabase JS UMD bundle  -> cdn.jsdelivr.net (script-src)
+//   * Supabase REST/Realtime  -> *.supabase.co (connect-src, wss)
+//   * Supabase storage media  -> *.supabase.co (img-src, media-src)
+//   * frame-ancestors 'self'  -> studio preview iframe (same-origin) keeps working
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
+  "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'"
+].join('; ');
+
+app.use((_req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', CSP);
+  next();
+});
+
 // Health check
 app.get('/health', (_req, res) => res.status(200).json({ ok: true, ts: Date.now() }));
 
