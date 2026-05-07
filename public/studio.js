@@ -461,7 +461,7 @@ async function renderDashboard(view, coursesOnly) {
         </div>
         <div class="dash-cc-actions">
           <a href="/studio/edit/${escapeHtml(c.slug)}" class="studio-btn primary">Edit</a>
-          <a href="/preview/${escapeHtml(c.slug)}" class="studio-btn" target="_blank" rel="noopener">Preview</a>
+          <a href="/courses/${escapeHtml(c.slug)}" class="studio-btn" target="_blank" rel="noopener">Preview</a>
         </div>
       </div>`;
     }).join('') : '<div class="studio-empty-state"><p>No courses match.</p></div>';

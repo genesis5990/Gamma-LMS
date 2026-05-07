@@ -492,9 +492,181 @@ function sanitizeHtml(s) {
   }
   return window.DOMPurify.sanitize(String(s == null ? '' : s), {
     USE_PROFILES: { html: true },
-    FORBID_TAGS: ['style', 'iframe'],
+    // Keep media/embed tags the studio writes into pages.body_html. <img>,
+    // <audio>, <source> are already in the default HTML profile; <object>
+    // is not, so add it explicitly for embedded PDFs.
+    ADD_TAGS: ['audio', 'img', 'source', 'object'],
+    ADD_ATTR: ['controls', 'controlslist', 'preload', 'data', 'type', 'crossorigin'],
+    FORBID_TAGS: ['style', 'iframe', 'script'],
     FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur','onchange']
   });
+}
+
+// =====================================================================
+// Course slug resolution + Supabase live loader
+// course.html now serves THREE entry points:
+//   - /course.html?course=<slug>          legacy / dashboard CTA
+//   - /courses/<slug>                     canonical learner / preview route
+//   - / and /<tenant>/                    legacy crypto101 fallback
+// crypto101 keeps loading from /course_data.json (no regression). Every
+// other slug pulls live data from Supabase tables (courses → course_versions
+// → modules → lessons → pages, plus module_quiz_questions for has_quiz
+// lessons). Author/super_admin can read those tables under existing RLS;
+// learner-read policies are not yet in place — see migration 0015.
+// =====================================================================
+function resolveCourseSlug() {
+  const sp = new URLSearchParams(window.location.search);
+  const fromQuery = sp.get('course');
+  if (fromQuery && /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/i.test(fromQuery)) {
+    return fromQuery.toLowerCase();
+  }
+  // /courses/<slug>
+  const m = window.location.pathname.match(/^\/courses\/([a-z0-9-]+)\/?$/i);
+  if (m) return m[1].toLowerCase();
+  return 'crypto101';
+}
+window.COURSE_SLUG = resolveCourseSlug();
+window.COURSE_ID = window.COURSE_SLUG; // legacy alias used by markCourseComplete
+
+async function loadCourseFromSupabase(slug) {
+  const sb = window.supabaseClient;
+  if (!sb) throw new Error('supabase client missing');
+
+  const { data: course, error: cErr } = await sb.from('courses')
+    .select('id, slug, title, description, hero_image_url, hero_image_alt, current_version_id, visibility, tenant_id, pass_threshold')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (cErr) throw cErr;
+  if (!course) throw new Error('course "' + slug + '" not found');
+  if (!course.current_version_id) throw new Error('course "' + slug + '" has no published version');
+
+  // Load modules → lessons → pages → quiz questions in parallel where safe.
+  const versionId = course.current_version_id;
+  const [{ data: modules, error: mErr }, { data: lessons, error: lErr }, { data: pages, error: pErr }, { data: kc, error: kErr }, { data: finals, error: fErr }] = await Promise.all([
+    sb.from('modules')
+      .select('id, slug, title, description, position, hero_image_url')
+      .eq('course_version_id', versionId)
+      .order('position'),
+    sb.from('lessons')
+      .select('id, module_id, slug, title, position, has_quiz, hero_image_url')
+      .order('position'),
+    sb.from('pages')
+      .select('id, lesson_id, position, page_type, title, body_html, audio_url, hero_image_url')
+      .order('position'),
+    sb.from('module_quiz_questions')
+      .select('id, module_id, position, question, options, reference')
+      .order('position'),
+    sb.from('final_exam_questions')
+      .select('id, course_version_id, position, question, options, reference')
+      .eq('course_version_id', versionId)
+      .order('position')
+  ]);
+  if (mErr) throw mErr;
+  if (lErr) throw lErr;
+  if (pErr) throw pErr;
+  // kc / finals are non-fatal — has_quiz lessons render without questions
+  // if RLS blocks the read.
+  if (kErr) console.warn('kc questions load failed:', kErr.message);
+  if (fErr) console.warn('finals load failed:', fErr.message);
+
+  const moduleById = new Map((modules || []).map(m => [m.id, m]));
+  const moduleNumById = new Map((modules || []).map((m, i) => [m.id, i + 1]));
+  const lessonsByModule = new Map();
+  for (const l of (lessons || [])) {
+    if (!moduleById.has(l.module_id)) continue;
+    if (!lessonsByModule.has(l.module_id)) lessonsByModule.set(l.module_id, []);
+    lessonsByModule.get(l.module_id).push(l);
+  }
+  for (const [, arr] of lessonsByModule) arr.sort((a, b) => (a.position||0) - (b.position||0));
+  const pagesByLesson = new Map();
+  for (const p of (pages || [])) {
+    if (!pagesByLesson.has(p.lesson_id)) pagesByLesson.set(p.lesson_id, []);
+    pagesByLesson.get(p.lesson_id).push(p);
+  }
+  for (const [, arr] of pagesByLesson) arr.sort((a, b) => (a.position||0) - (b.position||0));
+  const kcByModule = new Map();
+  for (const q of (kc || [])) {
+    if (!kcByModule.has(q.module_id)) kcByModule.set(q.module_id, []);
+    kcByModule.get(q.module_id).push(q);
+  }
+
+  // Build the player's COURSE shape: { lesson_map, lessons, quizzes, metadata }
+  const lesson_map = [];
+  const lessonsOut = {};
+  const quizzes = {};
+  const metadata = {};
+  let lessonCounter = 0;
+
+  for (const m of (modules || [])) {
+    const moduleNum = moduleNumById.get(m.id);
+    const modLessons = lessonsByModule.get(m.id) || [];
+    for (const l of modLessons) {
+      lessonCounter += 1;
+      const id = l.slug || ('lesson-' + l.id);
+      const lessonPages = (pagesByLesson.get(l.id) || []).map(p => ({
+        // Map studio columns -> player fields. body_html stays as the
+        // sanitized author HTML; audio_url renders as <audio> if present.
+        html: p.body_html || '',
+        audio: p.audio_url || null,
+        title: p.title || '',
+        page_type: p.page_type || 'text'
+      }));
+      lessonsOut[id] = lessonPages;
+      const meta = {
+        id,
+        module: moduleNum,
+        num: moduleNum + '.' + (modLessons.indexOf(l) + 1),
+        title: l.title || id,
+        src: null,
+        type: 'lesson'
+      };
+      metadata[id] = meta;
+      lesson_map.push(meta);
+
+      if (l.has_quiz) {
+        const qs = (kcByModule.get(m.id) || []).map(q => ({
+          question: q.question,
+          // Studio stores options as a jsonb array of strings. Map to the
+          // legacy {key,text} shape the renderer expects (A/B/C/D).
+          choices: (Array.isArray(q.options) ? q.options : []).map((text, i) => ({
+            key: String.fromCharCode(65 + i),
+            text: String(text == null ? '' : text)
+          })),
+          reference: q.reference || ''
+          // Note: answer_index is intentionally NOT shipped to the client.
+          // server-side /api/grade-quiz handles correctness.
+        }));
+        if (qs.length) {
+          quizzes[id] = qs;
+        }
+      }
+    }
+  }
+
+  // Final exam — append as a synthetic "quiz" lesson at the end.
+  if (Array.isArray(finals) && finals.length) {
+    const id = 'final-exam';
+    quizzes[id] = finals.map(q => ({
+      question: q.question,
+      choices: (Array.isArray(q.options) ? q.options : []).map((text, i) => ({
+        key: String.fromCharCode(65 + i),
+        text: String(text == null ? '' : text)
+      })),
+      reference: q.reference || ''
+    }));
+    const meta = { id, module: 99, num: 'F', title: 'Final exam', src: null, type: 'quiz' };
+    metadata[id] = meta;
+    lesson_map.push(meta);
+  }
+
+  return {
+    lesson_map, lessons: lessonsOut, quizzes, metadata,
+    course_meta: {
+      slug: course.slug, title: course.title, description: course.description,
+      hero_image_url: course.hero_image_url
+    },
+    pass_threshold: typeof course.pass_threshold === 'number' ? (course.pass_threshold / 100) : 0.7
+  };
 }
 
 let COURSE = null;
@@ -1192,14 +1364,23 @@ async function boot() {
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = user.email;
 
-  // Load progress, course data, and appendix items in parallel
+  // Load progress, course data, and appendix items in parallel.
+  // Legacy crypto101 keeps loading from the static snapshot to preserve the
+  // exact existing behaviour. Every other slug pulls live data from
+  // Supabase via loadCourseFromSupabase so author edits in studio (images,
+  // audio narration, body_html) show up immediately in preview.
+  const slug = window.COURSE_SLUG || resolveCourseSlug();
+  const courseFetch = (slug === 'crypto101')
+    ? fetch('/course_data.json').then(r => r.json())
+    : loadCourseFromSupabase(slug);
   const [serverProgress, data] = await Promise.all([
     window.loadProgress(),
-    fetch('/course_data.json').then(r => r.json()),
+    courseFetch,
     loadAppendixItems(),
   ]);
   progress = serverProgress;
   COURSE = data;
+  if (data && data.pass_threshold) window.PASS_THRESHOLD = data.pass_threshold;
   buildSidebar();
   // Default to first incomplete lesson, otherwise first lesson
   const firstIncomplete = COURSE.lesson_map.find(l => l.type !== 'quiz' && !progress[l.id]?.complete);
@@ -1208,7 +1389,13 @@ async function boot() {
 }
 boot()
   .catch(e => {
-    document.getElementById('content').innerHTML = `<div class="lesson-card" style="color:var(--bad);">Failed to load course data: ${e.message}</div>`;
+    const slug = window.COURSE_SLUG || 'unknown';
+    const isRlsLike = e && /(row-level security|permission|denied|not found)/i.test(e.message || '');
+    const hint = isRlsLike
+      ? `<p style="margin:8px 0 0;font-size:13px;color:var(--muted);">If you're a course author, sign in with the studio account that owns this course. Learner-side reads on authoring tables are not yet enabled (RLS).</p>`
+      : '';
+    document.getElementById('content').innerHTML =
+      `<div class="lesson-card" style="color:var(--bad);">Couldn't load course "${slug}": ${e.message || e}${hint}</div>`;
   });
 
 // Auth modal handlers

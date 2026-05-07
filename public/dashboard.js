@@ -253,7 +253,7 @@
             <p>${escapeHtml(desc)}</p>
             <div class="progressbar"><div style="width:${pp}%"></div></div>
             <div class="meta"><span>${p.done}/${p.total} lessons · ${pp}%</span>
-              <a class="btn gold" href="/course.html?course=${encodeURIComponent(e.course_id)}">Open</a></div>
+              <a class="btn gold" href="/courses/${encodeURIComponent(e.course_id)}">Open</a></div>
           </article>`;
         }).join('')}
       </div>
@@ -321,7 +321,7 @@
             <div class="progressbar"><div style="width:${pp}%"></div></div>
             <div style="font-size:12.5px;color:var(--muted);">${p.done}/${p.total} lessons · ${pp}% complete</div>
           </div>
-          <a class="btn primary" href="/course.html?course=${encodeURIComponent(mostRecent)}">Resume →</a>
+          <a class="btn primary" href="/courses/${encodeURIComponent(mostRecent)}">Resume →</a>
         </div>
       `;
     }
@@ -444,7 +444,7 @@
           <td>${best
             ? `<span class="pill ${best.passed ? 'ok' : 'bad'}">${best.score}%</span> · attempt ${best.attempt_no}`
             : '<span class="pill muted">Not attempted</span>'}</td>
-          <td><a class="btn ghost" href="/course.html?course=${encodeURIComponent(e.course_slug || '')}&lesson=${encodeURIComponent(e.lesson_id)}">Take exam</a></td>
+          <td><a class="btn ghost" href="/courses/${encodeURIComponent(e.course_slug || '')}?lesson=${encodeURIComponent(e.lesson_id)}">Take exam</a></td>
         </tr>`;
       }).join('');
     } else {

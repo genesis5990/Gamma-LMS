@@ -656,6 +656,14 @@ app.get('/courses', (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'courses.html'));
 });
 
+// /courses/<slug> — canonical learner / studio-preview route. Serves the
+// course.html shell; the JS resolves the slug from the pathname and pulls
+// live data from Supabase (live edits show up immediately for authors).
+app.get(/^\/courses\/([a-z0-9-]+)\/?$/, (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'course.html'));
+});
+
 // =====================================================================
 // Preview routes — auth-less content review pages.
 // Serves a standalone viewer for an authored course JSON. No DB writes,
