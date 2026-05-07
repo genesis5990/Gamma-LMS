@@ -82,6 +82,14 @@ check "studio media route"          200 "/studio/media"              "Studio"
 check "studio users route"          200 "/studio/users"              "Studio"
 check "studio courses route"        200 "/studio/courses"            "Studio"
 
+# ---- Module appendix feature (v0.4.32) -------------------------------------
+check "course appendix toggle css"  200 "/course.html"               "appendix-toggle"
+check "course appendix panel html"  200 "/course.html"               "appendixPanel"
+check "course appendix loader"      200 "/course.html"               "loadAppendixItems"
+check "studio appendix add bar"     200 "/studio.js"                 "data-apx-add"
+check "studio appendix render"      200 "/studio.js"                 "renderAppendixEditor"
+check "studio appendix table"       200 "/studio.js"                 "module_appendix_items"
+
 # ---- Fallback behavior -----------------------------------------------------
 # Unknown routes serve the neutral GDAA landing with a 404 status.
 check "unknown route fallback"     404 "/this-should-not-exist.html" "Genesis Digital Assets Academy"

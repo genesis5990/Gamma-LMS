@@ -14,6 +14,8 @@
 const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
+// Shared client for other scripts on the same page (e.g. appendix loader).
+window.supabaseClient = sb;
 
 let _user = null;
 

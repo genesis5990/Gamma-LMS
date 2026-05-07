@@ -266,6 +266,125 @@
     background: rgba(255, 220, 100, .45);
     border-radius: 4px;
   }
+  /* ===== Appendix (per-module reference sidebar) ===== */
+  .appendix-toggle {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: #fff; color: var(--ink-2);
+    border: 1px solid var(--line);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 1px 2px rgba(13,20,36,.04);
+  }
+  .appendix-toggle:hover { border-color: var(--accent); color: var(--accent-2); }
+  .appendix-toggle .ico { font-weight: 700; color: var(--accent-2); }
+  .appendix-toggle .count {
+    font-size: 11px; padding: 1px 6px; border-radius: 999px;
+    background: #eef3ff; color: var(--accent-2);
+  }
+  .appendix-bar {
+    display:flex; align-items:center; justify-content:flex-end;
+    margin-bottom: 10px;
+  }
+  .appendix-overlay {
+    position: fixed; inset: 0;
+    background: rgba(13,20,36,.35);
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+    z-index: 9000;
+  }
+  .appendix-overlay.is-open { opacity: 1; pointer-events: auto; }
+  .appendix-panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 420px; max-width: 100%;
+    background: #fff; color: var(--ink);
+    border-left: 1px solid var(--line);
+    box-shadow: -10px 0 30px rgba(13,20,36,.18);
+    transform: translateX(100%);
+    transition: transform .22s ease;
+    z-index: 9001;
+    display: flex; flex-direction: column;
+  }
+  .appendix-panel.is-open { transform: translateX(0); }
+  @media (max-width: 600px) {
+    .appendix-panel { width: 100%; }
+  }
+  .appendix-panel header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .appendix-panel header h2 {
+    margin: 0; font-size: 13px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    font-weight: 700; flex: 1;
+  }
+  .appendix-panel .close-x {
+    background: transparent; border: 0; color: var(--muted);
+    font-size: 22px; line-height: 1; padding: 0 4px; cursor: pointer;
+  }
+  .appendix-panel .close-x:hover { color: var(--ink); }
+  .appendix-panel .panel-body {
+    padding: 14px 18px 24px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .appendix-empty {
+    color: var(--muted); font-size: 13px;
+    text-align: center; padding: 28px 8px;
+  }
+  .apx-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--paper-2);
+    margin-bottom: 10px;
+  }
+  .apx-card-head {
+    display:flex; align-items:center; gap:8px; margin-bottom: 4px;
+  }
+  .apx-card-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: .5px;
+    padding: 2px 7px; border-radius: 999px;
+    background: #eef3ff; color: var(--accent-2);
+    text-transform: uppercase;
+  }
+  .apx-card-title {
+    flex: 1; font-weight: 600; font-size: 14px; color: var(--ink);
+    word-break: break-word;
+  }
+  .apx-card-desc {
+    font-size: 12px; color: var(--muted); margin: 4px 0 8px;
+  }
+  .apx-card details { margin-top: 6px; }
+  .apx-card details summary {
+    cursor: pointer; font-size: 13px; color: var(--accent-2);
+    padding: 4px 0;
+  }
+  .apx-card details[open] summary { color: var(--ink); }
+  .apx-card .apx-html {
+    margin-top: 8px; font-size: 14px; line-height: 1.55;
+  }
+  .apx-card .apx-html h1, .apx-card .apx-html h2, .apx-card .apx-html h3 {
+    font-size: 15px; margin: 10px 0 6px; color: var(--ink-2);
+  }
+  .apx-card .apx-html p { margin: 0 0 8px; }
+  .apx-card .apx-html ul, .apx-card .apx-html ol { margin: 6px 0 8px 20px; }
+  .apx-card .apx-html img { max-width: 100%; border-radius: 4px; }
+  .apx-card object { width: 100%; height: 320px; border: 1px solid var(--line); border-radius: 4px; margin-top: 8px; }
+  .apx-card .apx-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 6px;
+    background: var(--accent); color: #fff;
+    text-decoration: none; font-size: 13px; font-weight: 600;
+    margin-top: 6px; margin-right: 6px;
+  }
+  .apx-card .apx-action.secondary {
+    background: #fff; color: var(--ink); border: 1px solid var(--line);
+  }
+  .apx-card .apx-action:hover { background: var(--accent-2); color: #fff; }
+  .apx-card .apx-action.secondary:hover { border-color: var(--accent); color: var(--accent-2); }
+  .apx-card .apx-host { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
   /* In-body [n] markers (when present) */
   sup.cite-marker { display: inline-block; font-size: 70%; line-height: 0; vertical-align: super; }
   sup.cite-marker a {
@@ -348,6 +467,16 @@
   <main class="content" id="content"></main>
 </div>
 
+<!-- Per-module Appendix panel -->
+<div class="appendix-overlay" id="appendixOverlay" hidden></div>
+<aside class="appendix-panel" id="appendixPanel" aria-hidden="true" aria-label="Module appendix">
+  <header>
+    <h2>Reference material</h2>
+    <button type="button" class="close-x" id="appendixClose" aria-label="Close appendix">×</button>
+  </header>
+  <div class="panel-body" id="appendixBody"></div>
+</aside>
+
 <script>
 // ============================================================================
 // COURSE_DATA is loaded from course_data.json (via fetch on load)
@@ -373,6 +502,152 @@ let COURSE = null;
 // Progress is now persisted to Supabase via auth.js (loaded below).
 // `progress` is a local mirror that the UI reads synchronously.
 let progress = {};
+
+// Per-module appendix items, indexed by legacy module integer (1, 2, 3...).
+// Populated at boot from public.module_appendix_items via Supabase RLS,
+// which limits visibility to enrolled learners (and authors / super_admin).
+// If lookup fails or no items exist, this stays empty and the UI hides the
+// Appendix button.
+const APPENDIX_BY_MODULE_NUM = {};
+const APPENDIX_COURSE_SLUG   = 'crypto101';
+const APPENDIX_KIND_LABEL    = { html: 'HTML', pdf: 'PDF', docx: 'WORD', link: 'LINK' };
+
+async function loadAppendixItems() {
+  try {
+    const sb = window.supabaseClient;
+    if (!sb) return;
+    // Resolve current_version_id for the legacy course slug.
+    const { data: course } = await sb.from('courses')
+      .select('id, current_version_id').eq('slug', APPENDIX_COURSE_SLUG).maybeSingle();
+    if (!course || !course.current_version_id) return;
+    const { data: modules } = await sb.from('modules')
+      .select('id, position, slug').eq('course_version_id', course.current_version_id).order('position');
+    if (!Array.isArray(modules) || !modules.length) return;
+    const moduleIds = modules.map(m => m.id);
+    const { data: items } = await sb.from('module_appendix_items')
+      .select('id, module_id, kind, title, position, body_html, asset_id, url, description, course_assets(public_url, filename, byte_size, mime_type)')
+      .in('module_id', moduleIds).order('position');
+    if (!Array.isArray(items)) return;
+    // Map each module's UUID id -> its 1-indexed legacy position.
+    const moduleNumById = {};
+    modules.forEach((m, idx) => { moduleNumById[m.id] = idx + 1; });
+    for (const it of items) {
+      const num = moduleNumById[it.module_id];
+      if (!num) continue;
+      if (!APPENDIX_BY_MODULE_NUM[num]) APPENDIX_BY_MODULE_NUM[num] = [];
+      APPENDIX_BY_MODULE_NUM[num].push(it);
+    }
+  } catch (e) {
+    // Non-fatal — appendix is an optional enhancement.
+    console.warn('appendix load failed:', e.message);
+  }
+}
+
+function appendixItemsForModule(moduleNum) {
+  return APPENDIX_BY_MODULE_NUM[moduleNum] || [];
+}
+
+function isSafeExternalUrl(u) {
+  return typeof u === 'string' && /^https?:\/\//i.test(u);
+}
+
+function urlHost(u) {
+  try { return new URL(u).host; } catch { return ''; }
+}
+
+function fmtBytesLearner(n) {
+  if (!n) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function renderAppendixItem(it) {
+  const chip = APPENDIX_KIND_LABEL[it.kind] || (it.kind || '').toUpperCase();
+  const title = it.title || '(untitled)';
+  const desc = it.description ? `<div class="apx-card-desc">${escapeAttr(it.description)}</div>` : '';
+  const head = `<div class="apx-card-head"><span class="apx-card-chip">${escapeAttr(chip)}</span><span class="apx-card-title">${escapeAttr(title)}</span></div>${desc}`;
+  if (it.kind === 'html') {
+    const safe = sanitizeHtml(it.body_html || '');
+    return `<div class="apx-card">${head}<details><summary>Show details</summary><div class="apx-html">${safe}</div></details></div>`;
+  }
+  if (it.kind === 'pdf') {
+    const url = it.course_assets?.public_url || '';
+    const fname = it.course_assets?.filename || 'document.pdf';
+    const size = fmtBytesLearner(it.course_assets?.byte_size || 0);
+    if (!url) return `<div class="apx-card">${head}<div class="apx-card-desc"><em>File missing.</em></div></div>`;
+    return `<div class="apx-card">${head}
+      <details>
+        <summary>Open inline</summary>
+        <object data="${escapeAttr(url)}" type="application/pdf"><a class="apx-action" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">Open ${escapeAttr(fname)}</a></object>
+      </details>
+      <a class="apx-action" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">View PDF</a>
+      <a class="apx-action secondary" href="${escapeAttr(url)}" download="${escapeAttr(fname)}">Download${size ? ' · ' + escapeAttr(size) : ''}</a>
+    </div>`;
+  }
+  if (it.kind === 'docx') {
+    const url = it.course_assets?.public_url || '';
+    const fname = it.course_assets?.filename || 'document.docx';
+    const size = fmtBytesLearner(it.course_assets?.byte_size || 0);
+    if (!url) return `<div class="apx-card">${head}<div class="apx-card-desc"><em>File missing.</em></div></div>`;
+    return `<div class="apx-card">${head}
+      <a class="apx-action" href="${escapeAttr(url)}" download="${escapeAttr(fname)}">Download ${escapeAttr(fname)}${size ? ' · ' + escapeAttr(size) : ''}</a>
+    </div>`;
+  }
+  if (it.kind === 'link') {
+    if (!isSafeExternalUrl(it.url)) {
+      return `<div class="apx-card">${head}<div class="apx-card-desc"><em>Invalid link.</em></div></div>`;
+    }
+    return `<div class="apx-card">${head}
+      <a class="apx-action" href="${escapeAttr(it.url)}" target="_blank" rel="noopener noreferrer">Open link</a>
+      <div class="apx-host">${escapeAttr(urlHost(it.url))}</div>
+    </div>`;
+  }
+  return `<div class="apx-card">${head}</div>`;
+}
+
+function escapeAttr(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function openAppendixPanel(moduleNum) {
+  const items = appendixItemsForModule(moduleNum);
+  const body = document.getElementById('appendixBody');
+  if (!items.length) {
+    body.innerHTML = '<div class="appendix-empty">No reference material for this module yet.</div>';
+  } else {
+    body.innerHTML = items.map(renderAppendixItem).join('');
+  }
+  document.getElementById('appendixOverlay').hidden = false;
+  // Allow next frame so transition runs
+  requestAnimationFrame(() => {
+    document.getElementById('appendixOverlay').classList.add('is-open');
+    const panel = document.getElementById('appendixPanel');
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
+  });
+}
+
+function closeAppendixPanel() {
+  const overlay = document.getElementById('appendixOverlay');
+  const panel = document.getElementById('appendixPanel');
+  overlay.classList.remove('is-open');
+  panel.classList.remove('is-open');
+  panel.setAttribute('aria-hidden', 'true');
+  setTimeout(() => { overlay.hidden = true; }, 220);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('appendixClose')?.addEventListener('click', closeAppendixPanel);
+  document.getElementById('appendixOverlay')?.addEventListener('click', closeAppendixPanel);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('appendixPanel')?.classList.contains('is-open')) {
+      closeAppendixPanel();
+    }
+  });
+});
 // Legacy no-op so any leftover saveProgress() calls don't error before we wire writes.
 function saveProgress() { /* writes happen via saveLessonProgress / saveQuizAttempt */ }
 // Schema: { lessonId: { viewedPages: [0,1,...], complete: bool, quizScore: 0-1, quizPassed: bool } }
@@ -535,10 +810,16 @@ function renderLesson(lid) {
     const isLastPage = (pageIdx === pages.length - 1);
     const hasQuiz = !!COURSE.quizzes[lid];
 
+    const apxItems = appendixItemsForModule(meta.module);
+    const appendixBar = apxItems.length
+      ? `<div class="appendix-bar"><button type="button" class="appendix-toggle" id="openAppendix" title="Open module appendix"><span class="ico">📎</span><span>Appendix</span><span class="count">${apxItems.length}</span></button></div>`
+      : '';
+
     document.getElementById('content').innerHTML = `
       <div class="crumb">${moduleLabel} &nbsp;›&nbsp; <b>Lesson ${meta.num}</b></div>
       <h2 class="lesson-title">${meta.title}</h2>
       <div class="lesson-meta">${pages.length > 1 ? `Page ${pageIdx+1} of ${pages.length}` : 'Single-page lesson'}${page.audio ? ' · Audio narration included' : ''}</div>
+      ${appendixBar}
       <div class="lesson-card">${inner}</div>
       <div class="pager">
         <button class="btn btn-secondary" id="prevBtn" ${pageIdx === 0 ? 'disabled' : ''}>← Previous</button>
@@ -552,6 +833,8 @@ function renderLesson(lid) {
       ${ hasQuiz && isLastPage ? renderQuiz(lid) : '' }
     `;
 
+    const apxBtn = document.getElementById('openAppendix');
+    if (apxBtn) apxBtn.addEventListener('click', () => openAppendixPanel(meta.module));
     document.getElementById('prevBtn').addEventListener('click', () => showPage(pageIdx - 1));
     document.getElementById('nextBtn').addEventListener('click', () => {
       if (isLastPage) {
@@ -909,10 +1192,11 @@ async function boot() {
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = user.email;
 
-  // Load both progress and course data in parallel
+  // Load progress, course data, and appendix items in parallel
   const [serverProgress, data] = await Promise.all([
     window.loadProgress(),
-    fetch('/course_data.json').then(r => r.json())
+    fetch('/course_data.json').then(r => r.json()),
+    loadAppendixItems(),
   ]);
   progress = serverProgress;
   COURSE = data;

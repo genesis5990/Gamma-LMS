@@ -819,19 +819,24 @@ async function loadCourse(courseId) {
   const moduleRows = modulesRes.data || [];
   const moduleIds = moduleRows.map(m => m.id);
 
-  // Step 2: lessons + KC questions (filter by module_id IN moduleIds)
+  // Step 2: lessons + KC questions + appendix items (filter by module_id IN moduleIds)
   let lessonRows = [];
   let kcRows = [];
+  let appendixRows = [];
   if (moduleIds.length) {
-    const [lessonsRes, kcRes] = await Promise.all([
+    const [lessonsRes, kcRes, apxRes] = await Promise.all([
       sb.from('lessons').select('*').in('module_id', moduleIds).order('position'),
       sb.from('module_quiz_questions').select('*').in('module_id', moduleIds).order('position'),
+      sb.from('module_appendix_items')
+        .select('id, module_id, kind, title, position, body_html, asset_id, url, description, created_at, updated_at, course_assets(public_url, filename, byte_size, mime_type)')
+        .in('module_id', moduleIds).order('position'),
     ]);
-    for (const r of [lessonsRes, kcRes]) {
+    for (const r of [lessonsRes, kcRes, apxRes]) {
       if (r.error) { toast('Load failed: ' + r.error.message, 'is-error'); console.error('loadCourse step2', r.error); return; }
     }
     lessonRows = lessonsRes.data || [];
     kcRows = kcRes.data || [];
+    appendixRows = apxRes.data || [];
   }
   const lessonIds = lessonRows.map(l => l.id);
 
@@ -860,6 +865,11 @@ async function loadCourse(courseId) {
     if (!kcByModule.has(q.module_id)) kcByModule.set(q.module_id, []);
     kcByModule.get(q.module_id).push(q);
   }
+  const apxByModule = new Map();
+  for (const a of appendixRows) {
+    if (!apxByModule.has(a.module_id)) apxByModule.set(a.module_id, []);
+    apxByModule.get(a.module_id).push(a);
+  }
   const modulesRowsForState = moduleRows;
   state.modules = modulesRowsForState.map(m => ({
     ...m,
@@ -868,6 +878,7 @@ async function loadCourse(courseId) {
       pages: pagesByLesson.get(l.id) || [],
     })),
     kc: kcByModule.get(m.id) || [],
+    appendix: apxByModule.get(m.id) || [],
   }));
   state.finalQs = finalRes.data || [];
 
@@ -940,6 +951,11 @@ function renderOutline() {
         </div>`);
       }
     }
+    const apxCount = (m.appendix || []).length;
+    html.push(`<div class="outline-node outline-appendix" data-kind="appendix" data-id="${m.id}" title="Module appendix — reference material">
+      <span class="outline-icon">A</span>
+      <span class="outline-label">Appendix (${apxCount})</span>
+    </div>`);
     html.push(`</div>`);
   }
   if (state.finalQs.length) {
@@ -1298,6 +1314,15 @@ async function duplicateModule(id) {
     }));
     await sb.from('module_quiz_questions').insert(rows);
   }
+  if ((m.appendix || []).length) {
+    const rows = m.appendix.map((a, i) => ({
+      module_id: newM.id, position: i,
+      kind: a.kind, title: a.title, body_html: a.body_html,
+      asset_id: a.asset_id, url: a.url, description: a.description,
+      created_by: state.user?.id || null,
+    }));
+    await sb.from('module_appendix_items').insert(rows);
+  }
   toast('Module duplicated');
   await loadCourse(state.course.id);
 }
@@ -1413,6 +1438,14 @@ function renderEditorBody() {
     wireTitlePageToolbar();
     host.innerHTML = renderTitlePageBody({ kind: 'module', node: m });
     wireTitlePageBody({ kind: 'module', node: m });
+    return;
+  }
+
+  if (kind === 'appendix') {
+    const m = findModule(id);
+    if (!m) return clearEditor();
+    toolbar.innerHTML = '';
+    renderAppendixEditor(host, m);
     return;
   }
 
@@ -1787,6 +1820,303 @@ function wireInlineAudioControlsForTitle(editor) {
   decorate();
   const mo = new MutationObserver(decorate);
   mo.observe(editor, { childList: true, subtree: true });
+}
+
+// ---------- module appendix --------------------------------------
+// Per-module reference material: HTML blocks, PDF/DOCX uploads, external
+// links. Backed by public.module_appendix_items (migration 0019). All
+// writes go through the standard supabase-js client; RLS enforces tenant
+// scoping. Files reuse the course-assets bucket via uploadOne().
+const APPENDIX_KIND_LABEL = { html: 'HTML', pdf: 'PDF', docx: 'Word', link: 'Link' };
+const APPENDIX_DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+function renderAppendixEditor(host, m) {
+  const items = (m.appendix || []).slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+  host.innerHTML = `
+    <div class="appendix-editor" style="padding:18px 24px; max-width:880px; margin:0 auto;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:8px;">
+        <h2 style="margin:0; font-size:18px;">Appendix · ${escapeHtml(m.title)}</h2>
+        <span style="font-size:12px; color:var(--studio-muted, #5b6788);">${items.length} item${items.length===1?'':'s'}</span>
+      </div>
+      <p style="margin:0 0 16px; color:var(--studio-muted, #5b6788); font-size:13px;">Reference material learners can open from any page in this module. HTML blocks, PDFs, Word documents, and external links.</p>
+      <div class="appendix-add-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">
+        <button type="button" class="studio-btn primary" data-apx-add="html">+ Add HTML block</button>
+        <button type="button" class="studio-btn"        data-apx-add="pdf">+ Add PDF</button>
+        <button type="button" class="studio-btn"        data-apx-add="docx">+ Add Word doc</button>
+        <button type="button" class="studio-btn"        data-apx-add="link">+ Add link</button>
+      </div>
+      <div id="apx-list" class="appendix-list" style="display:flex; flex-direction:column; gap:12px;">
+        ${items.length ? items.map(it => renderAppendixItem(it)).join('') : '<div class="studio-empty-state"><p>No appendix items yet. Add one above.</p></div>'}
+      </div>
+    </div>
+  `;
+  wireAppendixEditor(host, m);
+}
+
+function renderAppendixItem(it) {
+  const kindLabel = APPENDIX_KIND_LABEL[it.kind] || it.kind;
+  const asset = it.course_assets || null;
+  let detail = '';
+  if (it.kind === 'html') {
+    const snippet = String(it.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+    detail = `<div class="appendix-item-detail">${escapeHtml(snippet) || '<em>(empty)</em>'}</div>`;
+  } else if ((it.kind === 'pdf' || it.kind === 'docx') && asset) {
+    detail = `<div class="appendix-item-detail"><a href="${escapeHtml(asset.public_url || '')}" target="_blank" rel="noopener noreferrer">${escapeHtml(asset.filename || 'file')}</a> · ${fmtBytes(asset.byte_size || 0)}</div>`;
+  } else if (it.kind === 'link') {
+    detail = `<div class="appendix-item-detail"><a href="${escapeHtml(it.url || '')}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.url || '')}</a></div>`;
+  } else if (it.kind === 'pdf' || it.kind === 'docx') {
+    detail = `<div class="appendix-item-detail"><em>(file missing)</em></div>`;
+  }
+  const desc = it.description ? `<div class="appendix-item-desc" style="font-size:12px; color:var(--studio-muted, #5b6788); margin-top:4px;">${escapeHtml(it.description)}</div>` : '';
+  return `
+    <div class="appendix-item" data-apx-id="${escapeHtml(it.id)}" draggable="true"
+         style="display:flex; gap:10px; align-items:flex-start; padding:12px 14px; background:#fff; border:1px solid var(--studio-line, #d9dfee); border-radius:8px;">
+      <span class="appendix-handle" title="Drag to reorder" style="cursor:grab; color:var(--studio-muted, #5b6788); font-size:16px; user-select:none; padding-top:2px;">⋮⋮</span>
+      <span class="appendix-kind-chip" style="font-size:11px; font-weight:700; letter-spacing:.5px; padding:2px 8px; border-radius:999px; background:#eef3ff; color:#0a3d91; text-transform:uppercase;">${escapeHtml(kindLabel)}</span>
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:600; font-size:14px;">${escapeHtml(it.title || '(untitled)')}</div>
+        ${desc}
+        ${detail}
+      </div>
+      <div class="appendix-item-actions" style="display:flex; gap:6px;">
+        <button type="button" class="studio-btn" data-apx-edit="${escapeHtml(it.id)}" title="Edit">Edit</button>
+        <button type="button" class="studio-btn is-danger" data-apx-del="${escapeHtml(it.id)}" title="Delete">✕</button>
+      </div>
+    </div>
+  `;
+}
+
+function wireAppendixEditor(host, m) {
+  host.querySelectorAll('[data-apx-add]').forEach(btn => {
+    btn.addEventListener('click', () => onAppendixAdd(m, btn.dataset.apxAdd));
+  });
+  host.querySelectorAll('[data-apx-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.apxEdit;
+      const it = (m.appendix || []).find(x => x.id === id);
+      if (it) onAppendixEdit(m, it);
+    });
+  });
+  host.querySelectorAll('[data-apx-del]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.apxDel;
+      const it = (m.appendix || []).find(x => x.id === id);
+      if (it) onAppendixDelete(m, it);
+    });
+  });
+  wireAppendixReorder(host, m);
+}
+
+function wireAppendixReorder(host, m) {
+  const list = host.querySelector('#apx-list');
+  if (!list) return;
+  let dragId = null;
+  list.querySelectorAll('.appendix-item').forEach(row => {
+    row.addEventListener('dragstart', (e) => {
+      dragId = row.dataset.apxId;
+      row.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => { row.classList.remove('is-dragging'); dragId = null; });
+    row.addEventListener('dragover', (e) => {
+      if (!dragId || dragId === row.dataset.apxId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    row.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      const fromId = dragId; const toId = row.dataset.apxId;
+      if (!fromId || !toId || fromId === toId) return;
+      const arr = (m.appendix || []).slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+      const fromIdx = arr.findIndex(x => x.id === fromId);
+      const toIdx   = arr.findIndex(x => x.id === toId);
+      if (fromIdx < 0 || toIdx < 0) return;
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      arr.forEach((x, i) => { x.position = i; });
+      m.appendix = arr;
+      renderAppendixEditor(host, m);
+      try {
+        const updates = arr.map(x => sb.from('module_appendix_items').update({ position: x.position }).eq('id', x.id));
+        const results = await Promise.all(updates);
+        const errs = results.filter(r => r.error);
+        if (errs.length) throw errs[0].error;
+        toast('Reordered', 'is-success');
+      } catch (err) {
+        console.error(err);
+        toast('Reorder failed: ' + err.message, 'is-error');
+      }
+    });
+  });
+}
+
+async function onAppendixAdd(m, kind) {
+  if (kind === 'html') {
+    const title = (prompt('Title for this HTML block:') || '').trim();
+    if (!title) return;
+    await insertAppendixItem(m, { kind: 'html', title, body_html: '<p></p>', position: (m.appendix || []).length });
+    return;
+  }
+  if (kind === 'link') {
+    const title = (prompt('Title for this link:') || '').trim();
+    if (!title) return;
+    const url = (prompt('URL (must start with http:// or https://):') || '').trim();
+    if (!isSafeExternalUrl(url)) { toast('URL must start with http:// or https://', 'is-error'); return; }
+    const description = (prompt('Optional short description (or leave blank):') || '').trim() || null;
+    await insertAppendixItem(m, { kind: 'link', title, url, description, position: (m.appendix || []).length });
+    return;
+  }
+  if (kind === 'pdf' || kind === 'docx') {
+    pickAppendixFile(kind, async (file) => {
+      const title = (prompt('Title shown to learners:', file.name.replace(/\.[a-z0-9]+$/i, '')) || '').trim();
+      if (!title) return;
+      try {
+        setSaveState('saving', `Uploading ${file.name}…`);
+        const row = await uploadOne(file, state.course?.id || null, state.course?.slug || null);
+        // Mark the asset as an attachment (uploadOne defaults non-image/audio to 'file' which isn't a valid kind)
+        await sb.from('course_assets').update({ kind: 'attachment' }).eq('id', row.id);
+        await insertAppendixItem(m, {
+          kind, title, asset_id: row.id, position: (m.appendix || []).length,
+        });
+        setSaveState('saved', 'Uploaded');
+      } catch (err) {
+        console.error(err);
+        setSaveState('error', 'Upload failed');
+        toast('Upload failed: ' + err.message, 'is-error');
+      }
+    });
+    return;
+  }
+}
+
+function pickAppendixFile(kind, cb) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = kind === 'pdf' ? 'application/pdf' : APPENDIX_DOCX_MIME + ',.docx';
+  inp.style.display = 'none';
+  inp.addEventListener('change', () => {
+    const file = inp.files && inp.files[0];
+    inp.remove();
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast(`File exceeds ${Math.round(MAX_UPLOAD_BYTES / (1024*1024))}MB limit`, 'is-error');
+      return;
+    }
+    if (kind === 'pdf' && file.type !== 'application/pdf') {
+      toast('Selected file is not a PDF', 'is-error'); return;
+    }
+    if (kind === 'docx' && file.type !== APPENDIX_DOCX_MIME) {
+      toast('Selected file is not a Word .docx document', 'is-error'); return;
+    }
+    cb(file);
+  });
+  document.body.appendChild(inp);
+  inp.click();
+}
+
+function isSafeExternalUrl(u) {
+  if (typeof u !== 'string' || !u) return false;
+  return /^https?:\/\//i.test(u);
+}
+
+async function insertAppendixItem(m, patch) {
+  const row = {
+    module_id: m.id,
+    created_by: state.user?.id || null,
+    ...patch,
+  };
+  const { data, error } = await sb.from('module_appendix_items')
+    .insert(row)
+    .select('id, module_id, kind, title, position, body_html, asset_id, url, description, created_at, updated_at, course_assets(public_url, filename, byte_size, mime_type)')
+    .single();
+  if (error) { toast('Add failed: ' + error.message, 'is-error'); console.error(error); return; }
+  m.appendix = (m.appendix || []).concat([data]);
+  refreshOutlineLabels();
+  if (state.selection?.kind === 'appendix' && state.selection.id === m.id) {
+    renderAppendixEditor($('#editor-host'), m);
+  }
+  toast('Added to appendix', 'is-success');
+}
+
+async function onAppendixDelete(m, it) {
+  if (!confirm(`Delete "${it.title}" from the appendix? This cannot be undone.`)) return;
+  const { error } = await sb.from('module_appendix_items').delete().eq('id', it.id);
+  if (error) { toast('Delete failed: ' + error.message, 'is-error'); return; }
+  m.appendix = (m.appendix || []).filter(x => x.id !== it.id);
+  refreshOutlineLabels();
+  if (state.selection?.kind === 'appendix' && state.selection.id === m.id) {
+    renderAppendixEditor($('#editor-host'), m);
+  }
+  toast('Deleted', 'is-success');
+}
+
+async function onAppendixEdit(m, it) {
+  if (it.kind === 'html') {
+    openAppendixHtmlEditor(m, it);
+    return;
+  }
+  // For link/pdf/docx, allow editing title + description (and URL for links)
+  const newTitle = prompt('Title:', it.title || '');
+  if (newTitle == null) return;
+  const trimmedTitle = newTitle.trim();
+  if (!trimmedTitle) { toast('Title is required', 'is-error'); return; }
+  const patch = { title: trimmedTitle };
+  if (it.kind === 'link') {
+    const newUrl = prompt('URL (http or https):', it.url || '');
+    if (newUrl == null) return;
+    if (!isSafeExternalUrl(newUrl.trim())) { toast('URL must start with http:// or https://', 'is-error'); return; }
+    patch.url = newUrl.trim();
+  }
+  const newDesc = prompt('Description (optional):', it.description || '');
+  if (newDesc != null) patch.description = newDesc.trim() || null;
+  await updateAppendixItem(m, it.id, patch);
+}
+
+function openAppendixHtmlEditor(m, it) {
+  const host = $('#editor-host');
+  host.innerHTML = `
+    <div class="appendix-html-editor" style="padding:18px 24px; max-width:880px; margin:0 auto;">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+        <button type="button" class="studio-btn" id="apx-back">← Back</button>
+        <h2 style="margin:0; font-size:16px; flex:1;">Edit HTML block</h2>
+        <button type="button" class="studio-btn primary" id="apx-save">Save</button>
+      </div>
+      <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--studio-muted, #5b6788); margin-bottom:4px;">Title</label>
+      <input id="apx-title" type="text" value="${escapeHtml(it.title || '')}"
+             style="width:100%; padding:8px 10px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; margin-bottom:10px; font-size:14px;">
+      <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--studio-muted, #5b6788); margin-bottom:4px;">Description (optional)</label>
+      <input id="apx-desc" type="text" value="${escapeHtml(it.description || '')}" placeholder="Short note shown under the title"
+             style="width:100%; padding:8px 10px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; margin-bottom:10px; font-size:14px;">
+      <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--studio-muted, #5b6788); margin-bottom:4px;">Body</label>
+      <div id="apx-body" class="studio-html-editor" contenteditable="true" spellcheck="true"
+           style="min-height:200px; max-height:480px; overflow:auto; padding:14px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; background:#fff;">${it.body_html || ''}</div>
+    </div>
+  `;
+  $('#apx-back').addEventListener('click', () => {
+    state.selection = { kind: 'appendix', id: m.id };
+    renderEditorBody();
+  });
+  $('#apx-save').addEventListener('click', async () => {
+    const title = $('#apx-title').value.trim();
+    if (!title) { toast('Title is required', 'is-error'); return; }
+    const description = ($('#apx-desc').value || '').trim() || null;
+    const body_html = $('#apx-body').innerHTML;
+    await updateAppendixItem(m, it.id, { title, description, body_html });
+    state.selection = { kind: 'appendix', id: m.id };
+    renderEditorBody();
+  });
+}
+
+async function updateAppendixItem(m, id, patch) {
+  const { data, error } = await sb.from('module_appendix_items')
+    .update(patch).eq('id', id)
+    .select('id, module_id, kind, title, position, body_html, asset_id, url, description, created_at, updated_at, course_assets(public_url, filename, byte_size, mime_type)')
+    .single();
+  if (error) { toast('Save failed: ' + error.message, 'is-error'); return; }
+  const idx = (m.appendix || []).findIndex(x => x.id === id);
+  if (idx >= 0) m.appendix[idx] = data;
+  toast('Saved', 'is-success');
+  refreshOutlineLabels();
 }
 
 // ---------- quiz form (unchanged) ---------------------------------
