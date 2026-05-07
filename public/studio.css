@@ -1530,7 +1530,9 @@ sup.cite-marker.cite-missing {
 }
 
 /* Public-asset warning banner — shown above every upload UI for the
-   course-assets bucket (which serves files via a public URL). */
+   course-assets bucket (which serves files via a public URL).
+   pointer-events:none so the banner can never intercept clicks/drags on
+   neighbouring upload affordances. */
 .public-asset-warning {
   margin: 12px 0;
   padding: 10px 14px;
@@ -1541,6 +1543,8 @@ sup.cite-marker.cite-missing {
   border-radius: 6px;
   font-size: 13px;
   line-height: 1.45;
+  pointer-events: none;
+  user-select: none;
 }
 .public-asset-warning--inline {
   margin: 0 0 12px;

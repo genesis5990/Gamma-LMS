@@ -148,7 +148,18 @@ function extractAccessToken(req) {
   return null;
 }
 
+// Preview-bucket assets that are safe to serve unauthenticated. The
+// stylesheets contain no answer keys / no author content; the studio shell
+// loads le-preview.css to theme its in-app preview pane and would otherwise
+// 401 on every page load. Paths are relative to the /preview mount point.
+const PREVIEW_PUBLIC_SUBPATHS = new Set([
+  '/le-preview.css'
+]);
+
 async function previewAuthGate(req, res, next) {
+  if (PREVIEW_PUBLIC_SUBPATHS.has(req.path)) {
+    return next();
+  }
   if (!SUPABASE_SVC_KEY) {
     console.warn('[preview-gate] SUPABASE_SERVICE_ROLE_KEY not set; denying');
     return res.status(503).json({ error: 'preview gate misconfigured' });
