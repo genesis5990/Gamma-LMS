@@ -122,7 +122,10 @@
 <script>
 document.getElementById('yr').textContent = new Date().getFullYear();
 
-const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+// Single shared Supabase client. admin-nav.js (deferred) will reuse this
+// via window.supabaseClient instead of creating its own GoTrueClient.
+const sb = window.supabaseClient
+  || (window.supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY));
 const card = document.getElementById('card');
 
 // Hash from URL: /verify/<hash>  OR  ?hash=<hash>

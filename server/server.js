@@ -114,7 +114,7 @@ const CSP = [
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
   "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
-  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co",
+  "connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://cdn.jsdelivr.net",
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'"

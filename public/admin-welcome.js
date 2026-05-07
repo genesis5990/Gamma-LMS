@@ -73,18 +73,10 @@
     document.head.appendChild(el);
   }
 
-  // Resolve the supabase client. auth.js created one in module scope but
-  // didn't export it; both admin.html and admin-requests.html create their
-  // own via supabase.createClient. We do the same — cheap, shares the
-  // session via localStorage.
+  // Single shared Supabase client. auth.js publishes window.supabaseClient
+  // on every page that loads admin-welcome.js (admin.html, admin-requests.html).
   function getClient() {
-    if (window.__adminWelcomeSb) return window.__adminWelcomeSb;
-    window.__adminWelcomeSb = supabase.createClient(
-      window.SUPABASE_URL,
-      window.SUPABASE_PUBLISHABLE_KEY,
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-    );
-    return window.__adminWelcomeSb;
+    return window.supabaseClient || null;
   }
 
   function requestsHref() {
@@ -160,6 +152,7 @@
       if (!user) return;
 
       const sb = getClient();
+      if (!sb) return;
       const { data: prof, error } = await sb
         .from('profiles')
         .select('id, role, metadata')

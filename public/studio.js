@@ -17,9 +17,14 @@
  * writes (super_admin/instructor/tenant_admin).
  * =================================================================== */
 
-const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-});
+// Single shared Supabase client. auth.js (loaded earlier on this page) owns
+// the client and exposes it as window.supabaseClient. Creating a second one
+// here would race with auth.js on the same localStorage auth token.
+const sb = window.supabaseClient;
+if (!sb) {
+  console.error('[studio] window.supabaseClient is missing — auth.js must load before studio.js');
+  throw new Error('supabaseClient unavailable');
+}
 
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));

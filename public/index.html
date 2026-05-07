@@ -185,7 +185,10 @@
 <script>
 document.getElementById('yr').textContent = new Date().getFullYear();
 
-const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+// Single shared Supabase client. admin-nav.js (deferred) will reuse this
+// via window.supabaseClient instead of creating its own GoTrueClient.
+const sb = window.supabaseClient
+  || (window.supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY));
 const msgEl = document.getElementById('msg');
 function showMsg(text, kind) {
   msgEl.textContent = text;

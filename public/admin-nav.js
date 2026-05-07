@@ -16,18 +16,22 @@
   if (typeof window.supabase === 'undefined') return;
   if (!window.SUPABASE_URL || !window.SUPABASE_PUBLISHABLE_KEY) return;
 
-  // Reuse the existing supabase client created by auth.js if it leaked one,
-  // otherwise create a *read-only* client (no auto-refresh) that shares the
-  // same default localStorage session key, so we don't get a second
-  // GoTrueClient instance fighting auth.js for token refreshes.
-  let client;
-  try {
-    client = window.supabase.createClient(
-      window.SUPABASE_URL,
-      window.SUPABASE_PUBLISHABLE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-    );
-  } catch (_e) { return; }
+  // Single shared Supabase client. Prefer the one auth.js (or the page's
+  // inline script) created and exposed as window.supabaseClient. As a
+  // fallback for pages that load admin-nav.js without auth.js or an inline
+  // client (e.g. courses.html), create one here and publish it under the
+  // same global so any later script reuses it.
+  let client = window.supabaseClient;
+  if (!client) {
+    try {
+      client = window.supabase.createClient(
+        window.SUPABASE_URL,
+        window.SUPABASE_PUBLISHABLE_KEY,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      );
+      window.supabaseClient = client;
+    } catch (_e) { return; }
+  }
 
   const ADMIN_ROLES = new Set(['super_admin', 'tenant_admin', 'instructor']);
 

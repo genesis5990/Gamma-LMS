@@ -298,10 +298,12 @@
 // ===== Total lessons in the course (used for progress %) =====
 let TOTAL_LESSONS = 18; // Modules 1+2+3 — recomputed from course_data.json on load
 
-// ===== Supabase client (re-uses what auth.js created) =====
-const sbAdmin = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
+// ===== Supabase client (reuses the single client created by auth.js) =====
+const sbAdmin = window.supabaseClient;
+if (!sbAdmin) {
+  console.error('[admin] window.supabaseClient is missing — auth.js must load before this script');
+  throw new Error('supabaseClient unavailable');
+}
 
 // ===== Toast helper =====
 const toastEl = document.getElementById('toast');

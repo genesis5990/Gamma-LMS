@@ -139,7 +139,12 @@
 </main>
 
 <script>
-const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+// Single shared Supabase client created by auth.js (loaded earlier on this page).
+const sb = window.supabaseClient;
+if (!sb) {
+  console.error('[admin-requests] window.supabaseClient is missing — auth.js must load before this script');
+  throw new Error('supabaseClient unavailable');
+}
 
 const banner = document.getElementById('banner');
 function showBanner(text, kind) {
