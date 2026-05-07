@@ -101,6 +101,16 @@
     border-radius: 10px; box-shadow: var(--shadow);
     padding: 26px clamp(18px, 3vw, 32px);
   }
+  .title-hero-banner {
+    margin: 0 0 18px; border-radius: 12px; overflow: hidden;
+    box-shadow: var(--shadow); background: #f0f2fa;
+  }
+  .title-hero-banner img {
+    display: block; width: 100%; max-height: 280px; object-fit: cover;
+  }
+  .title-page-body img {
+    max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0;
+  }
   .lesson-card h2 {
     color: var(--ink-2); font-size: 20px; margin: 18px 0 10px;
     border-left: 4px solid var(--accent); padding-left: 12px;
@@ -190,7 +200,13 @@ let cursor = 0;
 
 function buildItems() {
   ITEMS = [];
+  if (COURSE.hero_image_url || COURSE.description_html || COURSE.description) {
+    ITEMS.push({ kind: 'course-title' });
+  }
   COURSE.modules.forEach((m, mi) => {
+    if (m.hero_image_url || m.description_html || m.description) {
+      ITEMS.push({ kind: 'module-title', moduleIdx: mi });
+    }
     (m.lessons || []).forEach((l, li) => {
       (l.pages || []).forEach((p, pi) => {
         ITEMS.push({ kind: 'page', moduleIdx: mi, lessonIdx: li, pageIdx: pi, content: p.content || '' });
@@ -216,9 +232,24 @@ function hashToIndex() {
 function buildSidebar() {
   const sb = document.getElementById('sidebar');
   const out = [];
+  const courseTitleIdx = ITEMS.findIndex(it => it.kind === 'course-title');
+  if (courseTitleIdx >= 0) {
+    out.push('<div class="module-block">');
+    out.push('<div class="module-head">Overview</div>');
+    out.push('<a class="lesson-link" data-idx="' + courseTitleIdx + '" href="#' + courseTitleIdx + '">');
+    out.push('<span class="lnum">★</span><span class="ltitle">Course title page</span>');
+    out.push('</a>');
+    out.push('</div>');
+  }
   COURSE.modules.forEach((m, mi) => {
     out.push('<div class="module-block">');
     out.push('<div class="module-head">' + escapeHtml(stripTags(m.title || ('Module ' + mi))) + '</div>');
+    const moduleTitleIdx = ITEMS.findIndex(it => it.kind === 'module-title' && it.moduleIdx === mi);
+    if (moduleTitleIdx >= 0) {
+      out.push('<a class="lesson-link" data-idx="' + moduleTitleIdx + '" href="#' + moduleTitleIdx + '">');
+      out.push('<span class="lnum">★</span><span class="ltitle">Module overview</span>');
+      out.push('</a>');
+    }
     (m.lessons || []).forEach((l, li) => {
       const firstPageIdx = ITEMS.findIndex(it => it.kind === 'page' && it.moduleIdx === mi && it.lessonIdx === li);
       if (firstPageIdx < 0) return;
@@ -267,7 +298,32 @@ function render() {
   if (!item) { main.innerHTML = '<div class="lesson-card"><p>No content.</p></div>'; return; }
 
   let html = '';
-  if (item.kind === 'page') {
+  if (item.kind === 'course-title') {
+    html += renderTitlePageHTML({
+      title: COURSE.title || '',
+      heroUrl: COURSE.hero_image_url || '',
+      heroAlt: COURSE.hero_image_alt || '',
+      descriptionHtml: COURSE.description_html || '',
+      descriptionText: COURSE.description || '',
+      crumb: 'Course overview',
+    });
+    html += renderPager();
+    const link = document.querySelector('.lesson-link[data-idx="' + cursor + '"]');
+    if (link) link.classList.add('active');
+  } else if (item.kind === 'module-title') {
+    const m = COURSE.modules[item.moduleIdx];
+    html += renderTitlePageHTML({
+      title: m.title || '',
+      heroUrl: m.hero_image_url || '',
+      heroAlt: m.hero_image_alt || '',
+      descriptionHtml: m.description_html || '',
+      descriptionText: m.description || '',
+      crumb: stripTags(m.title || '') + ' · Overview',
+    });
+    html += renderPager();
+    const link = document.querySelector('.lesson-link[data-idx="' + cursor + '"]');
+    if (link) link.classList.add('active');
+  } else if (item.kind === 'page') {
     const m = COURSE.modules[item.moduleIdx];
     const l = m.lessons[item.lessonIdx];
     const totalPagesInLesson = (l.pages || []).length;
@@ -304,6 +360,20 @@ function render() {
   wirePager();
   wireQuiz();
   window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function renderTitlePageHTML(o) {
+  const body = (o.descriptionHtml && o.descriptionHtml.trim())
+    ? o.descriptionHtml
+    : (o.descriptionText ? '<p>' + escapeHtml(o.descriptionText) + '</p>' : '');
+  let h = '';
+  if (o.heroUrl) {
+    h += '<div class="title-hero-banner"><img src="' + escapeHtml(o.heroUrl) + '" alt="' + escapeHtml(o.heroAlt || '') + '" loading="lazy" /></div>';
+  }
+  h += '<div class="crumb">' + escapeHtml(o.crumb || '') + '</div>';
+  h += '<h2 class="lesson-title">' + escapeHtml(stripTags(o.title)) + '</h2>';
+  h += '<div class="lesson-card title-page-body">' + body + '</div>';
+  return h;
 }
 
 function renderPager() {

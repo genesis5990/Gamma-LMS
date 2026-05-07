@@ -1217,3 +1217,115 @@ body {
 .inline-audio-bar button:hover { background: var(--st-paper-2, #f3f5fb); border-color: var(--st-line); }
 .inline-audio-bar button.danger { color: #b42318; }
 .inline-audio-bar button.danger:hover { background: #fef3f2; border-color: #fda29b; }
+
+/* ===== Title-page editor (course + module) ============================== */
+.title-page-editor {
+  padding: 22px 28px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+.title-page-section { display: flex; flex-direction: column; gap: 10px; }
+.title-page-section-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--st-muted, #5b6788);
+  margin: 0;
+  font-weight: 700;
+}
+.title-page-hint { color: var(--st-muted, #5b6788); font-size: 12.5px; margin: 0; }
+.title-page-html-editor { min-height: 240px; }
+.title-hero {
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--st-paper-2, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.title-hero.is-empty .title-hero-empty {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+}
+.title-hero.is-empty p { margin: 0; color: var(--st-muted, #5b6788); }
+.title-hero-preview {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0f2fa;
+}
+.title-hero-preview img {
+  display: block; width: 100%; max-height: 280px; object-fit: cover;
+}
+.title-hero-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+}
+.title-hero-alt {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1 1 260px; font-size: 12px; color: var(--st-muted, #5b6788);
+}
+.title-hero-alt input {
+  border: 1px solid var(--st-line, #d9dfee); border-radius: 6px;
+  padding: 7px 10px; font: inherit;
+}
+.meta-hint {
+  display: inline-block; margin-top: 4px;
+  font-size: 11.5px; color: var(--st-muted, #5b6788); font-style: italic;
+}
+
+/* ===== Image insert modal =============================================== */
+.image-insert-modal { /* inherits .audio-insert-modal layout */ }
+.image-insert-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.image-insert-card {
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color .12s, box-shadow .12s;
+  display: flex;
+  flex-direction: column;
+}
+.image-insert-card:hover {
+  border-color: color-mix(in srgb, var(--st-accent, #1f63d6) 50%, var(--st-line, #d9dfee));
+}
+.image-insert-card.is-chosen {
+  border-color: var(--st-accent, #1f63d6);
+  box-shadow: 0 0 0 3px rgba(31, 99, 214, .15);
+}
+.image-insert-thumb {
+  aspect-ratio: 4/3;
+  background: #f0f2fa;
+  overflow: hidden;
+}
+.image-insert-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.image-insert-meta {
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;
+  font-size: 12px;
+}
+.image-insert-name {
+  font-weight: 600; color: var(--st-ink, #0f172a);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.image-insert-sub { color: var(--st-muted, #5b6788); font-size: 11.5px; }
+.image-insert-alt {
+  font-size: 11.5px; color: var(--st-muted, #5b6788); font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Make the title-page editor accept drop highlights like the page editor */
+.title-page-html-editor.is-dragging {
+  outline: 2px dashed var(--st-accent, #1f63d6);
+  outline-offset: 2px;
+}

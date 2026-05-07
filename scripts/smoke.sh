@@ -72,6 +72,8 @@ check "btc preview json"            200 "/preview/btc-investigations.course.json
 check "studio shell"                200 "/studio"                    "Studio"
 check "studio js"                   200 "/studio.js"                 "supabase"
 check "studio audio-insert modal"   200 "/studio.js"                 "openAudioInsertModal"
+check "studio image-insert modal"   200 "/studio.js"                 "openImageInsertModal"
+check "studio hero image support"   200 "/studio.js"                 "hero_image_url"
 check "studio css"                  200 "/studio.css"                "studio"
 check "studio edit route"           200 "/studio/edit/le-field-tactics"  "Studio"
 check "studio media route"          200 "/studio/media"              "Studio"

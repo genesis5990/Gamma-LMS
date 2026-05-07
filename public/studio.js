@@ -780,7 +780,7 @@ function flushHtml() {
 async function loadCourses() {
   const { data, error } = await sb
     .from('courses')
-    .select('id, slug, title, current_version_id, visibility, pass_threshold, includes_disclaimer')
+    .select('id, slug, title, current_version_id, visibility, pass_threshold, includes_disclaimer, description, description_html, hero_image_url, hero_image_alt')
     .order('slug');
   if (error) { toast('Load courses failed: ' + error.message, 'is-error'); return; }
   state.courses = data || [];
@@ -1405,11 +1405,10 @@ function renderEditorBody() {
   if (kind === 'module') {
     const m = findModule(id);
     if (!m) return clearEditor();
-    toolbar.innerHTML = '';
-    host.innerHTML = `<div class="studio-empty-state">
-      <h2>${escapeHtml(m.title)}</h2>
-      <p>Module-level metadata is in the right pane. Choose a lesson, page, or KC question to edit content.</p>
-    </div>`;
+    toolbar.innerHTML = renderTitlePageToolbar();
+    wireTitlePageToolbar();
+    host.innerHTML = renderTitlePageBody({ kind: 'module', node: m });
+    wireTitlePageBody({ kind: 'module', node: m });
     return;
   }
 
@@ -1425,11 +1424,10 @@ function renderEditorBody() {
   }
 
   if (kind === 'course') {
-    toolbar.innerHTML = '';
-    host.innerHTML = `<div class="studio-empty-state">
-      <h2>${escapeHtml(state.course.title)}</h2>
-      <p>Course-level metadata is in the right pane.</p>
-    </div>`;
+    toolbar.innerHTML = renderTitlePageToolbar();
+    wireTitlePageToolbar();
+    host.innerHTML = renderTitlePageBody({ kind: 'course', node: state.course });
+    wireTitlePageBody({ kind: 'course', node: state.course });
     return;
   }
 
@@ -1533,6 +1531,258 @@ function wirePageToolbar() {
       trigger();
     });
   });
+}
+
+// ---------- title-page editor (course + module) -------------------
+// Renders a hero-image control + rich-text directions editor in the
+// main editor host when a course or module is selected. Mirrors the
+// page-body editor wiring (audio, image insert, autosave) so authors
+// can drop inline images and audio into the directions copy.
+function renderTitlePageToolbar() {
+  return `
+    <button data-cmd="h2"             type="button" title="Heading (Ctrl+1)">H2</button>
+    <button data-cmd="h3"             type="button" title="Sub-heading (Ctrl+2)">H3</button>
+    <button data-cmd="p"              type="button" title="Paragraph (Ctrl+3)">¶</button>
+    <button data-cmd="bold"           type="button" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button data-cmd="italic"         type="button" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button data-cmd="ul"             type="button" title="Bulleted list">• List</button>
+    <button data-cmd="ol"             type="button" title="Numbered list">1. List</button>
+    <button data-cmd="link"           type="button" title="Link (Ctrl+K)">Link</button>
+    <span class="toolbar-divider"></span>
+    <button data-cmd="callout-info"    type="button" title="Info callout">Info</button>
+    <button data-cmd="callout-warn"    type="button" title="Warning callout">Warn</button>
+    <button data-cmd="callout-success" type="button" title="Success callout">Success</button>
+    <span class="toolbar-divider"></span>
+    <button data-cmd="image"           type="button" title="Insert image (library, upload, or URL)">🖼 Image</button>
+    <button data-cmd="audio"           type="button" title="Insert audio (library, upload, or URL)">Audio</button>
+    <span class="toolbar-divider"></span>
+    <button data-cmd="undo"            type="button" title="Undo (Ctrl+Z)">↶</button>
+    <button data-cmd="redo"            type="button" title="Redo (Ctrl+Y)">↷</button>
+  `;
+}
+
+function wireTitlePageToolbar() {
+  const ed = () => $('#title-html-editor');
+  const exec = (cmd, val=null) => { const e = ed(); if (!e) return; e.focus(); document.execCommand(cmd, false, val); };
+  const insertHTML = (html) => { const e = ed(); if (!e) return; e.focus(); document.execCommand('insertHTML', false, html); };
+  const trigger = () => { const e = ed(); if (e) e.dispatchEvent(new Event('input', { bubbles: true })); };
+
+  $('#editor-toolbar').querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const cmd = btn.dataset.cmd;
+      switch (cmd) {
+        case 'h2': exec('formatBlock', '<h2>'); break;
+        case 'h3': exec('formatBlock', '<h3>'); break;
+        case 'p':  exec('formatBlock', '<p>');  break;
+        case 'bold':   exec('bold');   break;
+        case 'italic': exec('italic'); break;
+        case 'ul': exec('insertUnorderedList'); break;
+        case 'ol': exec('insertOrderedList');   break;
+        case 'undo': exec('undo'); break;
+        case 'redo': exec('redo'); break;
+        case 'link': {
+          const url = prompt('Link URL:', 'https://');
+          if (url) exec('createLink', url);
+          break;
+        }
+        case 'image': {
+          openImageInsertModal({
+            mode: 'inline',
+            editor: ed(),
+            courseId: state.course?.id || null,
+            courseSlug: state.course?.slug || null,
+            onInsert: (html) => { insertHTML(html); trigger(); },
+          });
+          break;
+        }
+        case 'audio': {
+          openAudioInsertModal({
+            editor: ed(),
+            page: null,
+            courseId: state.course?.id || null,
+            courseSlug: state.course?.slug || null,
+            onInsert: (html) => { insertHTML(html); trigger(); },
+          });
+          break;
+        }
+        case 'callout-info':    insertHTML('<div class="callout"><p><strong>Note:</strong> </p></div>'); break;
+        case 'callout-warn':    insertHTML('<div class="callout callout-warn"><p><strong>Warning:</strong> </p></div>'); break;
+        case 'callout-success': insertHTML('<div class="callout callout-success"><p><strong>Success:</strong> </p></div>'); break;
+      }
+      trigger();
+    });
+  });
+}
+
+function renderTitlePageBody({ kind, node }) {
+  const isCourse = kind === 'course';
+  const heroUrl = node.hero_image_url || '';
+  const heroAlt = node.hero_image_alt || '';
+  const initialHtml = (node.description_html != null && node.description_html !== '')
+    ? node.description_html
+    : (node.description ? `<p>${escapeHtml(node.description)}</p>` : '');
+  const labelTitle = isCourse ? 'Course title page' : 'Module title page';
+  const heroBlock = heroUrl
+    ? `
+        <div class="title-hero-preview">
+          <img src="${escapeHtml(heroUrl)}" alt="${escapeHtml(heroAlt)}" loading="lazy" />
+        </div>
+        <div class="title-hero-actions">
+          <button type="button" class="studio-btn" data-act="hero-replace">Replace image</button>
+          <button type="button" class="studio-btn is-danger" data-act="hero-remove">Remove</button>
+          <label class="title-hero-alt">
+            <span>Alt text</span>
+            <input type="text" id="title-hero-alt" value="${escapeHtml(heroAlt)}" placeholder="Describe the image for screen readers" />
+          </label>
+        </div>`
+    : `
+        <div class="title-hero-empty">
+          <p>No hero image set.</p>
+          <button type="button" class="studio-btn primary" data-act="hero-set">Set hero image</button>
+        </div>`;
+  return `
+    <div class="title-page-editor">
+      <div class="title-page-section">
+        <h3 class="title-page-section-label">${escapeHtml(labelTitle)} · Hero image</h3>
+        <div class="title-hero ${heroUrl ? 'has-image' : 'is-empty'}" id="title-hero">
+          ${heroBlock}
+        </div>
+      </div>
+      <div class="title-page-section">
+        <h3 class="title-page-section-label">Directions</h3>
+        <p class="title-page-hint">Shown beneath the title on the published title page. Supports inline images and audio narration.</p>
+        <div id="title-html-editor" class="studio-html-editor title-page-html-editor" contenteditable="true" spellcheck="true">${initialHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+function wireTitlePageBody({ kind, node }) {
+  const isCourse = kind === 'course';
+  const stage = (patch) => {
+    if (isCourse) stageCoursePatch(patch);
+    else stageModulePatch(node.id, patch);
+  };
+
+  const ed = $('#title-html-editor');
+  if (ed) {
+    // Seed description_html from legacy description on first edit so existing
+    // content is preserved while we transition to the rich-text body.
+    let seeded = (node.description_html != null && node.description_html !== '');
+    ed.addEventListener('input', () => {
+      const html = ed.innerHTML;
+      stage({ description_html: html });
+      seeded = true;
+    });
+    wireDropAndPasteOnTitleEditor(ed);
+    wireInlineAudioControlsForTitle(ed);
+  }
+
+  const heroEl = $('#title-hero');
+  if (!heroEl) return;
+  const onHeroSetOrReplace = () => {
+    openImageInsertModal({
+      mode: 'hero',
+      courseId: state.course?.id || null,
+      courseSlug: isCourse ? (state.course?.slug || null) : (state.course?.slug || null),
+      onPickHero: ({ url, alt }) => {
+        const patch = { hero_image_url: url || null };
+        if (alt) patch.hero_image_alt = alt;
+        stage(patch);
+        // Re-render the body so the new hero shows + actions update.
+        renderEditorBody();
+      },
+    });
+  };
+  heroEl.querySelectorAll('[data-act="hero-set"], [data-act="hero-replace"]').forEach(b => {
+    b.addEventListener('click', onHeroSetOrReplace);
+  });
+  const removeBtn = heroEl.querySelector('[data-act="hero-remove"]');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      if (!confirm('Remove the hero image? The image file itself stays in the media library.')) return;
+      stage({ hero_image_url: null, hero_image_alt: null });
+      renderEditorBody();
+    });
+  }
+  const altInp = heroEl.querySelector('#title-hero-alt');
+  if (altInp) {
+    altInp.addEventListener('input', e => stage({ hero_image_alt: e.target.value || null }));
+  }
+}
+
+// Drag-drop / paste image onto a title-page directions editor.
+// Mirrors wireDropAndPaste but doesn't depend on a `page` row.
+function wireDropAndPasteOnTitleEditor(editor) {
+  ['dragenter','dragover'].forEach(t => editor.addEventListener(t, (e) => {
+    if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+      e.preventDefault(); editor.classList.add('is-dragging');
+    }
+  }));
+  ['dragleave','drop'].forEach(t => editor.addEventListener(t, (e) => {
+    e.preventDefault(); editor.classList.remove('is-dragging');
+  }));
+  editor.addEventListener('drop', async (e) => {
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/') || f.type.startsWith('audio/'));
+    if (!files.length) return;
+    e.preventDefault();
+    await insertUploadedFilesIntoEditor(files, editor);
+  });
+  editor.addEventListener('paste', async (e) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const fileItems = items.filter(it => it.kind === 'file' && (it.type.startsWith('image/') || it.type.startsWith('audio/')));
+    if (!fileItems.length) return;
+    e.preventDefault();
+    const files = fileItems.map(it => it.getAsFile()).filter(Boolean);
+    if (files.length) await insertUploadedFilesIntoEditor(files, editor);
+  });
+}
+
+async function insertUploadedFilesIntoEditor(files, editor) {
+  const courseId = state.course?.id;
+  const courseSlug = state.course?.slug;
+  for (const f of files) {
+    setSaveState('saving', `Uploading ${f.name}…`);
+    try {
+      const row = await uploadOne(f, courseId, courseSlug);
+      let alt = '';
+      if (row.kind === 'image') {
+        alt = prompt('Alt text for screen readers (recommended):', '') || '';
+        if (alt) await sb.from('course_assets').update({ alt_text: alt }).eq('id', row.id);
+      }
+      const html = row.kind === 'image'
+        ? `<img src="${escapeHtml(row.public_url)}" alt="${escapeHtml(alt)}" loading="lazy" />`
+        : `<audio controls src="${escapeHtml(row.public_url)}"></audio>`;
+      editor.focus();
+      document.execCommand('insertHTML', false, html);
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      setSaveState('saved', 'Uploaded');
+    } catch (err) {
+      console.error(err);
+      setSaveState('error', 'Upload failed');
+      toast('Upload failed: ' + err.message, 'is-error');
+    }
+  }
+}
+
+// Inline-audio overlay controls work on any contenteditable; the existing
+// global delegate hooks #html-editor specifically. Reuse the existing init
+// and just decorate audios in the title editor.
+function wireInlineAudioControlsForTitle(editor) {
+  if (!editor) return;
+  __inlineAudioInitOnce();
+  const decorate = () => {
+    editor.querySelectorAll('audio:not([data-decorated])').forEach(a => {
+      a.setAttribute('data-decorated', '1');
+      a.setAttribute('contenteditable', 'false');
+      a.setAttribute('controls', '');
+      a.style.cursor = 'pointer';
+    });
+  };
+  decorate();
+  const mo = new MutationObserver(decorate);
+  mo.observe(editor, { childList: true, subtree: true });
 }
 
 // ---------- quiz form (unchanged) ---------------------------------
@@ -1684,11 +1934,9 @@ function renderMeta() {
     titleEl.textContent = 'Module metadata';
     host.innerHTML = `<form class="meta-form">
       <div class="field"><label>Title</label><input id="meta-title-in" type="text" value="${escapeHtml(m.title)}"/></div>
-      <div class="field"><label>Description</label><textarea id="meta-desc">${escapeHtml(m.description || '')}</textarea></div>
-      <div class="meta-info">Slug: <code>${escapeHtml(m.slug)}</code><br>${m.lessons.length} lesson(s) · ${m.kc.length} KC question(s)</div>
+      <div class="meta-info">Slug: <code>${escapeHtml(m.slug)}</code><br>${m.lessons.length} lesson(s) · ${m.kc.length} KC question(s)<br><span class="meta-hint">Hero image &amp; directions are edited in the main pane.</span></div>
     </form>`;
     $('#meta-title-in').addEventListener('input', e => stageModulePatch(m.id, { title: e.target.value }));
-    $('#meta-desc').addEventListener('input',      e => stageModulePatch(m.id, { description: e.target.value || null }));
     return;
   }
 
@@ -1704,7 +1952,7 @@ function renderMeta() {
           <option value="public"  ${state.course.visibility==='public' ?'selected':''}>Public</option>
         </select>
       </div>
-      <div class="meta-info">Slug: <code>${escapeHtml(state.course.slug)}</code></div>
+      <div class="meta-info">Slug: <code>${escapeHtml(state.course.slug)}</code><br><span class="meta-hint">Hero image &amp; directions are edited in the main pane.</span></div>
     </form>`;
     $('#meta-title-in').addEventListener('input', e => stageCoursePatch({ title: e.target.value }));
     $('#meta-thresh').addEventListener('input',    e => stageCoursePatch({ pass_threshold: Number(e.target.value) }));
@@ -2118,6 +2366,289 @@ function formatBytes(n) {
   return (n / 1024 / 1024).toFixed(2) + ' MB';
 }
 
+// ---------- in-editor image insert modal --------------------------
+// Mirror of openAudioInsertModal. Three tabs (Library / Upload / Paste
+// URL). Two modes:
+//   - mode: 'inline'  → commit via ctx.onInsert(html) for caret insertion
+//                        into the active rich-text editor
+//   - mode: 'hero'    → commit via ctx.onPickHero({ url, alt }) for the
+//                        hero-image slot on a course or module title page
+let __imageInsertCtx = null;
+let __imageInsertActiveTab = 'library';
+let __imageInsertChosen = null;   // { url, name, alt }
+let __imageInsertLibraryRows = null;
+let __imageInsertCoursesMeta = null;
+let __imageInsertLibraryFilters = { text: '', course: '' };
+
+function openImageInsertModal(ctx) {
+  __imageInsertCtx = ctx || {};
+  __imageInsertActiveTab = 'library';
+  __imageInsertChosen = null;
+  __imageInsertLibraryFilters = { text: '', course: '' };
+
+  openModal({
+    title: (ctx && ctx.mode === 'hero') ? 'Choose hero image' : 'Insert image',
+    bodyHtml: `
+      <div class="audio-insert-modal image-insert-modal">
+        <div class="audio-insert-tabs" role="tablist">
+          <button type="button" class="audio-insert-tab" data-tab="library" role="tab" aria-selected="true">Library</button>
+          <button type="button" class="audio-insert-tab" data-tab="upload"  role="tab" aria-selected="false">Upload</button>
+          <button type="button" class="audio-insert-tab" data-tab="url"     role="tab" aria-selected="false">Paste URL</button>
+        </div>
+        <div id="image-insert-panel" class="audio-insert-panel"></div>
+      </div>
+    `,
+    footHtml: `
+      <span id="image-insert-chosen" class="audio-insert-chosen"></span>
+      <button type="button" class="studio-btn" id="image-insert-cancel">Cancel</button>
+      <button type="button" class="studio-btn primary" id="image-insert-commit" disabled>${(ctx && ctx.mode === 'hero') ? 'Use as hero' : 'Insert'}</button>
+    `,
+    onMount: (host) => {
+      host.querySelector('#image-insert-cancel').addEventListener('click', closeModal);
+      host.querySelector('#image-insert-commit').addEventListener('click', () => {
+        if (!__imageInsertChosen || !__imageInsertChosen.url) return;
+        __imageInsertCommit(__imageInsertChosen);
+      });
+      host.querySelectorAll('.audio-insert-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          __imageInsertActiveTab = btn.dataset.tab;
+          __imageInsertRender();
+        });
+      });
+      const escHandler = (e) => {
+        if (e.key === 'Escape' && !host.classList.contains('hidden')) closeModal();
+        if (host.classList.contains('hidden')) document.removeEventListener('keydown', escHandler);
+      };
+      document.addEventListener('keydown', escHandler);
+      __imageInsertRender();
+    },
+  });
+}
+
+function __imageInsertSetChosen(chosen) {
+  __imageInsertChosen = chosen || null;
+  const commit = document.querySelector('#image-insert-commit');
+  const chosenEl = document.querySelector('#image-insert-chosen');
+  if (commit) commit.disabled = !chosen || !chosen.url;
+  if (chosenEl) chosenEl.textContent = chosen && chosen.url ? `Selected: ${chosen.name || chosen.url}` : '';
+}
+
+function __imageInsertRender() {
+  const panel = document.querySelector('#image-insert-panel');
+  if (!panel) return;
+  document.querySelectorAll('.image-insert-modal .audio-insert-tab').forEach(b => {
+    const on = b.dataset.tab === __imageInsertActiveTab;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.classList.toggle('is-active', on);
+  });
+  if (__imageInsertActiveTab === 'library') {
+    panel.innerHTML = `
+      <div class="audio-insert-toolbar">
+        <input id="image-insert-search" type="search" placeholder="Search by filename or alt text…" />
+        <select id="image-insert-course"><option value="">All courses</option></select>
+      </div>
+      <div id="image-insert-list" class="image-insert-list"><div class="studio-empty-state"><p>Loading…</p></div></div>
+    `;
+    panel.querySelector('#image-insert-search').value = __imageInsertLibraryFilters.text || '';
+    panel.querySelector('#image-insert-search').addEventListener('input', e => {
+      __imageInsertLibraryFilters.text = e.target.value;
+      __imageInsertRenderLibraryList();
+    });
+    panel.querySelector('#image-insert-course').addEventListener('change', e => {
+      __imageInsertLibraryFilters.course = e.target.value;
+      __imageInsertRenderLibraryList();
+    });
+    __imageInsertLoadLibrary();
+  } else if (__imageInsertActiveTab === 'upload') {
+    const ctx = __imageInsertCtx || {};
+    const target = ctx.courseSlug ? `course “${escapeHtml(ctx.courseSlug)}”` : 'shared library';
+    panel.innerHTML = `
+      <div class="audio-insert-upload">
+        <div id="image-insert-drop" class="audio-insert-drop">
+          <p>Drag &amp; drop an image here</p>
+          <p class="muted">or</p>
+          <button type="button" class="studio-btn" id="image-insert-choose">Choose file…</button>
+          <input id="image-insert-file" type="file" accept="image/*" hidden />
+          <p class="muted" style="margin-top:10px">Will be saved to the ${target}. Large images are auto-downscaled.</p>
+        </div>
+        <div id="image-insert-progress" class="audio-insert-progress hidden">
+          <div class="audio-insert-progress-label">Uploading…</div>
+          <div class="audio-insert-progress-bar"><div class="audio-insert-progress-fill"></div></div>
+        </div>
+      </div>
+    `;
+    const fileInp = panel.querySelector('#image-insert-file');
+    panel.querySelector('#image-insert-choose').addEventListener('click', () => fileInp.click());
+    fileInp.addEventListener('change', () => {
+      const f = fileInp.files && fileInp.files[0];
+      if (f) __imageInsertHandleUpload(f);
+    });
+    const dz = panel.querySelector('#image-insert-drop');
+    ['dragenter','dragover'].forEach(t => dz.addEventListener(t, ev => { ev.preventDefault(); dz.classList.add('is-drag'); }));
+    ['dragleave','drop'].forEach(t => dz.addEventListener(t, ev => { ev.preventDefault(); dz.classList.remove('is-drag'); }));
+    dz.addEventListener('drop', ev => {
+      const f = Array.from(ev.dataTransfer?.files || []).find(x => (x.type || '').startsWith('image/'));
+      if (f) __imageInsertHandleUpload(f);
+      else toast('Drop an image file', 'is-error');
+    });
+  } else if (__imageInsertActiveTab === 'url') {
+    const existingAlt = __imageInsertChosen?.alt || '';
+    const existingUrl = __imageInsertChosen?.url || '';
+    panel.innerHTML = `
+      <div class="audio-insert-url">
+        <label for="image-insert-url-input">Image URL</label>
+        <input id="image-insert-url-input" type="text" placeholder="https://example.com/image.jpg" spellcheck="false" value="${escapeHtml(existingUrl)}" />
+        <label for="image-insert-url-alt" style="margin-top:10px">Alt text</label>
+        <input id="image-insert-url-alt" type="text" placeholder="Describe the image for screen readers" value="${escapeHtml(existingAlt)}" />
+        <p class="muted">Paste a URL to an external image. The alt text is stored with the inserted image.</p>
+      </div>
+    `;
+    const urlInp = panel.querySelector('#image-insert-url-input');
+    const altInp = panel.querySelector('#image-insert-url-alt');
+    const sync = () => {
+      const u = urlInp.value.trim();
+      const a = altInp.value.trim();
+      if (u) __imageInsertSetChosen({ url: u, name: u.split('/').pop() || u, alt: a });
+      else __imageInsertSetChosen(null);
+    };
+    urlInp.addEventListener('input', sync);
+    altInp.addEventListener('input', sync);
+    setTimeout(() => urlInp.focus(), 0);
+  }
+}
+
+async function __imageInsertLoadLibrary() {
+  const listEl = document.querySelector('#image-insert-list');
+  const courseSel = document.querySelector('#image-insert-course');
+  if (!listEl) return;
+  try {
+    if (!__imageInsertLibraryRows) {
+      const { data, error } = await sb.from('course_assets')
+        .select('id, filename, public_url, byte_size, mime_type, created_at, course_id, alt_text, width, height')
+        .eq('kind', 'image')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      __imageInsertLibraryRows = data || [];
+    }
+    if (!__imageInsertCoursesMeta) {
+      if (Array.isArray(state.allCoursesMeta) && state.allCoursesMeta.length) {
+        __imageInsertCoursesMeta = state.allCoursesMeta;
+      } else {
+        const { data: courses } = await sb.from('courses').select('id, slug, title').order('slug');
+        __imageInsertCoursesMeta = courses || [];
+      }
+    }
+    if (courseSel && courseSel.options.length <= 1) {
+      courseSel.innerHTML =
+        '<option value="">All courses</option>' +
+        '<option value="__shared__">Shared (no course)</option>' +
+        (__imageInsertCoursesMeta || []).map(c => `<option value="${c.id}">${escapeHtml(c.title || c.slug)}</option>`).join('');
+      if (__imageInsertLibraryFilters.course) courseSel.value = __imageInsertLibraryFilters.course;
+    }
+  } catch (err) {
+    console.error('image insert library load', err);
+    listEl.innerHTML = `<div class="studio-empty-state is-error"><p>Could not load images: ${escapeHtml(err.message)}</p></div>`;
+    return;
+  }
+  __imageInsertRenderLibraryList();
+}
+
+function __imageInsertRenderLibraryList() {
+  const listEl = document.querySelector('#image-insert-list');
+  if (!listEl) return;
+  const rows = __imageInsertLibraryRows || [];
+  const courseById = {};
+  for (const c of (__imageInsertCoursesMeta || [])) courseById[c.id] = c;
+  const f = (__imageInsertLibraryFilters.text || '').trim().toLowerCase();
+  const cf = __imageInsertLibraryFilters.course || '';
+  const filtered = rows.filter(r => {
+    if (cf === '__shared__') { if (r.course_id) return false; }
+    else if (cf) { if (r.course_id !== cf) return false; }
+    if (f) {
+      const hay = ((r.filename || '') + ' ' + (r.alt_text || '')).toLowerCase();
+      if (!hay.includes(f)) return false;
+    }
+    return true;
+  });
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="studio-empty-state"><p>No images ${f || cf ? 'match those filters' : 'in the library yet'}.</p><p>Use the Upload tab to add one.</p></div>`;
+    return;
+  }
+  listEl.innerHTML = filtered.map(r => {
+    const courseLabel = r.course_id
+      ? (courseById[r.course_id]?.title || courseById[r.course_id]?.slug || '—')
+      : 'Shared';
+    const isChosen = __imageInsertChosen && __imageInsertChosen.url === r.public_url;
+    const dim = (r.width && r.height) ? `${r.width}×${r.height}` : '';
+    return `
+    <div class="image-insert-card${isChosen ? ' is-chosen' : ''}" data-url="${escapeHtml(r.public_url)}" data-name="${escapeHtml(r.filename || '')}" data-alt="${escapeHtml(r.alt_text || '')}">
+      <div class="image-insert-thumb"><img loading="lazy" src="${escapeHtml(r.public_url)}" alt="${escapeHtml(r.alt_text || '')}" /></div>
+      <div class="image-insert-meta">
+        <div class="image-insert-name" title="${escapeHtml(r.filename || '')}">${escapeHtml(r.filename || '(untitled)')}</div>
+        <div class="image-insert-sub">${formatBytes(r.byte_size)} · ${dim ? dim + ' · ' : ''}<span class="audio-picker-tag">${escapeHtml(courseLabel)}</span></div>
+        ${r.alt_text ? `<div class="image-insert-alt" title="Alt text">“${escapeHtml(r.alt_text)}”</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  listEl.querySelectorAll('.image-insert-card').forEach(card => {
+    card.addEventListener('click', () => {
+      __imageInsertSetChosen({
+        url: card.getAttribute('data-url'),
+        name: card.getAttribute('data-name') || '',
+        alt: card.getAttribute('data-alt') || '',
+      });
+      __imageInsertRenderLibraryList();
+    });
+  });
+}
+
+async function __imageInsertHandleUpload(file) {
+  const panel = document.querySelector('#image-insert-panel');
+  const prog = document.querySelector('#image-insert-progress');
+  const fill = panel && panel.querySelector('.audio-insert-progress-fill');
+  const drop = panel && panel.querySelector('#image-insert-drop');
+  if (!panel) return;
+  if (!(file.type || '').startsWith('image/')) { toast('Not an image file', 'is-error'); return; }
+  if (drop) drop.classList.add('is-busy');
+  if (prog) { prog.classList.remove('hidden'); if (fill) fill.style.width = '15%'; }
+  try {
+    const ctx = __imageInsertCtx || {};
+    if (fill) fill.style.width = '40%';
+    const row = await uploadOne(file, ctx.courseId || null, ctx.courseSlug || null);
+    if (fill) fill.style.width = '100%';
+    __imageInsertLibraryRows = null;
+    __imageInsertSetChosen({ url: row.public_url, name: row.filename || file.name, alt: row.alt_text || '' });
+    toast('Image uploaded', 'is-saved');
+    __imageInsertActiveTab = 'library';
+    __imageInsertRender();
+  } catch (err) {
+    console.error('image insert upload', err);
+    if (drop) drop.classList.remove('is-busy');
+    if (prog) prog.classList.add('hidden');
+    toast('Upload failed: ' + err.message, 'is-error');
+  }
+}
+
+function __imageInsertCommit(chosen) {
+  const ctx = __imageInsertCtx || {};
+  if (ctx.mode === 'hero') {
+    if (typeof ctx.onPickHero === 'function') ctx.onPickHero({ url: chosen.url, alt: chosen.alt || '' });
+    closeModal();
+    return;
+  }
+  const html = `<img src="${escapeHtml(chosen.url)}" alt="${escapeHtml(chosen.alt || '')}" loading="lazy" />`;
+  const editor = ctx.editor;
+  if (editor) {
+    editor.focus();
+    document.execCommand('insertHTML', false, html);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if (typeof ctx.onInsert === 'function') {
+    ctx.onInsert(html);
+  }
+  closeModal();
+}
+
 // ---------- preview pane -----------------------------------------
 function renderPreview() {
   const host = $('#preview-card');
@@ -2326,7 +2857,7 @@ function __inlineAudioInitOnce() {
   // the native player still plays/pauses normally.
   document.addEventListener('click', (e) => {
     const audio = __inlineAudioResolveAudio(e);
-    const inEditor = audio && audio.closest && audio.closest('#html-editor');
+    const inEditor = audio && audio.closest && (audio.closest('#html-editor') || audio.closest('#title-html-editor'));
     if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] click', { target: e.target, audio, inEditor: !!inEditor });
     if (audio && inEditor) {
       __inlineAudioShow(audio);
@@ -2334,7 +2865,7 @@ function __inlineAudioInitOnce() {
     }
     // Click landed outside editor and outside the bar -> hide
     const t = e.target;
-    if (t && t.closest && !t.closest('#html-editor') && !t.closest('#inline-audio-bar')) {
+    if (t && t.closest && !t.closest('#html-editor') && !t.closest('#title-html-editor') && !t.closest('#inline-audio-bar')) {
       __inlineAudioHide();
     }
   }, true);
@@ -2345,7 +2876,7 @@ function __inlineAudioInitOnce() {
   document.addEventListener('focusin', (e) => {
     const t = e.target;
     const audio = t && t.closest && t.closest('audio');
-    const inEditor = audio && audio.closest && audio.closest('#html-editor');
+    const inEditor = audio && audio.closest && (audio.closest('#html-editor') || audio.closest('#title-html-editor'));
     if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] focusin', { target: t, audio, inEditor: !!inEditor });
     if (audio && inEditor) __inlineAudioShow(audio);
   }, true);
@@ -2356,7 +2887,7 @@ function __inlineAudioInitOnce() {
     if (__inlineAudioHideTimer) clearTimeout(__inlineAudioHideTimer);
     __inlineAudioHideTimer = setTimeout(() => {
       const ae = document.activeElement;
-      const stillOnAudio = ae && ae.closest && ae.closest('audio') && ae.closest('#html-editor');
+      const stillOnAudio = ae && ae.closest && ae.closest('audio') && (ae.closest('#html-editor') || ae.closest('#title-html-editor'));
       const onToolbar    = ae && ae.closest && ae.closest('#inline-audio-bar');
       if (__INLINE_AUDIO_DEBUG) console.log('[inline-audio] focusout settle', { ae, stillOnAudio: !!stillOnAudio, onToolbar: !!onToolbar });
       if (!stillOnAudio && !onToolbar) __inlineAudioHide();
@@ -2374,7 +2905,7 @@ function __inlineAudioInitOnce() {
     // is its only child; otherwise the audio itself.
     const parent = audio.parentElement;
     const target = (parent && parent.id !== 'html-editor' && parent.children.length === 1) ? parent : audio;
-    const editor = audio.closest('#html-editor');
+    const editor = (audio.closest('#html-editor') || audio.closest('#title-html-editor'));
 
     if (act === 'up') {
       const prev = target.previousElementSibling;
