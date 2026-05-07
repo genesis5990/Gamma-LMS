@@ -298,6 +298,35 @@ document.addEventListener('click', (e) => {
   navigate(href);
 });
 
+// /preview/* links: top-level navigations can't carry an Authorization
+// header, so the previewAuthGate (server.js) 401s. Plant a short-lived
+// sb-access-token cookie before opening the link so the gate can read it.
+// Covers course-card "Preview" buttons and the static LE/BTC nav links
+// (which use data-external and bypass the studio router above).
+document.addEventListener('click', async (e) => {
+  if (e.defaultPrevented) return;
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a[href^="/preview/"]');
+  if (!a) return;
+  const href = a.getAttribute('href');
+  if (!href) return;
+  e.preventDefault();
+  try {
+    if (window.supabaseClient && window.supabaseClient.auth) {
+      const { data } = await window.supabaseClient.auth.getSession();
+      const token = data && data.session && data.session.access_token;
+      if (token) {
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = 'sb-access-token=' + encodeURIComponent(token) +
+          '; Max-Age=900; Path=/; SameSite=Lax' + secure;
+      }
+    }
+  } catch (err) {
+    console.warn('[preview-link] could not read session:', err);
+  }
+  window.open(href, '_blank', 'noopener,noreferrer');
+}, true);
+
 function renderCrumbs(...parts) {
   const c = $('#studio-crumbs');
   c.innerHTML = parts.map((p, i) =>

@@ -89,6 +89,7 @@ check "course appendix loader"      200 "/course.html"               "loadAppend
 check "studio appendix add bar"     200 "/studio.js"                 "data-apx-add"
 check "studio appendix render"      200 "/studio.js"                 "renderAppendixEditor"
 check "studio appendix table"       200 "/studio.js"                 "module_appendix_items"
+check "studio preview-link cookie"  200 "/studio.js"                 "sb-access-token="
 
 # ---- Fallback behavior -----------------------------------------------------
 # Unknown routes serve the neutral GDAA landing with a 404 status.
