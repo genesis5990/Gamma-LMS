@@ -2548,6 +2548,9 @@ function __audioInsertRender() {
     const target = ctx.courseSlug ? `course “${escapeHtml(ctx.courseSlug)}”` : 'shared library';
     panel.innerHTML = `
       <div class="audio-insert-upload">
+        <div class="public-asset-warning public-asset-warning--inline" role="note">
+          ⚠️ Anything uploaded here is publicly accessible to anyone with the URL. Do not upload sensitive material (PII, internal documents, evidence files).
+        </div>
         <div id="audio-insert-drop" class="audio-insert-drop">
           <p>Drag &amp; drop an audio file here</p>
           <p class="muted">or</p>
@@ -2833,6 +2836,9 @@ function __imageInsertRender() {
     const target = ctx.courseSlug ? `course “${escapeHtml(ctx.courseSlug)}”` : 'shared library';
     panel.innerHTML = `
       <div class="audio-insert-upload">
+        <div class="public-asset-warning public-asset-warning--inline" role="note">
+          ⚠️ Anything uploaded here is publicly accessible to anyone with the URL. Do not upload sensitive material (PII, internal documents, evidence files).
+        </div>
         <div id="image-insert-drop" class="audio-insert-drop">
           <p>Drag &amp; drop an image here</p>
           <p class="muted">or</p>

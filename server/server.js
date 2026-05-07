@@ -130,6 +130,73 @@ app.use((_req, res, next) => {
   next();
 });
 
+// =====================================================================
+// /preview/* author gate (#9)
+// Gated to course authors and admins (super_admin / tenant_admin / instructor).
+// Token sources accepted (in order): Authorization: Bearer, ?access_token=, or
+// the supabase-js localStorage cookie if the client sets one.
+// =====================================================================
+const PREVIEW_AUTHOR_ROLES = new Set(['super_admin', 'tenant_admin', 'instructor']);
+
+function extractAccessToken(req) {
+  const h = req.headers['authorization'] || req.headers['Authorization'];
+  if (typeof h === 'string' && h.startsWith('Bearer ')) return h.slice(7).trim();
+  if (typeof req.query.access_token === 'string' && req.query.access_token) return req.query.access_token;
+  const cookie = req.headers['cookie'] || '';
+  const m = /(?:^|;\s*)sb-access-token=([^;]+)/.exec(cookie);
+  if (m) return decodeURIComponent(m[1]);
+  return null;
+}
+
+async function previewAuthGate(req, res, next) {
+  if (!SUPABASE_SVC_KEY) {
+    console.warn('[preview-gate] SUPABASE_SERVICE_ROLE_KEY not set; denying');
+    return res.status(503).json({ error: 'preview gate misconfigured' });
+  }
+  const token = extractAccessToken(req);
+  if (!token) {
+    res.set('Cache-Control', 'no-store');
+    return res.status(401).json({ error: 'preview is restricted to course authors; sign in and supply Authorization: Bearer <token>' });
+  }
+  let userId;
+  try {
+    const ur = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: SUPABASE_SVC_KEY,
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!ur.ok) return res.status(401).json({ error: 'invalid or expired token' });
+    const u = await ur.json().catch(() => null);
+    userId = u && u.id;
+    if (!userId) return res.status(401).json({ error: 'token did not resolve to a user' });
+  } catch (err) {
+    console.warn('[preview-gate] auth lookup failed:', err.message);
+    return res.status(502).json({ error: 'auth lookup failed' });
+  }
+  try {
+    const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=role&limit=1`, {
+      headers: {
+        apikey: SUPABASE_SVC_KEY,
+        Authorization: `Bearer ${SUPABASE_SVC_KEY}`
+      }
+    });
+    if (!pr.ok) return res.status(502).json({ error: 'role lookup failed' });
+    const rows = await pr.json().catch(() => []);
+    const role = Array.isArray(rows) && rows[0] ? rows[0].role : null;
+    if (!PREVIEW_AUTHOR_ROLES.has(role)) {
+      res.set('Cache-Control', 'no-store');
+      return res.status(403).json({ error: 'preview is restricted to course authors' });
+    }
+  } catch (err) {
+    console.warn('[preview-gate] role lookup failed:', err.message);
+    return res.status(502).json({ error: 'role lookup failed' });
+  }
+  return next();
+}
+
+app.use('/preview', previewAuthGate);
+
 // Health check
 app.get('/health', (_req, res) => res.status(200).json({ ok: true, ts: Date.now() }));
 

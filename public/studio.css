@@ -1528,3 +1528,21 @@ sup.cite-marker.cite-missing {
   background: rgba(255, 220, 100, .35);
   border-radius: 4px;
 }
+
+/* Public-asset warning banner — shown above every upload UI for the
+   course-assets bucket (which serves files via a public URL). */
+.public-asset-warning {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: #fdf1d2;
+  border: 1px solid #f0d889;
+  border-left: 4px solid var(--st-warn, #b97a09);
+  color: #6c4a06;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.public-asset-warning--inline {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+}
