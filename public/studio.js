@@ -1386,6 +1386,8 @@ function renderEditorBody() {
       });
       wireDropAndPaste(ed, ref.page);
       wireInlineAudioControls(ed, ref.page);
+      // Sync any inline [n] markers' numbers to the current citation list
+      recomputeCiteMarkers(ed, ref.page.citations || []);
     }
     refreshStatusBar();
     return;
@@ -1835,6 +1837,319 @@ function wireQuizForm(q, kind) {
   });
 }
 
+// ---------- citations helpers ------------------------------------
+// Stable client-side id for a citation. Falls back to a random hex string
+// when crypto.randomUUID is unavailable (e.g. in older Safari).
+function cryptoRandomId() {
+  try {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+  } catch (_) {}
+  // 16 random bytes → 32 hex chars
+  const bytes = new Uint8Array(16);
+  (window.crypto || { getRandomValues: (a) => { for (let i=0;i<a.length;i++) a[i] = Math.floor(Math.random()*256); } }).getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Allow only http/https/mailto schemes. Returns the original URL when safe,
+// or null when not. Used by both the editor [n] markers and the public
+// References renderer to avoid javascript: / data: scheme XSS.
+function safeUrl(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  // Allow protocol-relative and absolute http(s)/mailto only
+  if (/^(https?:|mailto:)/i.test(s)) return s;
+  if (/^\/\//.test(s)) return 'https:' + s;
+  // Bare domain like "example.com" — treat as https
+  if (/^[a-z0-9][a-z0-9.\-]*\.[a-z]{2,}(\/.*)?$/i.test(s)) return 'https://' + s;
+  return null;
+}
+
+// Format one citation as plain text/HTML segments. n is the 1-indexed position.
+// Returns an HTMLElement (a <span>) containing escaped content. Safe to append
+// to the DOM. Used by the studio preview and any other in-page renderer.
+function formatCitationNode(c, n) {
+  const span = document.createElement('span');
+  span.className = 'ref-text';
+  const parts = [];
+  const authors = String(c.authors || '').trim();
+  const year    = String(c.year || '').trim();
+  const title   = String(c.title || '').trim();
+  const source  = String(c.source || '').trim();
+  const url     = safeUrl(c.url);
+
+  if (authors) parts.push({ kind: 'text', text: authors + ' ' });
+  if (year)    parts.push({ kind: 'text', text: '(' + year + '). ' });
+  if (title) {
+    if (url) parts.push({ kind: 'link', text: title, href: url, trailing: '. ' });
+    else     parts.push({ kind: 'text', text: title + '. ' });
+  }
+  if (source)  parts.push({ kind: 'em', text: source + '. ' });
+  if (url && !title) parts.push({ kind: 'link', text: url, href: url, trailing: ' ' });
+
+  for (const p of parts) {
+    if (p.kind === 'text') {
+      span.appendChild(document.createTextNode(p.text));
+    } else if (p.kind === 'em') {
+      const em = document.createElement('em');
+      em.textContent = p.text;
+      span.appendChild(em);
+    } else if (p.kind === 'link') {
+      const a = document.createElement('a');
+      a.href = p.href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = p.text;
+      span.appendChild(a);
+      if (p.trailing) span.appendChild(document.createTextNode(p.trailing));
+    }
+  }
+  const notes = String(c.notes || '').trim();
+  if (notes) {
+    const br = document.createElement('br');
+    span.appendChild(br);
+    const small = document.createElement('span');
+    small.className = 'ref-notes';
+    small.textContent = notes;
+    span.appendChild(small);
+  }
+  return span;
+}
+
+// String version (for places that need a string). Builds via DOM then reads
+// outerHTML — guaranteed escaped. Used by the static public renderer where
+// we splice into innerHTML strings.
+function formatCitation(c, n) {
+  return formatCitationNode(c, n).outerHTML;
+}
+
+// Walk the editor body and update each [data-cite] marker's number + href so
+// they reflect the citation's CURRENT position. Also marks orphans as
+// .cite-missing with [?]. Idempotent — safe to call many times.
+function recomputeCiteMarkers(editor, citations) {
+  if (!editor) return;
+  const list = Array.isArray(citations) ? citations : [];
+  const idToIdx = new Map();
+  list.forEach((c, i) => { if (c && c.id) idToIdx.set(c.id, i + 1); });
+  editor.querySelectorAll('[data-cite]').forEach(node => {
+    const cid = node.getAttribute('data-cite');
+    const n = idToIdx.get(cid);
+    let a = node.querySelector('a');
+    if (!a) {
+      a = document.createElement('a');
+      node.appendChild(a);
+    }
+    if (n) {
+      node.classList.remove('cite-missing');
+      node.removeAttribute('title');
+      a.textContent = '[' + n + ']';
+      a.setAttribute('href', '#cite-' + cid);
+    } else {
+      node.classList.add('cite-missing');
+      node.setAttribute('title', 'Citation deleted — remove or re-add');
+      a.textContent = '[?]';
+      a.removeAttribute('href');
+    }
+  });
+}
+
+// Render the Citations card body (#cite-list) for a given page object. Wires
+// up all per-row events (drag, reorder, edit, insert marker, delete).
+function renderCitationsCard(page) {
+  const list = $('#cite-list');
+  if (!list) return;
+  const citations = Array.isArray(page.citations) ? page.citations : [];
+  const countEl = $('#cite-count');
+  if (countEl) countEl.textContent = String(citations.length);
+
+  if (!citations.length) {
+    list.innerHTML = `<div class="cite-empty">No citations yet. Click <strong>+ Add citation</strong> to create one.</div>`;
+    // still recompute markers in case the user just deleted everything
+    const ed = $('#html-editor');
+    if (ed) recomputeCiteMarkers(ed, citations);
+    return;
+  }
+
+  list.innerHTML = '';
+  citations.forEach((c, idx) => {
+    const n = idx + 1;
+    const row = document.createElement('div');
+    row.className = 'cite-card';
+    row.setAttribute('draggable', 'true');
+    row.dataset.citeId = c.id || '';
+    row.dataset.idx = String(idx);
+    row.innerHTML = `
+      <div class="cite-card-head">
+        <span class="cite-handle" title="Drag to reorder">⋮⋮</span>
+        <span class="cite-num">[${n}]</span>
+        <button type="button" class="studio-btn cite-insert" data-act="insert">Insert [${n}]</button>
+        <span class="cite-spacer"></span>
+        <button type="button" class="studio-btn-icon cite-up"   data-act="up"   title="Move up">▲</button>
+        <button type="button" class="studio-btn-icon cite-down" data-act="down" title="Move down">▼</button>
+        <button type="button" class="studio-btn-icon cite-del"  data-act="del"  title="Remove">✕</button>
+      </div>
+      <div class="cite-card-body">
+        <label class="cite-field">
+          <span class="cite-label">Title<span class="cite-req">*</span></span>
+          <input type="text" class="cite-title" data-field="title" value="" placeholder="e.g. The 2024 Internet Crime Report" />
+        </label>
+        <label class="cite-field">
+          <span class="cite-label">Authors</span>
+          <input type="text" class="cite-authors" data-field="authors" value="" placeholder="Smith, J., Jones, K." />
+        </label>
+        <label class="cite-field">
+          <span class="cite-label">Source</span>
+          <input type="text" class="cite-source" data-field="source" value="" placeholder="FBI IC3 Report 2024" />
+        </label>
+        <div class="cite-field cite-row">
+          <label class="cite-sub">
+            <span class="cite-label">URL</span>
+            <input type="url" class="cite-url" data-field="url" value="" placeholder="https://…" />
+          </label>
+          <label class="cite-sub cite-sub-narrow">
+            <span class="cite-label">Year</span>
+            <input type="text" class="cite-year" data-field="year" value="" placeholder="2024" maxlength="4" />
+          </label>
+        </div>
+        <label class="cite-field">
+          <span class="cite-label">Notes</span>
+          <textarea class="cite-notes" data-field="notes" rows="2" placeholder="Optional"></textarea>
+        </label>
+      </div>
+    `;
+    // Set values via .value / .textContent (no innerHTML interpolation = no XSS surface)
+    row.querySelector('[data-field="title"]').value   = String(c.title   || '');
+    row.querySelector('[data-field="authors"]').value = String(c.authors || '');
+    row.querySelector('[data-field="source"]').value  = String(c.source  || '');
+    row.querySelector('[data-field="url"]').value     = String(c.url     || '');
+    row.querySelector('[data-field="year"]').value    = String(c.year    || '');
+    row.querySelector('[data-field="notes"]').value   = String(c.notes   || '');
+    list.appendChild(row);
+  });
+
+  // Wire field edits — debounced patch + (no re-render) to keep focus
+  list.querySelectorAll('.cite-card').forEach(row => {
+    const idx = Number(row.dataset.idx);
+    row.querySelectorAll('[data-field]').forEach(input => {
+      input.addEventListener('input', () => {
+        const cur = Array.isArray(page.citations) ? page.citations.slice() : [];
+        if (!cur[idx]) return;
+        cur[idx] = { ...cur[idx], [input.dataset.field]: input.value };
+        stagePagePatch(page.id, { citations: cur });
+        // No full re-render — just update markers (numbers are unchanged here)
+      });
+    });
+    // Per-row actions
+    row.querySelectorAll('[data-act]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const act = btn.dataset.act;
+        const cur = Array.isArray(page.citations) ? page.citations.slice() : [];
+        if (act === 'insert') {
+          insertCitationMarker(cur[idx], idx + 1);
+          return;
+        }
+        if (act === 'del') {
+          if (!confirm('Remove this citation? Any [n] markers in the body that point to it will show as [?].')) return;
+          cur.splice(idx, 1);
+          stagePagePatch(page.id, { citations: cur });
+          renderCitationsCard(page);
+          const ed = $('#html-editor');
+          if (ed) recomputeCiteMarkers(ed, cur);
+          renderPreview();
+          return;
+        }
+        if (act === 'up' && idx > 0) {
+          const tmp = cur[idx-1]; cur[idx-1] = cur[idx]; cur[idx] = tmp;
+          stagePagePatch(page.id, { citations: cur });
+          renderCitationsCard(page);
+          const ed = $('#html-editor');
+          if (ed) recomputeCiteMarkers(ed, cur);
+          renderPreview();
+          return;
+        }
+        if (act === 'down' && idx < cur.length - 1) {
+          const tmp = cur[idx+1]; cur[idx+1] = cur[idx]; cur[idx] = tmp;
+          stagePagePatch(page.id, { citations: cur });
+          renderCitationsCard(page);
+          const ed = $('#html-editor');
+          if (ed) recomputeCiteMarkers(ed, cur);
+          renderPreview();
+          return;
+        }
+      });
+    });
+    // Drag-and-drop reorder
+    row.addEventListener('dragstart', (e) => {
+      row.classList.add('cite-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', String(row.dataset.idx)); } catch(_) {}
+    });
+    row.addEventListener('dragend', () => row.classList.remove('cite-dragging'));
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('cite-drop-target');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('cite-drop-target'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('cite-drop-target');
+      const fromIdxStr = e.dataTransfer.getData('text/plain');
+      const fromIdx = Number(fromIdxStr);
+      const toIdx = Number(row.dataset.idx);
+      if (Number.isNaN(fromIdx) || fromIdx === toIdx) return;
+      const cur = Array.isArray(page.citations) ? page.citations.slice() : [];
+      const [moved] = cur.splice(fromIdx, 1);
+      cur.splice(toIdx, 0, moved);
+      stagePagePatch(page.id, { citations: cur });
+      renderCitationsCard(page);
+      const ed = $('#html-editor');
+      if (ed) recomputeCiteMarkers(ed, cur);
+      renderPreview();
+    });
+  });
+
+  // Update markers in the editor to reflect current numbering
+  const ed = $('#html-editor');
+  if (ed) recomputeCiteMarkers(ed, citations);
+}
+
+// Insert a [n] sup marker at the editor caret pointing to a citation by id.
+function insertCitationMarker(citation, n) {
+  if (!citation || !citation.id) return;
+  const ed = $('#html-editor');
+  if (!ed) {
+    toast('Switch to a page in WYSIWYG mode to insert a citation marker.', 'is-warn');
+    return;
+  }
+  const cid = String(citation.id);
+  const html = `<sup class="cite-marker" data-cite="${escapeHtml(cid)}"><a href="#cite-${escapeHtml(cid)}">[${n}]</a></sup>`;
+  ed.focus();
+  // If the current selection isn't inside the editor, place caret at end.
+  const sel = window.getSelection();
+  let inside = false;
+  if (sel && sel.rangeCount > 0) {
+    const r = sel.getRangeAt(0);
+    inside = ed.contains(r.commonAncestorContainer);
+  }
+  if (!inside) {
+    const r = document.createRange();
+    r.selectNodeContents(ed);
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  document.execCommand('insertHTML', false, html);
+  // Trigger autosave/dirty path the same way the editor input event does
+  ed.dispatchEvent(new Event('input', { bubbles: true }));
+  // Recompute (in case other markers exist; numbering is unchanged for this op
+  // but ensures consistency with the latest list).
+  const ref = state.selection?.kind === 'page' ? findPage(state.selection.id) : null;
+  if (ref) recomputeCiteMarkers(ed, ref.page.citations || []);
+}
+
 // ---------- metadata pane ----------------------------------------
 function renderMeta() {
   const host = $('#meta-host');
@@ -1846,37 +2161,86 @@ function renderMeta() {
   if (kind === 'page') {
     const ref = findPage(id);
     if (!ref) return;
-    titleEl.textContent = 'Page metadata';
-    host.innerHTML = `<form class="meta-form">
-      <div class="field"><label>Title</label><input id="meta-title-in" type="text" value="${escapeHtml(ref.page.title || '')}" placeholder="(optional)"/></div>
-      <div class="field"><label>Type</label>
-        <select id="meta-type">
-          <option value="text"        ${ref.page.page_type==='text'?'selected':''}>Text</option>
-          <option value="case-study"  ${ref.page.page_type==='case-study'?'selected':''}>Case study</option>
-          <option value="interactive" ${ref.page.page_type==='interactive'?'selected':''}>Interactive</option>
-        </select>
-      </div>
-      <div class="field audio-field">
-        <label>Audio narration</label>
-        <div id="meta-audio-player" class="meta-audio-player ${ref.page.audio_url ? '' : 'is-empty'}">
-          ${ref.page.audio_url
-            ? `<audio controls preload="metadata" src="${escapeHtml(ref.page.audio_url)}" style="width:100%"></audio>`
-            : `<div class="meta-audio-empty">No narration assigned to this page.</div>`}
+    titleEl.textContent = 'Page';
+    const metaCollapsed = localStorage.getItem('studio.meta.collapsed.metadata') === '1';
+    const citeCollapsed = localStorage.getItem('studio.meta.collapsed.citations') === '1';
+    host.innerHTML = `
+      <section class="meta-card ${metaCollapsed ? 'is-collapsed' : ''}" data-card="metadata">
+        <button type="button" class="meta-card-head" data-toggle="metadata" aria-expanded="${metaCollapsed?'false':'true'}">
+          <span class="meta-card-chev" aria-hidden="true">▾</span>
+          <span class="meta-card-title">Page Metadata</span>
+        </button>
+        <div class="meta-card-body">
+          <form class="meta-form">
+            <div class="field"><label>Title</label><input id="meta-title-in" type="text" value="${escapeHtml(ref.page.title || '')}" placeholder="(optional)"/></div>
+            <div class="field"><label>Type</label>
+              <select id="meta-type">
+                <option value="text"        ${ref.page.page_type==='text'?'selected':''}>Text</option>
+                <option value="case-study"  ${ref.page.page_type==='case-study'?'selected':''}>Case study</option>
+                <option value="interactive" ${ref.page.page_type==='interactive'?'selected':''}>Interactive</option>
+              </select>
+            </div>
+            <div class="field audio-field">
+              <label>Audio narration</label>
+              <div id="meta-audio-player" class="meta-audio-player ${ref.page.audio_url ? '' : 'is-empty'}">
+                ${ref.page.audio_url
+                  ? `<audio controls preload="metadata" src="${escapeHtml(ref.page.audio_url)}" style="width:100%"></audio>`
+                  : `<div class="meta-audio-empty">No narration assigned to this page.</div>`}
+              </div>
+              <input id="meta-audio" type="text" value="${escapeHtml(ref.page.audio_url || '')}" placeholder="https://&hellip; or pick from library" spellcheck="false"/>
+              <div class="meta-audio-actions">
+                <button type="button" class="studio-btn" id="meta-audio-pick">${ref.page.audio_url ? 'Replace from library' : 'Pick from library'}</button>
+                ${ref.page.audio_url ? `<button type="button" class="studio-btn is-danger" id="meta-audio-clear">Remove narration</button>` : ''}
+                ${ref.page.audio_url ? `<a class="studio-btn-link" href="${escapeHtml(ref.page.audio_url)}" target="_blank" rel="noopener">Open in new tab</a>` : ''}
+              </div>
+            </div>
+            <div class="meta-info">
+              Lesson: <strong>${escapeHtml(ref.lesson.title)}</strong><br>
+              Module: ${escapeHtml(ref.module.title)}<br>
+              Position: ${ref.page.position + 1}<br>
+              Updated: ${fmtRelTime(ref.page.updated_at)}
+            </div>
+          </form>
         </div>
-        <input id="meta-audio" type="text" value="${escapeHtml(ref.page.audio_url || '')}" placeholder="https://&hellip; or pick from library" spellcheck="false"/>
-        <div class="meta-audio-actions">
-          <button type="button" class="studio-btn" id="meta-audio-pick">${ref.page.audio_url ? 'Replace from library' : 'Pick from library'}</button>
-          ${ref.page.audio_url ? `<button type="button" class="studio-btn is-danger" id="meta-audio-clear">Remove narration</button>` : ''}
-          ${ref.page.audio_url ? `<a class="studio-btn-link" href="${escapeHtml(ref.page.audio_url)}" target="_blank" rel="noopener">Open in new tab</a>` : ''}
+      </section>
+      <section class="meta-card ${citeCollapsed ? 'is-collapsed' : ''}" data-card="citations">
+        <button type="button" class="meta-card-head" data-toggle="citations" aria-expanded="${citeCollapsed?'false':'true'}">
+          <span class="meta-card-chev" aria-hidden="true">▾</span>
+          <span class="meta-card-title">Citations</span>
+          <span class="meta-card-count" id="cite-count">${(Array.isArray(ref.page.citations)?ref.page.citations.length:0)}</span>
+        </button>
+        <div class="meta-card-body">
+          <div id="cite-list" class="cite-list"></div>
+          <div class="cite-actions">
+            <button type="button" class="studio-btn" id="cite-add">+ Add citation</button>
+          </div>
+          <p class="cite-help">Citations save with the page. Use <code>[n]</code> markers in the body to point to them. The References section auto-renders below the page when published.</p>
         </div>
-      </div>
-      <div class="meta-info">
-        Lesson: <strong>${escapeHtml(ref.lesson.title)}</strong><br>
-        Module: ${escapeHtml(ref.module.title)}<br>
-        Position: ${ref.page.position + 1}<br>
-        Updated: ${fmtRelTime(ref.page.updated_at)}
-      </div>
-    </form>`;
+      </section>
+    `;
+    // Card collapse toggles
+    host.querySelectorAll('.meta-card-head').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.meta-card');
+        const which = btn.dataset.toggle;
+        const wasCollapsed = card.classList.toggle('is-collapsed');
+        btn.setAttribute('aria-expanded', wasCollapsed ? 'false' : 'true');
+        try { localStorage.setItem(`studio.meta.collapsed.${which}`, wasCollapsed ? '1' : '0'); } catch(_) {}
+      });
+    });
+    renderCitationsCard(ref.page);
+    $('#cite-add').addEventListener('click', () => {
+      const list = Array.isArray(ref.page.citations) ? ref.page.citations.slice() : [];
+      list.push({ id: cryptoRandomId(), title: '', authors: '', source: '', url: '', year: '', notes: '' });
+      stagePagePatch(ref.page.id, { citations: list });
+      renderCitationsCard(ref.page);
+      // focus the new title input
+      setTimeout(() => {
+        const inputs = $$('#cite-list .cite-title');
+        const last = inputs[inputs.length - 1];
+        if (last) last.focus();
+      }, 0);
+    });
     $('#meta-title-in').addEventListener('input', e => stagePagePatch(ref.page.id, { title: e.target.value }));
     $('#meta-type').addEventListener('change',     e => stagePagePatch(ref.page.id, { page_type: e.target.value }));
     const refreshAudioBlock = (newUrl) => {
@@ -2658,9 +3022,43 @@ function renderPreview() {
     const ref = findPage(state.selection.id);
     if (!ref) return;
     host.innerHTML = ref.page.body_html || '<p><em>(empty page)</em></p>';
+    // Append a References section that mirrors the public renderer
+    const cites = Array.isArray(ref.page.citations) ? ref.page.citations : [];
+    if (cites.length) {
+      const sec = renderReferencesSection(cites);
+      if (sec) host.appendChild(sec);
+    }
+    // Make sure markers reflect current numbering in the preview body too
+    recomputeCiteMarkers(host, cites);
   } else {
     host.innerHTML = `<div class="studio-empty-state"><p>Live preview is shown for pages.</p></div>`;
   }
+}
+
+// Build a <section.page-references> from a citations array. Returns null if
+// there are no citations. Built via DOM nodes (no innerHTML interpolation).
+function renderReferencesSection(citations) {
+  if (!Array.isArray(citations) || !citations.length) return null;
+  const section = document.createElement('section');
+  section.className = 'page-references';
+  const h = document.createElement('h3');
+  h.textContent = 'References';
+  section.appendChild(h);
+  const ol = document.createElement('ol');
+  ol.className = 'references-list';
+  citations.forEach((c, i) => {
+    const li = document.createElement('li');
+    li.id = 'cite-' + (c && c.id ? String(c.id) : ('idx-' + (i+1)));
+    const num = document.createElement('span');
+    num.className = 'ref-number';
+    num.textContent = '[' + (i + 1) + ']';
+    li.appendChild(num);
+    li.appendChild(document.createTextNode(' '));
+    li.appendChild(formatCitationNode(c, i + 1));
+    ol.appendChild(li);
+  });
+  section.appendChild(ol);
+  return section;
 }
 
 // =====================================================================

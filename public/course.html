@@ -226,6 +226,62 @@
     padding: 8px 22px; text-align: center;
   }
   .demo-banner b { color: #4a3206; }
+
+  /* Citations References block — rendered after page body when citations exist */
+  .page-references {
+    margin-top: 28px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .page-references h3 {
+    font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .references-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    font-size: 14px; line-height: 1.55;
+    color: var(--ink);
+  }
+  .references-list li {
+    padding: 6px 0 8px 36px;
+    text-indent: -36px;
+    scroll-margin-top: 100px;
+  }
+  .references-list li + li { border-top: 1px dotted var(--line-2); }
+  .references-list .ref-number {
+    display: inline-block; min-width: 30px;
+    font-weight: 700; color: var(--accent-2);
+    text-indent: 0;
+  }
+  .references-list .ref-text a { color: var(--accent-2); }
+  .references-list .ref-notes {
+    display: inline-block; margin-top: 2px;
+    color: var(--muted);
+    font-size: 13px; font-style: italic;
+  }
+  .references-list li:target {
+    background: rgba(255, 220, 100, .45);
+    border-radius: 4px;
+  }
+  /* In-body [n] markers (when present) */
+  sup.cite-marker { display: inline-block; font-size: 70%; line-height: 0; vertical-align: super; }
+  sup.cite-marker a {
+    color: var(--accent-2); text-decoration: none;
+    background: rgba(31,99,214,.10); border-radius: 3px;
+    padding: 0 3px; font-weight: 700;
+  }
+  sup.cite-marker a:hover { background: rgba(31,99,214,.22); }
+  sup.cite-marker.cite-missing,
+  sup.cite-marker.cite-missing a {
+    color: var(--bad); text-decoration: line-through;
+    background: rgba(201,69,69,.12);
+  }
+  [id^="cite-"]:target {
+    background: rgba(255, 220, 100, .45);
+    border-radius: 4px;
+  }
 </style>
 </head>
 <body>
@@ -448,6 +504,10 @@ function renderLesson(lid) {
       inner += `<audio controls preload="metadata" style="width:100%; margin-bottom:14px;"><source src="${page.audio}" type="audio/mpeg"></audio>`;
     }
     inner += page.html;
+    // Citations: append a References section if the page carries any.
+    if (Array.isArray(page.citations) && page.citations.length) {
+      inner += renderReferencesHTML(page.citations);
+    }
 
     const moduleLabel = meta.module === 1 ? 'Module 1 — Foundations'
                       : meta.module === 2 ? 'Module 2 — The Genesis of Bitcoin'
@@ -719,6 +779,58 @@ function escapeText(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   })[c]);
+}
+
+// Citations / References — public renderer
+// Allow only http(s) and mailto schemes; reject javascript:, data:, etc.
+function safeUrlForCitation(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  if (/^(https?:|mailto:)/i.test(s)) return s;
+  if (/^\/\//.test(s)) return 'https:' + s;
+  if (/^[a-z0-9][a-z0-9.\-]*\.[a-z]{2,}(\/.*)?$/i.test(s)) return 'https://' + s;
+  return null;
+}
+
+// Format one citation as a fragment of escaped HTML. n is the 1-indexed position.
+function formatCitation(c, n) {
+  const e = escapeText;
+  const authors = String((c && c.authors) || '').trim();
+  const year    = String((c && c.year)    || '').trim();
+  const title   = String((c && c.title)   || '').trim();
+  const source  = String((c && c.source)  || '').trim();
+  const notes   = String((c && c.notes)   || '').trim();
+  const url     = safeUrlForCitation(c && c.url);
+
+  let out = '<span class="ref-text">';
+  if (authors) out += e(authors) + ' ';
+  if (year)    out += '(' + e(year) + '). ';
+  if (title) {
+    if (url) out += '<a href="' + e(url) + '" target="_blank" rel="noopener noreferrer">' + e(title) + '</a>. ';
+    else     out += e(title) + '. ';
+  }
+  if (source)  out += '<em>' + e(source) + '</em>. ';
+  if (url && !title) {
+    out += '<a href="' + e(url) + '" target="_blank" rel="noopener noreferrer">' + e(url) + '</a> ';
+  }
+  if (notes) out += '<br><span class="ref-notes">' + e(notes) + '</span>';
+  out += '</span>';
+  return out;
+}
+
+// Render the full <section.page-references> block as an HTML string. Inputs
+// are escaped via formatCitation; ids are escaped here.
+function renderReferencesHTML(citations) {
+  if (!Array.isArray(citations) || !citations.length) return '';
+  let html = '<section class="page-references"><h3>References</h3><ol class="references-list">';
+  citations.forEach((c, i) => {
+    const n = i + 1;
+    const cid = (c && c.id) ? String(c.id) : ('idx-' + n);
+    html += '<li id="cite-' + escapeText(cid) + '"><span class="ref-number">[' + n + ']</span> ' +
+            formatCitation(c, n) + '</li>';
+  });
+  html += '</ol></section>';
+  return html;
 }
 
 function renderModule1Stub() {

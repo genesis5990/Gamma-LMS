@@ -210,7 +210,7 @@ function buildItems() {
     }
     (m.lessons || []).forEach((l, li) => {
       (l.pages || []).forEach((p, pi) => {
-        ITEMS.push({ kind: 'page', moduleIdx: mi, lessonIdx: li, pageIdx: pi, content: p.content || '' });
+        ITEMS.push({ kind: 'page', moduleIdx: mi, lessonIdx: li, pageIdx: pi, content: p.content || '', citations: Array.isArray(p.citations) ? p.citations : [] });
       });
     });
     if (m.knowledge_check && Array.isArray(m.knowledge_check.questions) && m.knowledge_check.questions.length) {
@@ -332,7 +332,13 @@ function render() {
             escapeHtml(stripTags(l.title || '')) + '</div>';
     html += '<h2 class="lesson-title">' + escapeHtml(stripTags(l.title || '')) + '</h2>';
     html += '<div class="lesson-meta">Page ' + (item.pageIdx + 1) + ' of ' + totalPagesInLesson + '</div>';
-    html += '<div class="lesson-card">' + (item.content || '') + '</div>';
+    {
+      let inner = (item.content || '');
+      if (Array.isArray(item.citations) && item.citations.length) {
+        inner += renderReferencesHTML(item.citations);
+      }
+      html += '<div class="lesson-card">' + inner + '</div>';
+    }
     html += renderPager();
     // Highlight the lesson link
     const firstPageIdx = ITEMS.findIndex(it => it.kind === 'page' && it.moduleIdx === item.moduleIdx && it.lessonIdx === item.lessonIdx);
@@ -490,6 +496,51 @@ function escapeHtml(s) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+// Citations / References — preview renderer (mirrors course.html)
+function safeUrlForCitation(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  if (/^(https?:|mailto:)/i.test(s)) return s;
+  if (/^\/\//.test(s)) return 'https:' + s;
+  if (/^[a-z0-9][a-z0-9.\-]*\.[a-z]{2,}(\/.*)?$/i.test(s)) return 'https://' + s;
+  return null;
+}
+function formatCitation(c, n) {
+  const e = escapeHtml;
+  const authors = String((c && c.authors) || '').trim();
+  const year    = String((c && c.year)    || '').trim();
+  const title   = String((c && c.title)   || '').trim();
+  const source  = String((c && c.source)  || '').trim();
+  const notes   = String((c && c.notes)   || '').trim();
+  const url     = safeUrlForCitation(c && c.url);
+  let out = '<span class="ref-text">';
+  if (authors) out += e(authors) + ' ';
+  if (year)    out += '(' + e(year) + '). ';
+  if (title) {
+    if (url) out += '<a href="' + e(url) + '" target="_blank" rel="noopener noreferrer">' + e(title) + '</a>. ';
+    else     out += e(title) + '. ';
+  }
+  if (source)  out += '<em>' + e(source) + '</em>. ';
+  if (url && !title) {
+    out += '<a href="' + e(url) + '" target="_blank" rel="noopener noreferrer">' + e(url) + '</a> ';
+  }
+  if (notes) out += '<br><span class="ref-notes">' + e(notes) + '</span>';
+  out += '</span>';
+  return out;
+}
+function renderReferencesHTML(citations) {
+  if (!Array.isArray(citations) || !citations.length) return '';
+  let html = '<section class="page-references"><h3>References</h3><ol class="references-list">';
+  citations.forEach((c, i) => {
+    const n = i + 1;
+    const cid = (c && c.id) ? String(c.id) : ('idx-' + n);
+    html += '<li id="cite-' + escapeHtml(cid) + '"><span class="ref-number">[' + n + ']</span> ' +
+            formatCitation(c, n) + '</li>';
+  });
+  html += '</ol></section>';
+  return html;
 }
 
 // For sidebar/lesson titles that contain HTML entities — strip tags but

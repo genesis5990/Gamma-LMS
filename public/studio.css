@@ -1329,3 +1329,202 @@ body {
   outline: 2px dashed var(--st-accent, #1f63d6);
   outline-offset: 2px;
 }
+
+/* ============================================================
+   CITATIONS — right-rail card + in-editor [n] markers + public
+   References block (this file is also loaded for studio preview;
+   the public learner renderer ships its own copy of these rules).
+   ============================================================ */
+
+/* Collapsible card wrapper (used for both Page Metadata + Citations) */
+.meta-card {
+  border: 1px solid var(--st-line, #e1e6f3);
+  border-radius: 8px;
+  background: #fff;
+  margin: 0 0 12px;
+  overflow: hidden;
+}
+.meta-card-head {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: linear-gradient(180deg, #fafbff 0%, #f4f6fc 100%);
+  border: 0; border-bottom: 1px solid var(--st-line, #e1e6f3);
+  padding: 9px 12px;
+  font-size: 13px; font-weight: 600; color: var(--st-ink, #0f172a);
+  cursor: pointer; text-align: left;
+  letter-spacing: .2px;
+}
+.meta-card-head:hover { background: #eef2fb; }
+.meta-card-chev {
+  display: inline-block; transition: transform .12s ease;
+  color: var(--st-muted, #5b6788);
+}
+.meta-card.is-collapsed .meta-card-chev { transform: rotate(-90deg); }
+.meta-card.is-collapsed .meta-card-body { display: none; }
+.meta-card-title { flex: 1; }
+.meta-card-count {
+  background: var(--st-accent, #1f63d6); color: #fff;
+  font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px;
+  min-width: 18px; text-align: center;
+}
+.meta-card-body { padding: 12px; }
+
+/* Citations list */
+.cite-list { display: flex; flex-direction: column; gap: 10px; }
+.cite-empty {
+  color: var(--st-muted, #5b6788);
+  font-size: 12.5px; padding: 10px;
+  border: 1px dashed var(--st-line, #e1e6f3);
+  border-radius: 6px; background: #fafbff;
+}
+.cite-card {
+  border: 1px solid var(--st-line, #e1e6f3);
+  border-radius: 6px; background: #fff;
+}
+.cite-card.cite-dragging { opacity: .5; }
+.cite-card.cite-drop-target {
+  border-color: var(--st-accent, #1f63d6);
+  box-shadow: 0 0 0 2px rgba(31,99,214,.12);
+}
+.cite-card-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  background: #f7f9fe;
+  border-bottom: 1px solid var(--st-line, #e1e6f3);
+  border-radius: 6px 6px 0 0;
+}
+.cite-handle {
+  cursor: grab; color: var(--st-muted, #5b6788);
+  font-size: 13px; user-select: none;
+  padding: 0 2px;
+}
+.cite-handle:active { cursor: grabbing; }
+.cite-num {
+  font-weight: 700; color: var(--st-accent-2, #0a3d91);
+  font-size: 12.5px; min-width: 28px;
+}
+.cite-insert {
+  font-size: 11.5px !important;
+  padding: 3px 8px !important;
+  height: auto !important;
+}
+.cite-spacer { flex: 1; }
+.studio-btn-icon {
+  background: transparent; border: 1px solid transparent;
+  color: var(--st-muted, #5b6788);
+  width: 22px; height: 22px;
+  font-size: 11px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; cursor: pointer;
+  padding: 0;
+}
+.studio-btn-icon:hover {
+  background: #eef2fb;
+  border-color: var(--st-line, #e1e6f3);
+  color: var(--st-ink, #0f172a);
+}
+.cite-card-body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.cite-field { display: flex; flex-direction: column; gap: 3px; }
+.cite-row { flex-direction: row; gap: 8px; }
+.cite-sub { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.cite-sub-narrow { flex: 0 0 80px; }
+.cite-label {
+  font-size: 11px; color: var(--st-muted, #5b6788);
+  text-transform: uppercase; letter-spacing: .6px; font-weight: 600;
+}
+.cite-req { color: #c94545; margin-left: 2px; }
+.cite-card-body input[type="text"],
+.cite-card-body input[type="url"],
+.cite-card-body textarea {
+  width: 100%; box-sizing: border-box;
+  font: 13px/1.4 inherit;
+  padding: 5px 8px;
+  border: 1px solid var(--st-line, #e1e6f3);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--st-ink, #0f172a);
+}
+.cite-card-body input:focus,
+.cite-card-body textarea:focus {
+  outline: none;
+  border-color: var(--st-accent, #1f63d6);
+  box-shadow: 0 0 0 2px rgba(31,99,214,.15);
+}
+.cite-card-body textarea { resize: vertical; min-height: 36px; }
+.cite-actions { margin-top: 10px; }
+.cite-help {
+  margin: 8px 0 0; font-size: 11.5px;
+  color: var(--st-muted, #5b6788); line-height: 1.45;
+}
+.cite-help code {
+  background: #eef2fb; padding: 1px 5px; border-radius: 3px;
+  font-size: 11px;
+}
+
+/* In-editor [n] markers */
+.studio-html-editor sup.cite-marker,
+sup.cite-marker {
+  display: inline-block;
+  font-size: 70%;
+  line-height: 0;
+  vertical-align: super;
+  margin: 0 1px;
+  padding: 0 1px;
+}
+sup.cite-marker a {
+  color: var(--st-accent-2, #0a3d91);
+  text-decoration: none;
+  background: rgba(31,99,214,.10);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-weight: 700;
+}
+sup.cite-marker a:hover { background: rgba(31,99,214,.22); }
+sup.cite-marker.cite-missing a,
+sup.cite-marker.cite-missing {
+  color: #c94545;
+  text-decoration: line-through;
+  background: rgba(201,69,69,.12);
+}
+
+/* Public-style References block (also rendered in studio preview) */
+.page-references {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--st-line, #e1e6f3);
+}
+.page-references h3 {
+  font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--st-muted, #5b6788);
+  margin: 0 0 10px;
+}
+.references-list {
+  list-style: none;
+  margin: 0; padding: 0;
+  font-size: 13.5px; line-height: 1.55;
+  color: var(--st-ink, #0f172a);
+}
+.references-list li {
+  padding: 4px 0 6px 36px;
+  text-indent: -36px;
+  scroll-margin-top: 80px;
+}
+.references-list li + li { border-top: 1px dotted var(--st-line, #e1e6f3); }
+.references-list .ref-number {
+  display: inline-block; min-width: 30px;
+  font-weight: 700; color: var(--st-accent-2, #0a3d91);
+  text-indent: 0;
+}
+.references-list .ref-text a {
+  color: var(--st-accent-2, #0a3d91);
+}
+.references-list .ref-notes {
+  display: inline-block; margin-top: 2px;
+  color: var(--st-muted, #5b6788);
+  font-size: 12.5px; font-style: italic;
+}
+.references-list li:target {
+  background: rgba(255, 220, 100, .35);
+  border-radius: 4px;
+}

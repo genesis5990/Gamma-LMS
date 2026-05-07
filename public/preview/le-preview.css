@@ -226,3 +226,51 @@
   border: 1px solid var(--le-danger);
   color: #fca5a5;
 }
+
+/* Citations References block (public + preview) */
+.page-references {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--le-line, #d9dfee);
+}
+.page-references h3 {
+  font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--le-muted, #5b6788);
+  margin: 0 0 10px;
+}
+.references-list {
+  list-style: none; margin: 0; padding: 0;
+  font-size: 14px; line-height: 1.55;
+}
+.references-list li {
+  padding: 6px 0 8px 36px;
+  text-indent: -36px;
+  scroll-margin-top: 100px;
+}
+.references-list li + li { border-top: 1px dotted var(--le-line, #d9dfee); }
+.references-list .ref-number {
+  display: inline-block; min-width: 30px;
+  font-weight: 700; text-indent: 0;
+}
+.references-list .ref-notes {
+  display: inline-block; margin-top: 2px;
+  font-size: 13px; font-style: italic;
+  opacity: .85;
+}
+.references-list li:target,
+[id^="cite-"]:target {
+  background: rgba(255, 220, 100, .35);
+  border-radius: 4px;
+}
+sup.cite-marker { display: inline-block; font-size: 70%; line-height: 0; vertical-align: super; }
+sup.cite-marker a {
+  text-decoration: none;
+  background: rgba(31,99,214,.18); border-radius: 3px;
+  padding: 0 3px; font-weight: 700;
+}
+sup.cite-marker a:hover { background: rgba(31,99,214,.30); }
+sup.cite-marker.cite-missing,
+sup.cite-marker.cite-missing a {
+  text-decoration: line-through;
+  background: rgba(201,69,69,.18);
+}
