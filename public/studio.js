@@ -1380,7 +1380,9 @@ function renderEditorBody() {
       host.innerHTML = `<div id="html-editor" class="studio-html-editor" contenteditable="true" spellcheck="true">${ref.page.body_html || ''}</div>`;
       const ed = $('#html-editor');
       ed.addEventListener('input', () => {
-        stagePagePatch(ref.page.id, { body_html: ed.innerHTML });
+        const next = ed.innerHTML;
+        if (next === (ref.page.body_html || '')) return;
+        stagePagePatch(ref.page.id, { body_html: next });
         renderPreview();
         refreshStatusBar();
       });
@@ -1941,15 +1943,18 @@ function recomputeCiteMarkers(editor, citations) {
       node.appendChild(a);
     }
     if (n) {
-      node.classList.remove('cite-missing');
-      node.removeAttribute('title');
-      a.textContent = '[' + n + ']';
-      a.setAttribute('href', '#cite-' + cid);
+      if (node.classList.contains('cite-missing')) node.classList.remove('cite-missing');
+      if (node.hasAttribute('title')) node.removeAttribute('title');
+      const want = '[' + n + ']';
+      if (a.textContent !== want) a.textContent = want;
+      const href = '#cite-' + cid;
+      if (a.getAttribute('href') !== href) a.setAttribute('href', href);
     } else {
-      node.classList.add('cite-missing');
-      node.setAttribute('title', 'Citation deleted — remove or re-add');
-      a.textContent = '[?]';
-      a.removeAttribute('href');
+      if (!node.classList.contains('cite-missing')) node.classList.add('cite-missing');
+      const titleWant = 'Citation deleted — remove or re-add';
+      if (node.getAttribute('title') !== titleWant) node.setAttribute('title', titleWant);
+      if (a.textContent !== '[?]') a.textContent = '[?]';
+      if (a.hasAttribute('href')) a.removeAttribute('href');
     }
   });
 }
@@ -3647,11 +3652,31 @@ function refreshDirtyButtons() {
 }
 
 function stageGeneric(table, id, patch) {
+  const current = currentRecord(table, id);
+  const filtered = {};
+  let hasChange = false;
+  for (const k in patch) {
+    if (!current || current[k] !== patch[k]) {
+      filtered[k] = patch[k];
+      hasChange = true;
+    }
+  }
+  if (!hasChange) return;
   const key = `${table}:${id}`;
   const existing = state.dirty.get(key) || { table, id, patch: {} };
-  Object.assign(existing.patch, patch);
+  Object.assign(existing.patch, filtered);
   state.dirty.set(key, existing);
   refreshDirtyButtons();
+}
+
+function currentRecord(table, id) {
+  if (table === 'pages')                    { const r = findPage(id);   return r ? r.page : null; }
+  if (table === 'lessons')                  { const r = findLesson(id); return r ? r.lesson : null; }
+  if (table === 'modules')                  { return findModule(id) || null; }
+  if (table === 'courses')                  { return state.course && state.course.id === id ? state.course : null; }
+  if (table === 'module_quiz_questions')    { const r = findKc(id);     return r ? r.q : null; }
+  if (table === 'final_exam_questions')     { const r = findFinal(id);  return r ? r.q : null; }
+  return null;
 }
 
 function stagePagePatch(id, patch)    { stageGeneric('pages', id, patch); applyLocalPatch('pages', id, patch); }
