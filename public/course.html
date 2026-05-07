@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="/config.js"></script>
 <script src="/tenant.js"></script>
 <script src="/auth.js"></script>
@@ -351,6 +352,22 @@
 // ============================================================================
 // COURSE_DATA is loaded from course_data.json (via fetch on load)
 // ============================================================================
+// sanitizeHtml: pass author-controlled HTML through DOMPurify before
+// innerHTML assignment. Strips <script>, inline on* handlers, javascript:
+// URLs. Falls back to a passthrough if DOMPurify failed to load (CSP/CDN
+// outage); a console warning is emitted instead of breaking the page.
+function sanitizeHtml(s) {
+  if (typeof window.DOMPurify === 'undefined') {
+    if (!sanitizeHtml._warned) { console.warn('DOMPurify missing; rendering author HTML unsanitized'); sanitizeHtml._warned = true; }
+    return s == null ? '' : String(s);
+  }
+  return window.DOMPurify.sanitize(String(s == null ? '' : s), {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['style', 'iframe'],
+    FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur','onchange']
+  });
+}
+
 let COURSE = null;
 
 // Progress is now persisted to Supabase via auth.js (loaded below).
@@ -503,10 +520,11 @@ function renderLesson(lid) {
     if (page.audio) {
       inner += `<audio controls preload="metadata" style="width:100%; margin-bottom:14px;"><source src="${page.audio}" type="audio/mpeg"></audio>`;
     }
-    inner += page.html;
+    // Author-controlled HTML — sanitize before injection.
+    inner += sanitizeHtml(page.html || '');
     // Citations: append a References section if the page carries any.
     if (Array.isArray(page.citations) && page.citations.length) {
-      inner += renderReferencesHTML(page.citations);
+      inner += sanitizeHtml(renderReferencesHTML(page.citations));
     }
 
     const moduleLabel = meta.module === 1 ? 'Module 1 — Foundations'
@@ -636,34 +654,46 @@ function wireQuiz(lid) {
     });
   });
 
-  submit.addEventListener('click', () => {
-    let correctCount = 0;
+  submit.addEventListener('click', async () => {
     let unanswered = 0;
-    qs.forEach((q, qi) => {
+    const picked = {};
+    qs.forEach((_q, qi) => {
+      const radio = document.querySelector(`input[name="lq_${lid}_${qi}"]:checked`);
+      const k = radio ? radio.value : null;
+      if (!k) unanswered++;
+      picked[String(qi)] = k;
+    });
+    submit.disabled = true;
+    let resp;
+    try {
+      const r = await fetch('/api/grade-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lesson_id: lid, answers: picked })
+      });
+      resp = await r.json();
+      if (!r.ok) throw new Error(resp.error || ('grade-quiz ' + r.status));
+    } catch (err) {
+      submit.disabled = false;
+      result.className = 'quiz-result failed';
+      result.textContent = 'Grading failed: ' + (err.message || err) + '. Please retry.';
+      return;
+    }
+    const wrongSet = new Set(Array.isArray(resp.wrong) ? resp.wrong : []);
+    qs.forEach((_q, qi) => {
       const node = document.querySelector(`.quiz-q[data-qi="${qi}"]`);
-      const sel = node.querySelector('input:checked');
-      const chosenKey = sel ? sel.value : null;
-      if (!chosenKey) unanswered++;
-      const isCorrect = chosenKey === q.correct;
+      if (!node) return;
       node.classList.add('graded');
       node.classList.remove('correct','incorrect');
-      node.classList.add(isCorrect ? 'correct' : 'incorrect');
-      node.querySelectorAll('.opts label').forEach(lab => {
-        if (lab.getAttribute('data-orig-key') === q.correct) lab.classList.add('is-correct');
-      });
-      if (isCorrect) correctCount++;
+      node.classList.add(wrongSet.has(qi) ? 'incorrect' : 'correct');
     });
-    const pct = correctCount / qs.length;
-    const passed = pct >= (window.PASS_THRESHOLD || 0.7);
+    const pct = (resp.total > 0) ? (resp.correct / resp.total) : 0;
+    const passed = !!resp.passed;
     progress[lid + ':quiz'] = { score: pct, passed, when: Date.now() };
-    // Persist the attempt (append-only) along with the picked answers for audit
-    const pickedAnswers = qs.map((q, i) => {
-      const radio = document.querySelector(`input[name="lq_${lid}_${i}"]:checked`);
-      return { q: i, picked: radio ? radio.value : null, correct: q.correct };
-    });
+    const pickedAnswers = qs.map((_q, i) => ({ q: i, picked: picked[String(i)] }));
     if (window.saveQuizAttempt) window.saveQuizAttempt(lid, pct, passed, pickedAnswers);
     result.className = 'quiz-result ' + (passed ? 'passed' : 'failed');
-    let resultMsg = `Score: ${correctCount}/${qs.length} (${Math.round(pct*100)}%) — ${passed ? 'Passed ✓' : 'Did not pass — review and retry.'}`;
+    let resultMsg = `Score: ${resp.correct}/${resp.total} (${resp.score}%) — ${passed ? 'Passed ✓' : 'Did not pass — review and retry.'}`;
     if (unanswered > 0) resultMsg += ` (${unanswered} unanswered)`;
     result.textContent = resultMsg;
     submit.style.display = 'none';

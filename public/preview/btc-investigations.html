@@ -138,6 +138,7 @@
   .btn-secondary:hover { border-color: var(--accent); color: var(--accent-2); }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 </head>
 <body data-tenant="deconflict">
 
@@ -163,6 +164,14 @@
 </div>
 
 <script>
+function sanitizeHtml(s) {
+  if (typeof window.DOMPurify === 'undefined') return s == null ? '' : String(s);
+  return window.DOMPurify.sanitize(String(s == null ? '' : s), {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['style', 'iframe'],
+    FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur','onchange']
+  });
+}
 const COURSE_URL = '/preview/btc-investigations.course.json';
 let COURSE = null;
 
@@ -362,7 +371,7 @@ function render() {
     if (link) link.classList.add('active');
   }
 
-  main.innerHTML = html;
+  main.innerHTML = sanitizeHtml(html);
   wirePager();
   wireQuiz();
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -403,7 +412,7 @@ function renderQuiz(slug, questions) {
   let h = '<div class="kc-block"><div class="kc-meta">' + questions.length + ' questions</div>';
   h += '<form id="quiz-' + slug + '" data-slug="' + slug + '" data-count="' + questions.length + '">';
   questions.forEach((q, qi) => {
-    h += '<div class="kc-q" data-qi="' + qi + '" data-answer="' + q.answer + '">';
+    h += '<div class="kc-q" data-qi="' + qi + '">';
     h += '<div class="stem">' + (qi + 1) + '. ' + escapeHtml(stripTags(q.q || '')) + '</div>';
     h += '<ul class="opts">';
     (q.options || []).forEach((opt, oi) => {
@@ -438,43 +447,15 @@ function wireQuiz() {
 }
 
 function gradeQuiz(form) {
-  const qs = form.querySelectorAll('.kc-q');
-  let correct = 0;
-  qs.forEach(q => {
-    const answer = parseInt(q.getAttribute('data-answer'), 10);
-    const picked = form.querySelector('input[name="' + form.dataset.slug + '-q' + q.dataset.qi + '"]:checked');
-    const pickedIdx = picked ? parseInt(picked.value, 10) : -1;
-    q.classList.add('graded');
-    q.classList.remove('correct', 'incorrect');
-    q.querySelectorAll('.opts label').forEach(lab => {
-      lab.classList.remove('is-correct', 'is-wrong-chosen');
-      const oi = parseInt(lab.getAttribute('data-oi'), 10);
-      if (oi === answer) lab.classList.add('is-correct');
-      if (oi === pickedIdx && pickedIdx !== answer) lab.classList.add('is-wrong-chosen');
-    });
-    const status = q.querySelector('.feedback .status');
-    if (pickedIdx === answer) {
-      q.classList.add('correct');
-      status.textContent = 'Correct.';
-      correct++;
-    } else {
-      q.classList.add('incorrect');
-      status.textContent = picked ? 'Incorrect.' : 'No answer selected.';
-    }
-  });
-  const total = qs.length;
-  const pct = total ? correct / total : 0;
-  const threshold = COURSE.pass_threshold || 0.8;
-  const passed = pct >= threshold;
+  // Preview pages are anonymous content-review only and do not have access to
+  // the answer keys (server scrubs them from the JSON). Show a non-grading
+  // notice rather than silently scoring 0/N.
+  const total = form.querySelectorAll('.kc-q').length;
   const result = form.querySelector('.kc-result');
   result.style.display = 'block';
-  result.classList.toggle('pass', passed);
-  result.classList.toggle('fail', !passed);
-  result.innerHTML =
-    (passed ? 'PASS' : 'FAIL') +
-    ' &mdash; scored ' + correct + ' / ' + total +
-    ' (' + Math.round(pct * 100) + '%, threshold ' + Math.round(threshold * 100) + '%).' +
-    (passed ? '' : ' Review references for incorrect answers above and re-take.');
+  result.classList.remove('pass', 'fail');
+  result.textContent = 'Preview mode — grading disabled. ' + total +
+    ' questions reviewed. Sign in to the live course to take the graded quiz.';
   result.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 

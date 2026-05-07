@@ -7,8 +7,13 @@
 //       service-role key internally to call public.issue_certificate
 //       and write the PDF to the private `certificates` bucket.
 //
-// Body: { full_name: string, course_id?: string, score?: number }
-//   - full_name is the recipient's printable name; it is hashed into the cert id.
+// Body: { course_id?: string, score?: number }
+//   - full_name is IGNORED if supplied; the name comes from profiles.full_name.
+//
+// Server-side gates (added in batch 2 hardening):
+//   1. caller's profile must have non-empty full_name
+//   2. enrollments.status = 'completed' for (user_id, course_id)
+//   3. at least one passed quiz_attempts row for this user (proxy for course pass)
 //
 // Response: { cert_hash, pdf_url (signed), issued_at, name, tenant_slug, verify_url }
 
@@ -51,21 +56,51 @@ Deno.serve(async (req: Request) => {
   if (userErr || !userRes?.user) return bad(401, "invalid token");
   const userId = userRes.user.id;
 
-  // 2. Parse body
-  let body: { full_name?: string; course_id?: string; score?: number };
+  // 2. Parse body (full_name is intentionally ignored; we read it from the
+  // server-side profile to prevent the caller from forging the recipient name).
+  let body: { course_id?: string; score?: number };
   try { body = await req.json(); } catch { return bad(400, "invalid json"); }
 
-  const fullName = (body.full_name ?? "").trim();
   const courseId = (body.course_id ?? "crypto101").trim();
   const score    = typeof body.score === "number" ? Math.round(body.score) : null;
 
-  if (!fullName)        return bad(400, "full_name required");
-  if (fullName.length > 120) return bad(400, "full_name too long");
-
-  // 3. Service-role client for RPC + storage
+  // 3. Service-role client for profile/enrollment/attempt verification + RPC + storage.
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false },
   });
+
+  // 3a. Read recipient name from profile (NOT from the request body).
+  const { data: profile, error: profErr } = await admin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profErr) return bad(500, "profile lookup failed: " + profErr.message);
+  const fullName = (profile?.full_name ?? "").trim();
+  if (!fullName)             return bad(400, "profile missing full_name; set it before requesting a certificate");
+  if (fullName.length > 120) return bad(400, "profile full_name too long");
+
+  // 3b. Require completed enrollment for this (user, course).
+  const { data: enrollment, error: enrErr } = await admin
+    .from("enrollments")
+    .select("status")
+    .eq("user_id", userId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+  if (enrErr)                            return bad(500, "enrollment lookup failed: " + enrErr.message);
+  if (!enrollment)                        return bad(403, "not enrolled in this course");
+  if (enrollment.status !== "completed")  return bad(403, "course not yet completed");
+
+  // 3c. Require at least one passed quiz_attempts row. Final-exam scoring is
+  // not yet wired in v1 LMS, so passing any module quiz + completed enrollment
+  // is the proxy gate. Once final_exam_questions are wired the gate tightens.
+  const { count: passedCount, error: attErr } = await admin
+    .from("quiz_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("passed", true);
+  if (attErr)                  return bad(500, "attempt lookup failed: " + attErr.message);
+  if (!passedCount || passedCount < 1) return bad(403, "no passing quiz attempt on file");
 
   // 4. Issue (or reuse) certificate row + canonical hash
   const { data: cert, error: rpcErr } = await admin.rpc("issue_certificate", {

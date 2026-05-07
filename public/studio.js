@@ -3019,6 +3019,15 @@ function __imageInsertCommit(chosen) {
 }
 
 // ---------- preview pane -----------------------------------------
+function studioSanitize(s) {
+  if (typeof window.DOMPurify === 'undefined') return s == null ? '' : String(s);
+  return window.DOMPurify.sanitize(String(s == null ? '' : s), {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['style', 'iframe'],
+    FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur','onchange']
+  });
+}
+
 function renderPreview() {
   const host = $('#preview-card');
   if (!host) return;
@@ -3026,7 +3035,10 @@ function renderPreview() {
   if (state.selection.kind === 'page') {
     const ref = findPage(state.selection.id);
     if (!ref) return;
-    host.innerHTML = ref.page.body_html || '<p><em>(empty page)</em></p>';
+    // Author HTML — sanitize before injecting into the preview pane.
+    // The contenteditable #html-editor is intentionally NOT sanitized
+    // (would clobber the author's in-flight edits).
+    host.innerHTML = studioSanitize(ref.page.body_html || '<p><em>(empty page)</em></p>');
     // Append a References section that mirrors the public renderer
     const cites = Array.isArray(ref.page.citations) ? ref.page.citations : [];
     if (cites.length) {

@@ -235,6 +235,102 @@ app.post('/api/stripe/webhook',
 app.use('/api', express.json({ limit: '64kb' }));
 
 // =====================================================================
+// Server-side quiz grading for the legacy v1 course (course_data.json
+// keyed by lesson_id text). Source-of-truth answer keys live in the JSON
+// on disk; we read them privately and never ship them to the browser.
+// The new authoring schema is graded by the public.grade_attempt RPC
+// (migration 0016).
+// =====================================================================
+const fs = require('fs');
+const QUIZ_KEY_FIELDS = ['correct', 'answer', 'answer_index'];
+
+function loadCourseData() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'course_data.json'), 'utf8'));
+  } catch (err) {
+    console.error('[grade-quiz] failed to read course_data.json:', err.message);
+    return null;
+  }
+}
+function loadPreviewCourse(slug) {
+  const safe = /^[a-z0-9-]+$/.test(slug) ? slug : null;
+  if (!safe) return null;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'preview', `${safe}.course.json`), 'utf8'));
+  } catch (err) {
+    return null;
+  }
+}
+
+// Recursively strip quiz answer-key fields from any object. Used to scrub
+// course_data.json and /preview/*.course.json before serving.
+function stripQuizKeys(node) {
+  if (Array.isArray(node)) return node.map(stripQuizKeys);
+  if (node && typeof node === 'object') {
+    const out = {};
+    for (const k of Object.keys(node)) {
+      if (QUIZ_KEY_FIELDS.includes(k)) continue;
+      out[k] = stripQuizKeys(node[k]);
+    }
+    return out;
+  }
+  return node;
+}
+
+// Serve the scrubbed legacy course payload.
+app.get('/course_data.json', (_req, res) => {
+  const data = loadCourseData();
+  if (!data) return res.status(500).json({ error: 'course data unavailable' });
+  res.set('Cache-Control', 'no-cache');
+  res.json(stripQuizKeys(data));
+});
+
+// Serve the scrubbed preview course payload (anonymous content review).
+app.get(/^\/preview\/([a-z0-9-]+)\.course\.json$/, (req, res) => {
+  const data = loadPreviewCourse(req.params[0]);
+  if (!data) return res.status(404).json({ error: 'preview not found' });
+  res.set('Cache-Control', 'no-cache');
+  res.json(stripQuizKeys(data));
+});
+
+// Grade a legacy v1 quiz. Body: { lesson_id, answers: { "<qIndex>": "<key|index>" } }.
+// Returns { score, total, passed, wrong, threshold }. Does NOT write to
+// quiz_attempts itself — the existing client (auth.js#saveQuizAttempt) will
+// call sb.from('quiz_attempts').insert(...) on success, preserving the
+// per-user audit trail under RLS. We just compute the truth server-side.
+app.post('/api/grade-quiz', (req, res) => {
+  const { lesson_id, answers } = req.body || {};
+  if (typeof lesson_id !== 'string' || !lesson_id) return res.status(400).json({ error: 'lesson_id required' });
+  if (!answers || typeof answers !== 'object')      return res.status(400).json({ error: 'answers required' });
+
+  const data = loadCourseData();
+  if (!data || !data.quizzes) return res.status(500).json({ error: 'course data unavailable' });
+
+  const quiz = data.quizzes[lesson_id];
+  if (!Array.isArray(quiz)) return res.status(404).json({ error: 'quiz not found' });
+
+  let correctCount = 0;
+  const wrong = [];
+  quiz.forEach((q, i) => {
+    const truth = q.correct != null ? String(q.correct)
+                : q.answer != null  ? String(q.answer)
+                : null;
+    const picked = answers[String(i)];
+    const pickedStr = picked == null ? null : String(picked);
+    if (truth != null && pickedStr === truth) correctCount++;
+    else wrong.push(i);
+  });
+
+  const total     = quiz.length;
+  const score     = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+  const threshold = Math.round(((typeof data.pass_threshold === 'number' ? data.pass_threshold : 0.7)) * 100);
+  const passed    = score >= threshold;
+
+  res.set('Cache-Control', 'no-cache');
+  res.json({ score, total, correct: correctCount, passed, wrong, threshold });
+});
+
+// =====================================================================
 // /api/checkout — create Stripe Checkout session for a course
 // =====================================================================
 app.post('/api/checkout', async (req, res) => {
