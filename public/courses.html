@@ -29,9 +29,9 @@
   }
   header.site .row { display:flex; align-items:center; gap:14px; max-width:1200px; margin:0 auto; }
   header.site .badge {
-    width:46px; height:46px; border-radius:8px;
-    background: var(--gold); color: var(--ink);
-    display:grid; place-items:center; font-weight:800; font-size:18px;
+    height:46px; width:auto; max-width:200px;
+    display:block; object-fit:contain;
+    border-radius:6px;
   }
   header.site h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
   header.site .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
@@ -102,7 +102,7 @@
 
 <header class="site">
   <div class="row">
-    <div class="badge">D</div>
+    <img class="badge" src="/brand/logo-mark.svg" alt="Deconflict" />
     <div>
       <h1>Deconflict</h1>
       <div class="sub">Crypto Intelligence Sharing · cryptocurrency &amp; blockchain forensics</div>

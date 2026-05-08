@@ -32,9 +32,9 @@
   }
   header.admin .row { display:flex; align-items:center; gap:14px; max-width:1400px; margin:0 auto; }
   header.admin .badge {
-    width:46px; height:46px; border-radius:8px;
-    background: var(--brand-bg, var(--gold)); color: var(--brand-ink, var(--ink));
-    display:grid; place-items:center; font-weight:800; font-size:18px;
+    height:46px; width:auto; max-width:200px;
+    display:block; object-fit:contain;
+    border-radius:6px;
   }
   header.admin h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
   header.admin .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
@@ -45,9 +45,11 @@
   }
   header.admin .btn-ghost:hover { background: rgba(255,255,255,.08); }
   header.admin .admin-nav { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
-  header.admin .admin-nav .btn-ghost.is-current {
-    background: rgba(255,255,255,.14);
-    border-color: rgba(255,255,255,.35);
+  header.admin .admin-nav .btn-ghost.is-current,
+  header.admin .admin-nav .btn-ghost[aria-current="page"] {
+    background: rgba(200,166,74,.18);
+    border-color: var(--gold);
+    color: #f5e7bf;
     font-weight: 600;
   }
   @media (max-width: 760px) {
@@ -117,7 +119,7 @@
 <header class="admin">
   <div class="row">
     <img data-tenant-logo="dark" hidden style="display:none;" />
-    <div class="badge" id="defaultBadge">D</div>
+    <img class="badge" id="defaultBadge" src="/brand/logo-mark.svg" alt="Deconflict" />
     <div>
       <h1 data-tenant-name>Deconflict</h1>
       <div class="sub">Access requests &middot; admin</div>
@@ -125,7 +127,7 @@
     <div class="actions">
       <nav class="admin-nav" aria-label="Admin sections">
         <a class="btn-ghost" href="/admin">Dashboard</a>
-        <a class="btn-ghost is-current" href="/admin/requests">Access requests</a>
+        <a class="btn-ghost is-current" href="/admin/requests" aria-current="page">Access requests</a>
         <a class="btn-ghost" href="/admin/coupons">Coupons</a>
         <a class="btn-ghost" href="/studio">Course Studio</a>
         <a class="btn-ghost" href="/courses">Catalog</a>

@@ -80,10 +80,12 @@
         border: 1px solid transparent;
       }
       #admin-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
-      #admin-nav a.is-current {
-        background: rgba(99,179,237,.16);
-        border-color: rgba(99,179,237,.35);
-        color: #fff;
+      #admin-nav a.is-current,
+      #admin-nav a[aria-current="page"] {
+        background: rgba(200,166,74,.18);
+        border-color: rgba(200,166,74,.55);
+        color: #f5e7bf;
+        font-weight: 600;
       }
       #admin-nav .who { opacity: .7; font-size: 12px; margin-right: 8px; white-space: nowrap; }
       #admin-nav .signout {
@@ -124,7 +126,10 @@
       const a = document.createElement('a');
       a.href = item.href;
       a.textContent = item.label;
-      if (item.match(path)) a.classList.add('is-current');
+      if (item.match(path)) {
+        a.classList.add('is-current');
+        a.setAttribute('aria-current', 'page');
+      }
       nav.appendChild(a);
     });
     bar.appendChild(nav);

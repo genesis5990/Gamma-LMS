@@ -39,9 +39,9 @@
   }
   header.site .row { display:flex; align-items:center; gap:14px; max-width:1000px; margin:0 auto; }
   header.site .badge {
-    width:42px; height:42px; border-radius:8px;
-    background: var(--gold); color: var(--ink);
-    display:grid; place-items:center; font-weight:800; font-size:16px;
+    height:42px; width:auto; max-width:200px;
+    display:block; object-fit:contain;
+    border-radius:6px;
   }
   header.site h1 { font-size: 16px; margin:0; }
   header.site .sub { font-size: 11px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
@@ -104,7 +104,7 @@
 
 <header class="site">
   <div class="row">
-    <div class="badge">D</div>
+    <img class="badge" src="/brand/logo-mark.svg" alt="Deconflict" />
     <div>
       <h1>Deconflict</h1>
       <div class="sub">Certificate verification</div>

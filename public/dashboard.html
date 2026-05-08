@@ -47,8 +47,9 @@
   .top .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .top .left img { height: 36px; max-width: 200px; object-fit: contain; }
   .top .left .badge-fb {
-    width: 36px; height: 36px; border-radius: 8px; background: var(--gold); color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+    height: 36px; width: auto; max-width: 160px;
+    display: inline-block; object-fit: contain;
+    border-radius: 6px;
   }
   .top h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .3px; }
   .top .right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
@@ -260,7 +261,7 @@
 <header class="top">
   <div class="left">
     <img data-tenant-logo="dark" hidden alt="" />
-    <span class="badge-fb" data-tenant-fallback>D</span>
+    <img class="badge-fb" data-tenant-fallback src="/brand/logo-mark.svg" alt="Deconflict" />
     <h1 id="dashTitle">Dashboard</h1>
   </div>
   <div class="right">

@@ -56,7 +56,10 @@
   .brand-mark { width: 34px; height: 34px; object-fit: contain; }
   .brand-sub { font-size: 11px; color: var(--muted); margin-top: -2px; letter-spacing: .8px; text-transform: uppercase; }
   .nav-links { display: flex; align-items: center; gap: 16px; }
-  .nav-links a { font-size: 14px; color: var(--ink-2); }
+  .nav-links a { font-size: 14px; color: var(--ink-2); padding: 6px 2px; border-bottom: 2px solid transparent; }
+  .nav-links a.is-active, .nav-links a[aria-current="page"] {
+    color: var(--gold); border-bottom-color: var(--gold); font-weight: 600;
+  }
   .nav-links .btn { font-size: 14px; padding: 8px 16px; border-radius: 8px; }
 
   .btn {
