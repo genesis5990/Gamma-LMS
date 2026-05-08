@@ -544,11 +544,11 @@ async function loadCourseFromSupabase(slug) {
   const versionId = course.current_version_id;
   const [{ data: modules, error: mErr }, { data: lessons, error: lErr }, { data: pages, error: pErr }, { data: kc, error: kErr }, { data: finals, error: fErr }] = await Promise.all([
     sb.from('modules')
-      .select('id, slug, title, description, position, hero_image_url')
+      .select('id, slug, title, description, position, has_knowledge_check, hero_image_url')
       .eq('course_version_id', versionId)
       .order('position'),
     sb.from('lessons')
-      .select('id, module_id, slug, title, position, has_quiz, hero_image_url')
+      .select('id, module_id, slug, title, position, hero_image_url')
       .order('position'),
     sb.from('pages')
       .select('id, lesson_id, position, page_type, title, body_html, audio_url, hero_image_url')
@@ -564,7 +564,7 @@ async function loadCourseFromSupabase(slug) {
   if (mErr) throw mErr;
   if (lErr) throw lErr;
   if (pErr) throw pErr;
-  // kc / finals are non-fatal — has_quiz lessons render without questions
+  // kc / finals are non-fatal — quiz lessons render without questions
   // if RLS blocks the read.
   if (kErr) console.warn('kc questions load failed:', kErr.message);
   if (fErr) console.warn('finals load failed:', fErr.message);
@@ -623,7 +623,11 @@ async function loadCourseFromSupabase(slug) {
       metadata[id] = meta;
       lesson_map.push(meta);
 
-      if (l.has_quiz) {
+      // Knowledge-check lives at the module level. Attach it to the LAST
+      // lesson of the module so the player presents the quiz once after
+      // all of the module's content pages are read.
+      const isLastLessonInModule = (modLessons.indexOf(l) === modLessons.length - 1);
+      if (m.has_knowledge_check && isLastLessonInModule) {
         const qs = (kcByModule.get(m.id) || []).map(q => ({
           question: q.question,
           // Studio stores options as a jsonb array of strings. Map to the
