@@ -406,16 +406,17 @@
       const courseInfos = enrolledSlugs.map(s => _state.coursesBySlug.get(s)).filter(Boolean);
       const versionIds = courseInfos.map(c => c.current_version_id).filter(Boolean);
       if (versionIds.length) {
-        // Quizzed lessons
+        // Module knowledge checks (quizzes live at the module level via
+        // module_quiz_questions; modules.has_knowledge_check flags which ones).
         try {
-          const { data: lessons } = await sb.from('lessons')
-            .select('id, slug, title, has_quiz, modules!inner(course_version_id, courses:course_version_id(*))')
-            .in('modules.course_version_id', versionIds)
-            .eq('has_quiz', true);
-          for (const l of (lessons || [])) {
-            exams.push({ kind: 'quiz', lesson_id: l.slug, title: l.title, course_slug: courseSlugForVersion(l.modules.course_version_id, courseInfos) });
+          const { data: quizModules } = await sb.from('modules')
+            .select('id, slug, title, course_version_id')
+            .in('course_version_id', versionIds)
+            .eq('has_knowledge_check', true);
+          for (const m of (quizModules || [])) {
+            exams.push({ kind: 'quiz', lesson_id: m.slug, title: m.title + ' · Knowledge check', course_slug: courseSlugForVersion(m.course_version_id, courseInfos) });
           }
-        } catch { /* table may not have has_quiz column on older schemas */ }
+        } catch (_e) { /* noop */ }
         // Finals
         try {
           const { data: finals } = await sb.from('final_exam_questions')
@@ -648,7 +649,7 @@
   async function renderCertificates() {
     const host = $('certificatesCard');
     const { data: certs, error } = await sb.from('certificates')
-      .select('id, course_id, full_name, issued_at, cert_hash')
+      .select('id, course_id, recipient_full_name, issued_at, cert_hash')
       .eq('user_id', _state.user.id)
       .order('issued_at', { ascending: false });
     if (error) throw error;
@@ -663,7 +664,7 @@
         ${certs.map(c => `
           <article class="cert">
             <div class="cert-name">${escapeHtml(c.course_id)}</div>
-            <div class="cert-when">Issued ${escapeHtml(fmtDate(c.issued_at))} · for ${escapeHtml(c.full_name || '—')}</div>
+            <div class="cert-when">Issued ${escapeHtml(fmtDate(c.issued_at))} · for ${escapeHtml(c.recipient_full_name || '—')}</div>
             <div class="cert-id">ID ${escapeHtml(c.cert_hash || c.id)}</div>
             <div class="cert-actions">
               <a class="btn primary" href="/verify/${encodeURIComponent(c.cert_hash || '')}" target="_blank" rel="noopener">Verify</a>
@@ -679,7 +680,7 @@
   function printCert(id, certs) {
     const c = certs.find(x => x.id === id);
     if (!c) return;
-    $('paName').textContent = c.full_name || '';
+    $('paName').textContent = c.recipient_full_name || '';
     $('paCourse').textContent = c.course_id || '';
     $('paId').textContent = 'ID ' + (c.cert_hash || c.id);
     $('paDate').textContent = fmtDate(c.issued_at);
