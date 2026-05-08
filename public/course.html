@@ -115,6 +115,22 @@
     color: var(--ink);
   }
   .lesson-meta { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+  .lesson-hero {
+    margin: 0 0 18px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+  }
+  .lesson-hero img {
+    display: block;
+    width: 100%;
+    max-height: 380px;
+    object-fit: cover;
+  }
+  @media (max-width: 700px) {
+    .lesson-hero img { max-height: 220px; }
+  }
   .lesson-card {
     background: var(--paper-2); border: 1px solid var(--line);
     border-radius: 10px; box-shadow: var(--shadow);
@@ -535,10 +551,10 @@ async function loadCourseFromSupabase(slug) {
       .eq('course_version_id', versionId)
       .order('position'),
     sb.from('lessons')
-      .select('id, module_id, slug, title, position, hero_image_url')
+      .select('id, module_id, slug, title, position, hero_image_url, hero_image_alt')
       .order('position'),
     sb.from('pages')
-      .select('id, lesson_id, position, page_type, title, body_html, audio_url, hero_image_url')
+      .select('id, lesson_id, position, page_type, title, body_html, audio_url, hero_image_url, hero_image_alt')
       .order('position'),
     sb.from('module_quiz_questions')
       .select('id, module_id, position, question, options, reference')
@@ -596,7 +612,9 @@ async function loadCourseFromSupabase(slug) {
         html: p.body_html || '',
         audio: p.audio_url || null,
         title: p.title || '',
-        page_type: p.page_type || 'text'
+        page_type: p.page_type || 'text',
+        hero_image_url: p.hero_image_url || null,
+        hero_image_alt: p.hero_image_alt == null ? null : p.hero_image_alt
       }));
       lessonsOut[id] = lessonPages;
       const meta = {
@@ -605,7 +623,9 @@ async function loadCourseFromSupabase(slug) {
         num: moduleNum + '.' + (modLessons.indexOf(l) + 1),
         title: l.title || id,
         src: null,
-        type: 'lesson'
+        type: 'lesson',
+        hero_image_url: l.hero_image_url || null,
+        hero_image_alt: l.hero_image_alt == null ? null : l.hero_image_alt
       };
       metadata[id] = meta;
       lesson_map.push(meta);
@@ -978,10 +998,30 @@ function renderLesson(lid) {
       ? `<div class="appendix-bar"><button type="button" class="appendix-toggle" id="openAppendix" title="Open module appendix"><span class="ico">📎</span><span>Appendix</span><span class="count">${apxItems.length}</span></button></div>`
       : '';
 
+    // Optional hero image: page-level wins; otherwise lesson-level renders on
+    // the first page so authors who set a single lesson hero get a title-page
+    // visual automatically. Pages without a hero render unchanged.
+    let heroHtml = '';
+    {
+      let url = page.hero_image_url || null;
+      let alt = page.hero_image_url ? page.hero_image_alt : null;
+      if (!url && pageIdx === 0 && meta.hero_image_url) {
+        url = meta.hero_image_url;
+        alt = meta.hero_image_alt;
+      }
+      if (url) {
+        // alt: explicit "" means decorative — keep empty. null/undefined falls
+        // back to the lesson title so screen readers aren't silent.
+        const altOut = (alt === '' ? '' : escapeAttr(alt == null ? meta.title : alt));
+        heroHtml = `<figure class="lesson-hero"><img src="${escapeAttr(url)}" alt="${altOut}" loading="lazy" /></figure>`;
+      }
+    }
+
     document.getElementById('content').innerHTML = `
       <div class="crumb">${moduleLabel} &nbsp;›&nbsp; <b>Lesson ${meta.num}</b></div>
       <h2 class="lesson-title">${meta.title}</h2>
       <div class="lesson-meta">${pages.length > 1 ? `Page ${pageIdx+1} of ${pages.length}` : 'Single-page lesson'}${page.audio ? ' · Audio narration included' : ''}</div>
+      ${heroHtml}
       ${appendixBar}
       <div class="lesson-card">${inner}</div>
       <div class="pager">

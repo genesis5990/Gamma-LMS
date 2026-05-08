@@ -94,6 +94,16 @@
   .title-hero-banner img {
     display: block; width: 100%; max-height: 280px; object-fit: cover;
   }
+  .lesson-hero {
+    margin: 0 0 18px; border-radius: 10px; overflow: hidden;
+    background: var(--paper-2); border: 1px solid var(--line);
+  }
+  .lesson-hero img {
+    display: block; width: 100%; max-height: 380px; object-fit: cover;
+  }
+  @media (max-width: 700px) {
+    .lesson-hero img { max-height: 220px; }
+  }
   .title-page-body img {
     max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0;
   }
@@ -205,7 +215,7 @@ function buildItems() {
     }
     (m.lessons || []).forEach((l, li) => {
       (l.pages || []).forEach((p, pi) => {
-        ITEMS.push({ kind: 'page', moduleIdx: mi, lessonIdx: li, pageIdx: pi, content: p.content || '', citations: Array.isArray(p.citations) ? p.citations : [] });
+        ITEMS.push({ kind: 'page', moduleIdx: mi, lessonIdx: li, pageIdx: pi, content: p.content || '', citations: Array.isArray(p.citations) ? p.citations : [], heroUrl: p.hero_image_url || '', heroAlt: (p.hero_image_alt == null ? null : p.hero_image_alt) });
       });
     });
     if (m.knowledge_check && Array.isArray(m.knowledge_check.questions) && m.knowledge_check.questions.length) {
@@ -327,6 +337,19 @@ function render() {
             escapeHtml(stripTags(l.title || '')) + '</div>';
     html += '<h2 class="lesson-title">' + escapeHtml(stripTags(l.title || '')) + '</h2>';
     html += '<div class="lesson-meta">Page ' + (item.pageIdx + 1) + ' of ' + totalPagesInLesson + '</div>';
+    {
+      // Page-level hero wins; otherwise lesson hero on the first page only.
+      let pHeroUrl = item.heroUrl || '';
+      let pHeroAlt = item.heroUrl ? item.heroAlt : null;
+      if (!pHeroUrl && item.pageIdx === 0 && l.hero_image_url) {
+        pHeroUrl = l.hero_image_url;
+        pHeroAlt = (l.hero_image_alt == null ? null : l.hero_image_alt);
+      }
+      if (pHeroUrl) {
+        const altOut = (pHeroAlt === '' ? '' : escapeHtml(pHeroAlt == null ? stripTags(l.title || '') : pHeroAlt));
+        html += '<figure class="lesson-hero"><img src="' + escapeHtml(pHeroUrl) + '" alt="' + altOut + '" loading="lazy" /></figure>';
+      }
+    }
     {
       let inner = (item.content || '');
       if (Array.isArray(item.citations) && item.citations.length) {
