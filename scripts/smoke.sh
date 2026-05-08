@@ -62,24 +62,24 @@ check "health endpoint"            200 "/health"           '"ok"'
 check "root landing page"          200 "/"                'data-page="landing"'
 check "Genesis dashboard route"    200 "/dashboard"        'id="dashboardRoot"'
 check "tenant dashboard route"     200 "/deconflict/dashboard"  'id="dashboardRoot"'
-check "live course slug route"     200 "/courses/btc-investigations"  "Crypto 101"
+check "live course slug route"     200 "/courses/btc-investigations"  "Deconflict"
 check "auth flowType pinned"       200 "/auth.js"                      "flowType"
 # v0.4.38: studio header sign-out removed — admin-nav owns the only sign-out.
 # `!pattern` asserts the pattern is NOT present in the body.
 check "studio no duplicate signout" 200 "/studio.html"                  '!id="btn-signout"'
-check "course shell"               200 "/course.html"      "Crypto 101"
+check "course shell"               200 "/course.html"      "Deconflict"
 check "admin shell"                 200 "/admin.html"       "Admin Dashboard"
 check "supabase config"            200 "/config.js"        "SUPABASE_URL"
 check "auth helper"                200 "/auth.js"          "signInWithEmail"
 check "course data"                200 "/course_data.json" '"lessons"'
-check "tenant routing (deconflict)" 200 "/deconflict"      "Crypto 101"
+check "tenant routing (deconflict)" 200 "/deconflict"      "Deconflict"
 check "tenant admin routing"        200 "/deconflict/admin" "Admin Dashboard"
 check "super-admin route"           200 "/admin"            "Admin Dashboard"
 check "verify page"                 200 "/verify"           "Verify certificate"
 check "deconflict logo"             200 "/assets/tenants/deconflict/Logo-With-Text-White.svg"
 check "deconflict logo (transparent)" 200 "/assets/tenants/deconflict/transparent/Logo-With-Text.svg"
 check "tenant theme stylesheet"     200 "/tenant-themes.css"     "deconflict"
-check "courses catalog"             200 "/courses"          "Crypto 101"
+check "courses catalog"             200 "/courses"          "Deconflict"
 check "admin requests page"         200 "/admin/requests"   "Access requests"
 check "public-config endpoint"      200 "/api/public-config" "stripe_publishable_key"
 check "le preview page (gated)"     401 "/preview/le-field-tactics"
@@ -111,7 +111,7 @@ check "studio preview-link cookie"  200 "/studio.js"                 "sb-access-
 
 # ---- Fallback behavior -----------------------------------------------------
 # Unknown routes serve the neutral GDAA landing with a 404 status.
-check "unknown route fallback"     404 "/this-should-not-exist.html" "Genesis Digital Assets Academy"
+check "unknown route fallback"     404 "/this-should-not-exist.html" "Deconflict"
 
 # ---- Smoke-only checks for production endpoints ----------------------------
 # These only run when BASE is https://...
