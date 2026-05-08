@@ -1,4 +1,4 @@
-# fly.toml for mygenesis-training (Crypto 101 LMS)
+# fly.toml for mygenesis-training (Deconflict)
 # App provisioned in personal org, region ams.
 
 app = 'mygenesis-training'

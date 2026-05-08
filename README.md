@@ -1,9 +1,9 @@
-# mygenesis-training
+# Deconflict (mygenesis-training)
 
-Crypto 101 LMS for law enforcement — production site for **mygenesis-training.com**.
+**Deconflict** — Crypto Intelligence Sharing for investigators and agencies. Production site for **mygenesis-training.com**.
 
-A clean restart of the previous GDAA-training-Courses repo. Recycles the
-fly.io app slot (`gdaa-training-courses`) and the domain.
+The Fly app slot (`mygenesis-training`) and domain remain on the original
+identifiers; only the user-facing brand is Deconflict.
 
 ## Stack
 

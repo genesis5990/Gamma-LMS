@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Genesis Digital Assets Academy — Training for investigators and agencies</title>
+<title>Deconflict — Crypto Intelligence Sharing for investigators and agencies</title>
 <meta name="description" content="Tamper-evident training for blockchain investigators and law-enforcement agencies. Browse courses, earn verifiable certificates, or stand up your own white-label academy." />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
@@ -51,9 +51,9 @@
   }
   .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
   .brand svg { display: block; }
-  .brand-mark { width: 34px; height: 34px; }
-  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: .2px; }
-  .brand-name b { color: var(--gold); font-weight: 700; }
+  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .brand-name b { color: var(--gold); font-weight: 800; }
+  .brand-mark { width: 34px; height: 34px; object-fit: contain; }
   .brand-sub { font-size: 11px; color: var(--muted); margin-top: -2px; letter-spacing: .8px; text-transform: uppercase; }
   .nav-links { display: flex; align-items: center; gap: 16px; }
   .nav-links a { font-size: 14px; color: var(--ink-2); }
@@ -300,21 +300,21 @@
     .site-header, .btn, .course-card { transition: none; }
   }
 </style>
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/brand/icon-dark.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="theme-color" content="#060A16" />
 </head>
 <body data-page="landing">
 
 <!-- ============== Sticky header ============== -->
 <header class="site-header" id="siteHeader">
   <div class="nav">
-    <a class="brand" href="/" aria-label="Genesis Digital Assets Academy home">
-      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
-        <rect x="2" y="2" width="36" height="36" rx="8" fill="#060A16"/>
-        <path d="M20 8 L30 14 L30 26 L20 32 L10 26 L10 14 Z" fill="none" stroke="#c8a64a" stroke-width="2"/>
-        <text x="20" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="700" font-size="14" fill="#c8a64a">G</text>
-      </svg>
+    <a class="brand" href="/" aria-label="Deconflict home">
+      <img class="brand-mark" src="/brand/icon-dark.svg" alt="" width="40" height="40" />
       <span>
-        <span class="brand-name">Genesis <b>Digital</b> Academy</span>
-        <div class="brand-sub">Investigator training</div>
+        <span class="brand-name">DECONFLICT</span>
+        <div class="brand-sub">Crypto Intelligence Sharing</div>
       </span>
     </a>
     <nav class="nav-links" aria-label="Primary">
@@ -331,7 +331,7 @@
     <div>
       <span class="hero-eyebrow">For investigators · agencies · the public</span>
       <h1>Train investigators. Trace blockchains. Build the next generation.</h1>
-      <p class="lede">Genesis Digital Academy delivers practical, evidence-grade training in cryptocurrency investigation — from on-chain tracing to courtroom-ready expert testimony.</p>
+      <p class="lede">Deconflict delivers practical, evidence-grade training in cryptocurrency investigation — from on-chain tracing to courtroom-ready expert testimony.</p>
       <div class="hero-actions">
         <a href="#catalog" class="btn btn-gold">Browse public catalog</a>
         <button type="button" class="btn btn-ghost" id="ctaOrg" style="color:#fff; border-color:rgba(255,255,255,.3);">Enter your organization</button>
@@ -343,12 +343,12 @@
       </div>
     </div>
     <aside class="cert-mock" aria-hidden="true">
-      <h4>Genesis Digital Assets Academy</h4>
+      <h4>Deconflict</h4>
       <h2>CERTIFICATE OF COMPLETION</h2>
       <p class="for">This certifies that</p>
       <div class="name">Det. Sarah Chen</div>
       <p class="for">has successfully completed</p>
-      <div class="course">Crypto 101 for Investigators</div>
+      <div class="course">Crypto 101: Cryptocurrency Fundamentals</div>
       <div class="meta">
         <span>ID&nbsp;3f2a9c1e…</span>
         <span>verify at /verify</span>
@@ -408,16 +408,16 @@
     <div class="cert-block">
       <div>
         <h2>Every certificate is verifiable.</h2>
-        <p class="lede">Each Genesis certificate includes a tamper-evident SHA-256 hash. Anyone — a hiring agency, a court, a partner — can verify a graduate's credential by entering the hash at the public verifier. No login required.</p>
+        <p class="lede">Each Deconflict certificate includes a tamper-evident SHA-256 hash. Anyone — a hiring agency, a court, a partner — can verify a graduate's credential by entering the hash at the public verifier. No login required.</p>
         <a href="/verify" class="btn btn-primary">Verify a certificate</a>
       </div>
       <aside class="cert-mock" aria-hidden="true">
-        <h4>Genesis Digital Assets Academy</h4>
+        <h4>Deconflict</h4>
         <h2>CERTIFICATE OF COMPLETION</h2>
         <p class="for">This certifies that</p>
         <div class="name">Officer J. Rivera</div>
         <p class="for">has successfully completed</p>
-        <div class="course">Crypto 101 for Investigators</div>
+        <div class="course">Bitcoin Investigations</div>
         <div class="meta">
           <span>ID&nbsp;a91f7c…</span>
           <span>verify at /verify</span>
@@ -457,7 +457,7 @@
 <!-- ============== Footer ============== -->
 <footer class="site-footer">
   <div class="inner">
-    <span>&copy; <span id="year"></span> Genesis Digital Assets Academy</span>
+    <span>&copy; <span id="year"></span> Deconflict</span>
     <div class="footer-links">
       <a href="#catalog">Browse courses</a>
       <a href="/verify">Verify certificate</a>
@@ -469,7 +469,7 @@
 <!-- ============== Sign-in modal (reuses same id auth.js looks for) ============== -->
 <div class="overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="signInTitle">
   <div class="overlay-card">
-    <h2 id="signInTitle">Sign in to Genesis Digital Academy</h2>
+    <h2 id="signInTitle">Sign in to Deconflict</h2>
     <p>Enter your work email — we'll send a one-click sign-in link.</p>
     <form id="signInForm">
       <input id="signInEmail" type="email" autocomplete="email" required placeholder="officer@youragency.gov" />

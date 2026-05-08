@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Verify certificate — Genesis Digital Assets Academy</title>
-<meta name="description" content="Verify the authenticity of a Genesis Digital Assets Academy completion certificate." />
+<title>Verify certificate — Deconflict</title>
+<meta name="description" content="Verify the authenticity of a Deconflict completion certificate." />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/admin-nav.js" defer></script>
@@ -95,14 +95,18 @@
   }
   footer a { color: var(--ink); }
 </style>
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/brand/icon-dark.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="theme-color" content="#060A16" />
 </head>
 <body>
 
 <header class="site">
   <div class="row">
-    <div class="badge">G</div>
+    <div class="badge">D</div>
     <div>
-      <h1>Genesis Digital Assets Academy</h1>
+      <h1>Deconflict</h1>
       <div class="sub">Certificate verification</div>
     </div>
     <a href="/">Home</a>
@@ -116,7 +120,7 @@
 </main>
 
 <footer>
-  &copy; <span id="yr"></span> Genesis Digital Assets Academy
+  &copy; <span id="yr"></span> Deconflict
 </footer>
 
 <script>
@@ -144,7 +148,7 @@ function escapeHtml(s) {
 function renderLookup() {
   card.innerHTML = `
     <h2>Verify a certificate</h2>
-    <p class="lede">Paste a certificate ID below to verify its authenticity. The ID is the 64-character hash printed on every Genesis Digital Assets Academy certificate.</p>
+    <p class="lede">Paste a certificate ID below to verify its authenticity. The ID is the 64-character hash printed on every Deconflict certificate.</p>
     <div class="lookup">
       <input id="hashIn" placeholder="64-character certificate ID" maxlength="64" autocomplete="off" />
       <button id="goBtn">Verify</button>
@@ -171,7 +175,7 @@ function renderResult(hash, data) {
     card.innerHTML = `
       <span class="badge-status miss">Not found</span>
       <h2>No certificate matches this ID.</h2>
-      <p class="lede">The certificate you're looking for was not issued by Genesis Digital Assets Academy, or the ID is mistyped.</p>
+      <p class="lede">The certificate you're looking for was not issued by Deconflict, or the ID is mistyped.</p>
       <dl><div><dt>ID checked</dt><dd class="mono">${escapeHtml(hash)}</dd></div></dl>
     `;
     return;
@@ -202,7 +206,7 @@ function renderResult(hash, data) {
   card.innerHTML = `
     <span class="badge-status pass">Verified</span>
     <h2>This certificate is authentic.</h2>
-    <p class="lede">Issued by ${escapeHtml(data.tenant || 'Genesis Digital Assets Academy')}.</p>
+    <p class="lede">Issued by ${escapeHtml(data.tenant || 'Deconflict')}.</p>
     <dl>
       <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '—')}</dd></div>
       <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '—')}</dd></div>

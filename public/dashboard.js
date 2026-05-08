@@ -1,5 +1,5 @@
 // =====================================================================
-// dashboard.js — student dashboard for Genesis + tenant portals.
+// dashboard.js — student dashboard for the root site + tenant portals.
 // Loaded after auth.js (which exposes window.supabaseClient + helpers).
 // Each section hydrates independently so a slow query doesn't block the
 // rest of the page.
@@ -52,10 +52,10 @@
 
   // ---------- tenant scope (set by tenant.js) ----------
   // Wait for tenant resolution so we know which tenant scope to filter by.
-  // window.tenant.slug === null means Genesis dashboard.
+  // window.tenant.slug === null means the root dashboard.
   async function tenantInfo() {
     if (window.tenantReady) await window.tenantReady;
-    return window.tenant || { slug: null, name: 'Genesis Digital Assets Academy' };
+    return window.tenant || { slug: null, name: 'Deconflict' };
   }
 
   // ---------- sign-in gate ----------
@@ -199,7 +199,7 @@
     }
     _state.coursesBySlug = coursesBySlug;
 
-    // Filter to current tenant scope: tenant.slug === null => Genesis (tenant_id IS NULL),
+    // Filter to current tenant scope: tenant.slug === null => root (tenant_id IS NULL),
     // else tenant.id matches.
     const tenantId = _state.tenant && _state.tenant.id ? _state.tenant.id : null;
     const inScope = (enrolls || []).filter(e => {

@@ -39,7 +39,7 @@ const SUPABASE_PUB_KEY  = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishabl
 const SUPABASE_SVC_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const PUBLIC_SITE_URL   = process.env.PUBLIC_SITE_URL || 'https://mygenesis-training.fly.dev';
 const RESEND_API_KEY    = process.env.RESEND_API_KEY || '';
-const RESEND_FROM       = process.env.RESEND_FROM || 'Genesis Digital Assets Academy <noreply@mygenesis-training.com>';
+const RESEND_FROM       = process.env.RESEND_FROM || 'Deconflict <noreply@mygenesis-training.com>';
 
 let stripe = null;
 if (STRIPE_SECRET) {
@@ -56,7 +56,7 @@ if (STRIPE_SECRET) {
 const CATALOG = {
   crypto101: {
     course_id: 'crypto101',
-    name: 'Crypto 101 for Investigators',
+    name: 'Crypto Intelligence Sharing',
     description: 'Conceptual foundations + applied tracing for law-enforcement and compliance investigators.',
     amount_cents: 29900,
     currency: 'usd'
@@ -583,7 +583,7 @@ function purchaseEmailHtml({ courseName, amountCents, currency, sessionId, magic
       <p style="margin:0 0 16px;word-break:break-all;color:#5b6788;font-size:12px;">${escapeHtml(link)}</p>
       <p style="margin:0 0 16px;color:#5b6788;font-size:12px;">A separate receipt from Stripe will arrive shortly.</p>
       <hr style="border:0;border-top:1px solid #d9dfee;margin:24px 0;" />
-      <p style="margin:0;color:#5b6788;font-size:12px;">Genesis Digital Assets Academy</p>
+      <p style="margin:0;color:#5b6788;font-size:12px;">Deconflict</p>
     </div>
   </body></html>`;
 }
@@ -716,7 +716,7 @@ app.get(/^\/([^\/]+)\/admin\/requests\/?$/, (req, res, next) => {
   return res.sendFile(path.join(PUBLIC_DIR, 'admin-requests.html'));
 });
 
-// Genesis dashboard (no tenant)
+// Root dashboard (tenant_id is null)
 app.get('/dashboard', (_req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html'));

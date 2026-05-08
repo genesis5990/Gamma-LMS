@@ -1,7 +1,7 @@
 {
   "name": "mygenesis-training",
-  "version": "0.4.43",
-  "description": "Crypto 101 LMS for law enforcement \u2014 production site for mygenesis-training.com",
+  "version": "0.4.44",
+  "description": "Deconflict \u2014 Crypto Intelligence Sharing for investigators and agencies (mygenesis-training.com)",
   "private": true,
   "main": "server/server.js",
   "scripts": {

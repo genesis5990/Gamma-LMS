@@ -1,5 +1,5 @@
 // =====================================================================
-// auth.js — Supabase auth + progress sync for Crypto 101
+// auth.js — Supabase auth + progress sync for Deconflict
 // Replaces the localStorage-based progress layer in course.html.
 // Exposes:
 //   window.authReady       — Promise that resolves when auth state is known
