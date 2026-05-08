@@ -83,6 +83,25 @@ check "courses catalog"             200 "/courses"          "Deconflict"
 check "admin requests page"         200 "/admin/requests"   "Access requests"
 check "admin coupons page (gated)"  200 "/admin/coupons"    'id="coupons-app"'
 check "public-config endpoint"      200 "/api/public-config" "stripe_publishable_key"
+
+# Admin user creation must reject unauthenticated POSTs.
+admin_users_gate() {
+  local url="$BASE/api/admin/users"
+  local code
+  code=$(curl -s -o /tmp/.smoke_body -w '%{http_code}' --max-time 15 \
+    -X POST -H 'Content-Type: application/json' --data '{}' "$url")
+  if [ "$code" != "401" ]; then
+    printf "  ${R}FAIL${D}  %-32s  expected 401, got %s  (%s)\n" "admin users gate" "$code" "$url"
+    FAIL=$((FAIL+1)); return
+  fi
+  if ! grep -q -- "authentication required" /tmp/.smoke_body; then
+    printf "  ${R}FAIL${D}  %-32s  pattern not found: authentication required\n" "admin users gate"
+    FAIL=$((FAIL+1)); return
+  fi
+  printf "  ${G}OK${D}    %-32s  %s\n" "admin users gate" "/api/admin/users"
+  PASS=$((PASS+1))
+}
+admin_users_gate
 check "le preview page (gated)"     401 "/preview/le-field-tactics"
 check "le preview json (gated)"     401 "/preview/le-field-tactics.course.json"
 check "le preview css (public)"     200 "/preview/le-preview.css"     "compare-cards"

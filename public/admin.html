@@ -191,6 +191,55 @@
     opacity: 0; transition: opacity .2s ease; pointer-events: none;
   }
   .toast.show { opacity: 1; }
+
+  .btn-primary {
+    background: var(--accent); color: #fff; border: 0;
+    padding: 7px 12px; border-radius: 6px; font: inherit; font-weight: 600;
+    cursor: pointer; font-size: 13px;
+  }
+  .btn-primary:hover { background: var(--accent-2); }
+  .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+  .btn-secondary {
+    background: #fff; color: var(--ink); border: 1px solid var(--line);
+    padding: 7px 12px; border-radius: 6px; font: inherit;
+    cursor: pointer; font-size: 13px;
+  }
+  .btn-secondary:hover { background: #f3f6ff; }
+
+  dialog.add-user-dialog {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 0; width: min(440px, 92vw); box-shadow: var(--shadow);
+    background: var(--paper-2); color: var(--ink);
+  }
+  dialog.add-user-dialog::backdrop { background: rgba(13,20,36,.45); }
+  dialog.add-user-dialog .dlg-head {
+    padding: 16px 20px; border-bottom: 1px solid var(--line-2);
+    display:flex; align-items:center; gap:10px;
+  }
+  dialog.add-user-dialog .dlg-head h3 { margin:0; font-size: 16px; }
+  dialog.add-user-dialog .dlg-body { padding: 16px 20px; }
+  dialog.add-user-dialog .dlg-foot {
+    padding: 12px 20px; border-top: 1px solid var(--line-2);
+    display:flex; gap:8px; justify-content:flex-end;
+  }
+  dialog.add-user-dialog label {
+    display:block; font-size: 12px; color: var(--muted);
+    font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+    margin: 10px 0 4px;
+  }
+  dialog.add-user-dialog input[type=text],
+  dialog.add-user-dialog input[type=email],
+  dialog.add-user-dialog select {
+    width: 100%; padding: 8px 10px; font: inherit;
+    border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  }
+  dialog.add-user-dialog .row-check {
+    display:flex; align-items:center; gap:8px; margin-top: 12px;
+    font-size: 13.5px; color: var(--ink);
+  }
+  dialog.add-user-dialog .err {
+    color: var(--bad); font-size: 13px; margin-top: 10px; min-height: 1em;
+  }
 </style>
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/svg+xml" href="/brand/icon-dark.svg" />
@@ -272,6 +321,7 @@
           <option value="completed">Completed</option>
         </select>
         <input type="search" id="searchBox" placeholder="Search by email, name, agency…" />
+        <button class="btn-primary" id="btnAddUser" type="button">Add user</button>
       </div>
     </div>
     <div id="tableWrap">
@@ -280,6 +330,45 @@
   </div>
 
 </div>
+
+<dialog class="add-user-dialog" id="addUserDialog">
+  <form id="addUserForm" method="dialog">
+    <div class="dlg-head">
+      <h3>Add user</h3>
+    </div>
+    <div class="dlg-body">
+      <label for="auFullName">Full name</label>
+      <input type="text" id="auFullName" name="full_name" maxlength="200" required autocomplete="off" />
+
+      <label for="auEmail">Email</label>
+      <input type="email" id="auEmail" name="email" required autocomplete="off" />
+
+      <label for="auAgency">Agency</label>
+      <input type="text" id="auAgency" name="agency_name" maxlength="200" autocomplete="off" />
+
+      <label for="auBadge">Badge</label>
+      <input type="text" id="auBadge" name="badge_number" maxlength="50" autocomplete="off" />
+
+      <label for="auRole">Role</label>
+      <select id="auRole" name="role">
+        <option value="learner" selected>learner</option>
+        <option value="instructor">instructor</option>
+        <option value="tenant_admin">tenant_admin</option>
+      </select>
+
+      <div class="row-check">
+        <input type="checkbox" id="auInvite" name="send_invite" checked />
+        <label for="auInvite" style="margin:0; font-size:13.5px; color:var(--ink); text-transform:none; letter-spacing:0; font-weight:400;">Send invite email</label>
+      </div>
+
+      <div class="err" id="auErr"></div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn-secondary" id="auCancel" type="button">Cancel</button>
+      <button class="btn-primary" id="auSubmit" type="submit">Create user</button>
+    </div>
+  </form>
+</dialog>
 
 <div class="toast" id="toast"></div>
 
@@ -406,6 +495,88 @@ async function loadData() {
   // Wire filter UI
   document.getElementById('searchBox').addEventListener('input', applyFilters);
   document.getElementById('filterStatus').addEventListener('change', applyFilters);
+  wireAddUser();
+}
+
+let _addUserWired = false;
+function wireAddUser() {
+  if (_addUserWired) return;
+  const btn = document.getElementById('btnAddUser');
+  const dlg = document.getElementById('addUserDialog');
+  const form = document.getElementById('addUserForm');
+  const cancel = document.getElementById('auCancel');
+  const submit = document.getElementById('auSubmit');
+  const errEl = document.getElementById('auErr');
+  if (!btn || !dlg || !form) return;
+  _addUserWired = true;
+
+  function resetForm() {
+    form.reset();
+    errEl.textContent = '';
+    document.getElementById('auInvite').checked = true;
+    document.getElementById('auRole').value = 'learner';
+  }
+
+  btn.addEventListener('click', () => {
+    resetForm();
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', 'open');
+    setTimeout(() => document.getElementById('auFullName').focus(), 30);
+  });
+
+  cancel.addEventListener('click', () => dlg.close());
+
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    errEl.textContent = '';
+
+    const fullName = document.getElementById('auFullName').value.trim();
+    const email = document.getElementById('auEmail').value.trim();
+    const agency = document.getElementById('auAgency').value.trim();
+    const badge = document.getElementById('auBadge').value.trim();
+    const role = document.getElementById('auRole').value;
+    const sendInvite = document.getElementById('auInvite').checked;
+
+    if (!fullName) { errEl.textContent = 'Full name is required.'; return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'Enter a valid email.'; return; }
+
+    submit.disabled = true;
+    submit.textContent = 'Creating…';
+    try {
+      const { data: { session } } = await sbAdmin.auth.getSession();
+      const token = session && session.access_token;
+      if (!token) { errEl.textContent = 'You are signed out — please sign back in.'; submit.disabled = false; submit.textContent = 'Create user'; return; }
+
+      const resp = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          full_name: fullName,
+          email,
+          agency_name: agency,
+          badge_number: badge,
+          role,
+          send_invite: sendInvite
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        errEl.textContent = data.error || ('Server returned ' + resp.status);
+        return;
+      }
+      dlg.close();
+      toast(data.invited ? ('Invite sent to ' + email) : ('User created: ' + email));
+      await loadData();
+    } catch (e) {
+      errEl.textContent = e && e.message ? e.message : 'Network error';
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Create user';
+    }
+  });
 }
 
 function computeStats(rows) {

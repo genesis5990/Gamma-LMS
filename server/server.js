@@ -614,6 +614,178 @@ app.post('/api/checkout', async (req, res) => {
 });
 
 // =====================================================================
+// Admin user creation — POST /api/admin/users
+// Bearer JWT (super_admin or tenant_admin) is required. Caller's role and
+// tenant_id are loaded from the DB (never trusted from the client). Role
+// is allow-listed; super_admin escalation via this route is forbidden.
+// tenant_admin's tenant_id is forced from their own profile row.
+// =====================================================================
+const ADMIN_USER_CREATE_ROLES = new Set(['super_admin', 'tenant_admin']);
+const ADMIN_USER_TARGET_ROLES = new Set(['learner', 'instructor', 'tenant_admin']);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const _adminCreateRl = new Map(); // ip -> [timestamps]
+function _rateLimit(ip, maxPerMin = 10) {
+  const now = Date.now();
+  const windowMs = 60_000;
+  const arr = (_adminCreateRl.get(ip) || []).filter(t => now - t < windowMs);
+  if (arr.length >= maxPerMin) {
+    _adminCreateRl.set(ip, arr);
+    return false;
+  }
+  arr.push(now);
+  _adminCreateRl.set(ip, arr);
+  return true;
+}
+
+async function getCallerProfile(req) {
+  const token = extractAccessToken(req);
+  if (!token || !SUPABASE_SVC_KEY) return null;
+  const ur = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_SVC_KEY, Authorization: `Bearer ${token}` }
+  });
+  if (!ur.ok) return null;
+  const u = await ur.json().catch(() => null);
+  if (!u || !u.id) return null;
+  const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(u.id)}&select=role,tenant_id,email&limit=1`, {
+    headers: { apikey: SUPABASE_SVC_KEY, Authorization: `Bearer ${SUPABASE_SVC_KEY}` }
+  });
+  if (!pr.ok) return null;
+  const rows = await pr.json().catch(() => []);
+  const row = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (!row) return null;
+  return { id: u.id, email: row.email || u.email || null, role: row.role, tenant_id: row.tenant_id || null };
+}
+
+app.post('/api/admin/users', async (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip || 'unknown';
+  if (!_rateLimit(ip, 10)) return res.status(429).json({ error: 'rate limit exceeded' });
+
+  const token = extractAccessToken(req);
+  if (!token) return res.status(401).json({ error: 'authentication required' });
+
+  if (!SUPABASE_SVC_KEY) return res.status(503).json({ error: 'admin user creation unavailable' });
+
+  const caller = await getCallerProfile(req);
+  if (!caller) return res.status(401).json({ error: 'authentication required' });
+  if (!ADMIN_USER_CREATE_ROLES.has(caller.role)) {
+    return res.status(403).json({ error: 'admin role required' });
+  }
+
+  const body = req.body || {};
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : '';
+  const agency = typeof body.agency_name === 'string' ? body.agency_name.trim() : '';
+  const badge = typeof body.badge_number === 'string' ? body.badge_number.trim() : '';
+  const role = typeof body.role === 'string' ? body.role.trim() : '';
+  const sendInvite = body.send_invite !== false; // default true
+
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'valid email is required' });
+  if (!fullName) return res.status(400).json({ error: 'full_name is required' });
+  if (fullName.length > 200) return res.status(400).json({ error: 'full_name too long (max 200)' });
+  if (agency && agency.length > 200) return res.status(400).json({ error: 'agency_name too long (max 200)' });
+  if (badge && badge.length > 50) return res.status(400).json({ error: 'badge_number too long (max 50)' });
+  if (!ADMIN_USER_TARGET_ROLES.has(role)) {
+    return res.status(400).json({ error: 'role must be one of learner, instructor, tenant_admin' });
+  }
+
+  // Tenant assignment — tenant_admin is forced to their own tenant_id.
+  let tenantId = null;
+  if (caller.role === 'super_admin') {
+    tenantId = typeof body.tenant_id === 'string' && body.tenant_id ? body.tenant_id : null;
+  } else {
+    tenantId = caller.tenant_id || null;
+  }
+
+  const userMetadata = {
+    full_name: fullName,
+    agency_name: agency || null,
+    badge_number: badge || null,
+    role,
+    tenant_id: tenantId
+  };
+
+  let createdUser = null;
+  try {
+    if (sendInvite) {
+      const inviteResp = await fetch(`${SUPABASE_URL}/auth/v1/invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_SVC_KEY,
+          Authorization: `Bearer ${SUPABASE_SVC_KEY}`
+        },
+        body: JSON.stringify({
+          email,
+          data: userMetadata,
+          redirect_to: `${PUBLIC_SITE_URL}/dashboard`
+        })
+      });
+      const txt = await inviteResp.text();
+      if (!inviteResp.ok) {
+        if (/already.*registered|exists/i.test(txt)) {
+          return res.status(409).json({ error: 'A user with this email already exists.' });
+        }
+        console.warn('[admin/users] invite failed:', inviteResp.status, txt);
+        return res.status(500).json({ error: 'invite failed: ' + txt.slice(0, 200) });
+      }
+      try { createdUser = JSON.parse(txt); } catch (_) { createdUser = null; }
+    } else {
+      const createResp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_SVC_KEY,
+          Authorization: `Bearer ${SUPABASE_SVC_KEY}`
+        },
+        body: JSON.stringify({
+          email,
+          email_confirm: true,
+          user_metadata: userMetadata
+        })
+      });
+      const txt = await createResp.text();
+      if (!createResp.ok) {
+        if (/already.*registered|exists/i.test(txt)) {
+          return res.status(409).json({ error: 'A user with this email already exists.' });
+        }
+        console.warn('[admin/users] create failed:', createResp.status, txt);
+        return res.status(500).json({ error: 'create failed: ' + txt.slice(0, 200) });
+      }
+      try { createdUser = JSON.parse(txt); } catch (_) { createdUser = null; }
+    }
+  } catch (err) {
+    console.error('[admin/users] auth call error:', err);
+    return res.status(500).json({ error: err.message || 'auth call failed' });
+  }
+
+  const newUserId = createdUser?.id || createdUser?.user?.id || null;
+  if (!newUserId) {
+    console.error('[admin/users] no user id returned:', createdUser);
+    return res.status(500).json({ error: 'auth user created but no id returned' });
+  }
+
+  // Upsert profile (handle_new_user trigger may already have inserted a row;
+  // upsert merges our admin-supplied fields on top).
+  try {
+    await supabaseWrite('profiles?on_conflict=id', 'POST', {
+      id: newUserId,
+      email,
+      full_name: fullName,
+      role,
+      tenant_id: tenantId,
+      agency_name: agency || null,
+      badge_number: badge || null
+    });
+  } catch (err) {
+    console.error('[admin/users] profile upsert failed:', err.message);
+    return res.status(500).json({ error: 'auth user created but profile upsert failed: ' + err.message });
+  }
+
+  res.status(201).json({ id: newUserId, email, role, invited: sendInvite });
+});
+
+// =====================================================================
 // Helpers — Supabase REST writes (service-role)
 // =====================================================================
 async function supabaseWrite(pathSuffix, method, body, params = '') {
