@@ -1369,14 +1369,11 @@ async function boot() {
   if (chip) chip.textContent = user.email;
 
   // Load progress, course data, and appendix items in parallel.
-  // Legacy crypto101 keeps loading from the static snapshot to preserve the
-  // exact existing behaviour. Every other slug pulls live data from
-  // Supabase via loadCourseFromSupabase so author edits in studio (images,
-  // audio narration, body_html) show up immediately in preview.
+  // All slugs (including crypto101 since v0.4.43) pull live data from Supabase
+  // via loadCourseFromSupabase so author edits in studio show up immediately.
+  // The static /course_data.json file remains as a manual fallback if needed.
   const slug = window.COURSE_SLUG || resolveCourseSlug();
-  const courseFetch = (slug === 'crypto101')
-    ? fetch('/course_data.json').then(r => r.json())
-    : loadCourseFromSupabase(slug);
+  const courseFetch = loadCourseFromSupabase(slug);
   const [serverProgress, data] = await Promise.all([
     window.loadProgress(),
     courseFetch,
