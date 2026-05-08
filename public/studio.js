@@ -217,10 +217,7 @@ $('#studio-gate-form').addEventListener('submit', async (e) => {
   }
 });
 
-$('#btn-signout').addEventListener('click', async () => {
-  await sb.auth.signOut();
-  window.location.href = '/studio';
-});
+// (Studio header sign-out button removed in v0.4.38 — admin-nav owns sign-out.)
 
 // =====================================================================
 // ROUTER — uses real URL paths via History API
@@ -4100,22 +4097,56 @@ async function saveDirty() {
   const patches = Array.from(state.dirty.values());
   $('#btn-save').disabled = true;
   setSaveState('saving', `Saving ${patches.length}…`);
+  console.info('[studio] saveDirty: patches', patches.map(p => ({
+    table: p.table, id: p.id, fields: Object.keys(p.patch || {})
+  })));
   try {
     const results = await Promise.all(patches.map(p =>
       sb.from(p.table).update(p.patch).eq('id', p.id).select().single()
     ));
-    const errs = results.filter(r => r.error);
+    console.info('[studio] saveDirty: results', results.map((r, i) => ({
+      table: patches[i].table,
+      id:    patches[i].id,
+      ok:    !r.error,
+      returned: r.data ? 1 : 0,
+      err:   r.error && r.error.message
+    })));
+
+    // Detect ghost saves: a 200 with zero rows returned means the UPDATE
+    // matched no rows under RLS or the WHERE clause. supabase-js's .single()
+    // *should* error on 0 rows, but defensively also flag (data == null
+    // && !error).
+    const errs = results
+      .map((r, i) => ({ ...r, _patch: patches[i] }))
+      .filter(r => r.error || r.data == null);
+
     if (errs.length) {
-      console.error(errs);
+      console.error('[studio] saves failed:', errs);
       setSaveState('error', `Save failed: ${errs.length}`);
-      toast(`Save failed for ${errs.length} of ${results.length}: ${errs[0].error.message}`, 'is-error');
-    } else {
-      state.dirty.clear();
-      refreshDirtyButtons();
-      setSaveState('saved', `Saved ${patches.length}`);
-      toast(`Saved ${patches.length} change${patches.length===1?'':'s'}.`, 'is-success');
+      const msg = errs[0].error && errs[0].error.message
+        ? errs[0].error.message
+        : 'no rows updated — check RLS';
+      toast(`Save failed for ${errs.length}/${results.length}: ${msg}`, 'is-error');
+      return;
+    }
+
+    state.dirty.clear();
+    refreshDirtyButtons();
+    setSaveState('saved', `Saved ${patches.length}`);
+    toast(`Saved ${patches.length} change${patches.length===1?'':'s'}.`, 'is-success');
+
+    // Refresh affected records from the DB so the editor's cached state
+    // reflects what actually landed (catches "ghost" saves that returned a
+    // row but didn't change updated_at, or RLS-row-rewriting policies).
+    for (let i = 0; i < patches.length; i++) {
+      const p = patches[i];
+      const fresh = results[i] && results[i].data;
+      if (!fresh) continue;
+      const cached = currentRecord(p.table, p.id);
+      if (cached && typeof cached === 'object') Object.assign(cached, fresh);
     }
   } catch (err) {
+    console.error('[studio] saveDirty exception:', err);
     setSaveState('error', 'Save failed');
     toast('Save failed: ' + err.message, 'is-error');
   } finally {

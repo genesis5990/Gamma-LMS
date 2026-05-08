@@ -37,10 +37,21 @@ check() {
     FAIL=$((FAIL+1)); return
   fi
   if [ -n "$grep_pat" ]; then
-    if ! grep -q -- "$grep_pat" /tmp/.smoke_body; then
-      printf "  ${R}FAIL${D}  %-32s  pattern not found: %s\n" "$name" "$grep_pat"
-      FAIL=$((FAIL+1)); return
-    fi
+    case "$grep_pat" in
+      "!"*)
+        local neg_pat="${grep_pat#!}"
+        if grep -q -- "$neg_pat" /tmp/.smoke_body; then
+          printf "  ${R}FAIL${D}  %-32s  pattern unexpectedly present: %s\n" "$name" "$neg_pat"
+          FAIL=$((FAIL+1)); return
+        fi
+        ;;
+      *)
+        if ! grep -q -- "$grep_pat" /tmp/.smoke_body; then
+          printf "  ${R}FAIL${D}  %-32s  pattern not found: %s\n" "$name" "$grep_pat"
+          FAIL=$((FAIL+1)); return
+        fi
+        ;;
+    esac
   fi
   printf "  ${G}OK${D}    %-32s  %s\n" "$name" "$path"
   PASS=$((PASS+1))
@@ -53,6 +64,9 @@ check "Genesis dashboard route"    200 "/dashboard"        'id="dashboardRoot"'
 check "tenant dashboard route"     200 "/deconflict/dashboard"  'id="dashboardRoot"'
 check "live course slug route"     200 "/courses/btc-investigations"  "Crypto 101"
 check "auth flowType pinned"       200 "/auth.js"                      "flowType"
+# v0.4.38: studio header sign-out removed — admin-nav owns the only sign-out.
+# `!pattern` asserts the pattern is NOT present in the body.
+check "studio no duplicate signout" 200 "/studio.html"                  '!id="btn-signout"'
 check "course shell"               200 "/course.html"      "Crypto 101"
 check "admin shell"                 200 "/admin.html"       "Admin Dashboard"
 check "supabase config"            200 "/config.js"        "SUPABASE_URL"

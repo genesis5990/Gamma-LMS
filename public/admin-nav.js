@@ -137,8 +137,13 @@
     out.className = 'signout';
     out.textContent = 'Sign out';
     out.addEventListener('click', async () => {
-      try { await client.auth.signOut(); } catch (_e) {}
-      // Best-effort: also clear the auth.js client by reloading.
+      try { await client.auth.signOut({ scope: 'local' }); } catch (_e) { /* noop */ }
+      // Belt-and-braces: even if signOut errored or no-op'd, drop the
+      // persisted token from localStorage so a reload starts logged-out.
+      try {
+        const u = (window.SUPABASE_URL || '').replace(/^https?:\/\//, '').split('.')[0];
+        if (u) localStorage.removeItem('sb-' + u + '-auth-token');
+      } catch (_e) { /* noop */ }
       window.location.href = '/';
     });
     bar.appendChild(out);
