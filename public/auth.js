@@ -12,12 +12,27 @@
 // =====================================================================
 
 const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // Project Supabase Auth emits #access_token=... fragments rather than
+    // ?code=... query params, so pin the flow type to match. Without this
+    // the v2 client occasionally fails to parse the hash and never persists
+    // the session to localStorage on first load (see v0.4.37 bug report).
+    flowType: 'implicit'
+  }
 });
 // Shared client for other scripts on the same page (e.g. appendix loader).
 window.supabaseClient = sb;
 
 let _user = null;
+const _onSignInCbs = [];
+// Subscribe to the user's null → signed-in transition. Multiple callbacks
+// supported. Each is fired once per transition with the new user object.
+// Useful for SPA-ish pages (dashboard.html) that hydrate before the
+// magic-link hash is finished parsing.
+window.onSignedIn = (cb) => { if (typeof cb === 'function') _onSignInCbs.push(cb); };
 
 // Post-sign-in redirect: send users from generic landing pages into their
 // dashboard. Only fires on transitions to a signed-in state, and only on
@@ -42,11 +57,25 @@ window.authReady = (async () => {
   const { data } = await sb.auth.getSession();
   _user = data.session?.user || null;
 
+  // Strip the access_token hash off the URL once the session has been
+  // captured. detectSessionInUrl already parsed it; leaving it in the
+  // address bar makes the page look broken and a hard refresh would try
+  // to re-parse a token that's already been consumed.
+  try {
+    const hash = window.location.hash || '';
+    if (/(?:^|#|&)(access_token|refresh_token|type|expires_in)=/.test(hash) && _user) {
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  } catch { /* noop */ }
+
   sb.auth.onAuthStateChange((event, session) => {
     const wasNull = !_user;
     _user = session?.user || null;
     if (wasNull && _user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
       try { _postSignInRedirect(); } catch { /* noop */ }
+      // Notify any page-level subscribers (dashboard re-render, etc.)
+      _onSignInCbs.forEach(cb => { try { cb(_user); } catch (err) { console.warn('onSignedIn cb failed:', err); } });
     }
   });
 

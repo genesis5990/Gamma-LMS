@@ -691,4 +691,17 @@
     $('gateMsg').className = 'overlay-msg is-err';
     $('gateMsg').textContent = 'Dashboard failed to load: ' + (err.message || err);
   });
+
+  // If the user finishes signing in AFTER the initial gate check (magic-link
+  // hash gets parsed a tick late, or the user clicks a link in another tab),
+  // re-run gateOrRender so the empty skeletons replace themselves with real
+  // content. Only triggers when the gate is currently visible to avoid loops.
+  if (typeof window.onSignedIn === 'function') {
+    window.onSignedIn(() => {
+      const gate = document.getElementById('signInGate');
+      if (gate && !gate.hidden) {
+        gateOrRender().catch(err => console.error('[dashboard] re-render failed', err));
+      }
+    });
+  }
 })();
