@@ -132,6 +132,13 @@
   .ccard h3 { margin: 0; font-size: 15px; }
   .ccard p { margin: 0; color: var(--muted); font-size: 13.5px; flex: 1; }
   .ccard .meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); }
+  .le-badge {
+    align-self: flex-start;
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    background: #e6efff; color: #0a3d91;
+    border: 1px solid #c5d6f6; padding: 3px 8px; border-radius: 999px;
+    letter-spacing: .5px; text-transform: uppercase;
+  }
 
   /* ---- Buttons ---- */
   .btn {
@@ -276,6 +283,7 @@
 </div>
 
 <main id="dashboardRoot" hidden>
+  <div id="freeBanner" class="le-badge" style="display:none;margin:0 0 14px;padding:10px 14px;font-size:13px;text-transform:none;letter-spacing:.2px;font-weight:500;background:#d8f0e2;color:#1b6b3d;border-color:#b5e0c5;border-radius:8px;"></div>
   <!-- Each section renders independently. -->
   <section class="card" id="profileCard"></section>
   <section class="card" id="continueCard" hidden></section>

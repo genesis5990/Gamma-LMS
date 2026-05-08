@@ -53,6 +53,8 @@ if (STRIPE_SECRET) {
 }
 
 // Course catalog (single course this phase). amount_cents is authoritative server-side.
+// SYNC: keep amount_cents in sync with the SQL function `course_amount_cents(slug)`
+// (migration 0024). Both must agree on the price for any coupon-eligible course.
 const CATALOG = {
   crypto101: {
     course_id: 'crypto101',
@@ -278,6 +280,8 @@ app.post('/api/stripe/webhook',
           });
 
           if (isPaid) {
+            const purchaseId = Array.isArray(purchaseRow) ? purchaseRow[0]?.id : purchaseRow?.id;
+
             // Fire-and-await fulfillment, but never let failures block the 200 to Stripe.
             try {
               await fulfillPurchase({
@@ -286,10 +290,30 @@ app.post('/api/stripe/webhook',
                 sessionId: session.id,
                 amountCents,
                 currency,
-                purchaseId: Array.isArray(purchaseRow) ? purchaseRow[0]?.id : purchaseRow?.id
+                purchaseId
               });
             } catch (fulfillErr) {
               console.warn('[stripe webhook] fulfillment error (non-fatal):', fulfillErr.message);
+            }
+
+            // Record coupon redemption if the checkout session carried one.
+            const couponId = session.metadata?.coupon_id || null;
+            if (couponId) {
+              try {
+                const userId = session.client_reference_id || (await lookupUserIdByEmail(email));
+                await supabaseRpc('record_coupon_redemption', {
+                  p_coupon_id:      couponId,
+                  p_user_id:        userId,
+                  p_email:          email,
+                  p_course_slug:    courseId,
+                  p_purchase_id:    purchaseId,
+                  p_original_cents: parseInt(session.metadata.original_cents || '0', 10),
+                  p_discount_cents: parseInt(session.metadata.discount_cents || '0', 10),
+                  p_final_cents:    parseInt(session.metadata.final_cents || String(amountCents), 10)
+                });
+              } catch (rerr) {
+                console.warn('[stripe webhook] record_coupon_redemption failed (non-fatal):', rerr.message);
+              }
             }
           }
         }
@@ -410,28 +434,178 @@ app.post('/api/grade-quiz', (req, res) => {
 });
 
 // =====================================================================
-// /api/checkout — create Stripe Checkout session for a course
+// /api/checkout — create Stripe Checkout session for a course.
+// Optional body field `coupon_code` triggers server-side validation via
+// preview_coupon RPC. If the coupon resolves to is_free=true (e.g. 100% off)
+// we skip Stripe entirely, write purchase + enrollment + redemption rows
+// directly with service-role credentials, and return { free: true, redirect }.
 // =====================================================================
-app.post('/api/checkout', async (req, res) => {
-  if (!stripe) return res.status(503).json({ error: 'stripe not configured' });
+async function supabaseRpc(fn, params, jwt) {
+  const url = `${SUPABASE_URL}/rest/v1/rpc/${fn}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_SVC_KEY,
+    Authorization: `Bearer ${jwt || SUPABASE_SVC_KEY}`
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(params || {})
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`rpc ${fn} ${resp.status}: ${txt}`);
+  }
+  return resp.json().catch(() => null);
+}
 
-  const { course_id, success_url, cancel_url, user_id } = req.body || {};
+async function getUserFromBearer(req) {
+  const token = extractAccessToken(req);
+  if (!token || !SUPABASE_SVC_KEY) return null;
+  try {
+    const ur = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_SVC_KEY, Authorization: `Bearer ${token}` }
+    });
+    if (!ur.ok) return null;
+    const u = await ur.json().catch(() => null);
+    if (!u || !u.id) return null;
+    return { id: u.id, email: u.email || null, token };
+  } catch (_e) {
+    return null;
+  }
+}
+
+app.post('/api/checkout', async (req, res) => {
+  const { course_id, success_url, cancel_url, user_id, coupon_code } = req.body || {};
   const c = CATALOG[course_id];
   if (!c) return res.status(400).json({ error: 'unknown course_id' });
 
+  // Coupons require an authenticated user (preview_coupon enforces this too,
+  // but failing fast gives a clearer error).
+  let user = null;
+  if (coupon_code) {
+    user = await getUserFromBearer(req);
+    if (!user) {
+      return res.status(401).json({ error: 'sign in required to apply a coupon' });
+    }
+  }
+
+  // ---- Server-side coupon validation (never trust the client) ----
+  let coupon = null;
+  if (coupon_code) {
+    if (!SUPABASE_SVC_KEY) return res.status(503).json({ error: 'coupon validation unavailable' });
+    try {
+      // Validate as the user (RLS-aware) using their JWT — preview_coupon
+      // checks per-user redemption history and LE-only access.
+      coupon = await supabaseRpc('preview_coupon',
+        { p_code: String(coupon_code).trim(), p_course_slug: course_id },
+        user.token);
+    } catch (err) {
+      console.warn('[checkout] preview_coupon failed:', err.message);
+      return res.status(500).json({ error: 'coupon validation failed' });
+    }
+    if (!coupon || coupon.valid !== true) {
+      const reason = (coupon && coupon.reason) || 'invalid';
+      return res.status(400).json({ error: 'coupon ' + reason, reason });
+    }
+  }
+
+  // ---- Free path (100% off): skip Stripe entirely ----
+  if (coupon && coupon.is_free === true) {
+    if (!SUPABASE_SVC_KEY) return res.status(503).json({ error: 'free-checkout unavailable' });
+    try {
+      const sessionToken = 'free_' + (globalThis.crypto?.randomUUID
+        ? globalThis.crypto.randomUUID()
+        : (Date.now() + '_' + Math.random().toString(36).slice(2)));
+      const nowIso = new Date().toISOString();
+
+      const purchaseRows = await supabaseWrite('purchases', 'POST', {
+        user_id:           user.id,
+        email:             user.email,
+        course_id,
+        stripe_session_id: sessionToken,
+        amount_cents:      0,
+        currency:          c.currency,
+        status:            'paid',
+        paid_at:           nowIso
+      });
+      const purchase = Array.isArray(purchaseRows) ? purchaseRows[0] : purchaseRows;
+      const purchaseId = purchase && purchase.id ? purchase.id : null;
+
+      // Upsert enrollment (course_id is text/slug — see schema).
+      await supabaseWrite(
+        'enrollments?on_conflict=user_id,course_id',
+        'POST',
+        { user_id: user.id, course_id, status: 'active', tenant_id: null }
+      );
+
+      // Record the redemption (service-role only).
+      try {
+        await supabaseRpc('record_coupon_redemption', {
+          p_coupon_id:      coupon.coupon_id,
+          p_user_id:        user.id,
+          p_email:          user.email,
+          p_course_slug:    course_id,
+          p_purchase_id:    purchaseId,
+          p_original_cents: coupon.original_cents,
+          p_discount_cents: coupon.discount_cents,
+          p_final_cents:    coupon.final_cents
+        });
+      } catch (rerr) {
+        console.warn('[checkout] record_coupon_redemption failed (non-fatal):', rerr.message);
+      }
+
+      return res.json({
+        free:     true,
+        redirect: `/dashboard?free=1&course=${encodeURIComponent(course_id)}`
+      });
+    } catch (err) {
+      console.error('[checkout] free-path error:', err);
+      return res.status(500).json({ error: err.message || 'free checkout failed' });
+    }
+  }
+
+  // ---- Stripe path (full price OR partial discount) ----
+  if (!stripe) return res.status(503).json({ error: 'stripe not configured' });
+
   try {
-    const priceId = await getOrCreatePriceId(course_id);
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
       success_url: success_url || `${PUBLIC_SITE_URL}/courses?status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  cancel_url  || `${PUBLIC_SITE_URL}/courses?status=cancelled`,
-      client_reference_id: typeof user_id === 'string' ? user_id : undefined,
+      client_reference_id: (user && user.id) || (typeof user_id === 'string' ? user_id : undefined),
       metadata: { course_id },
-      // Collect email at checkout for guest purchases
       customer_creation: 'always'
-    });
+    };
+
+    if (coupon && coupon.discount_cents > 0 && !coupon.is_free) {
+      // Inline ad-hoc line item using final_cents — bypasses the catalog price.
+      sessionParams.line_items = [{
+        quantity: 1,
+        price_data: {
+          currency:    c.currency,
+          unit_amount: coupon.final_cents,
+          product_data: {
+            name:        c.name,
+            description: c.description + ` (coupon ${coupon.code} applied)`
+          }
+        }
+      }];
+      sessionParams.metadata = {
+        course_id,
+        coupon_id:      coupon.coupon_id,
+        coupon_code:    coupon.code,
+        original_cents: String(coupon.original_cents),
+        discount_cents: String(coupon.discount_cents),
+        final_cents:    String(coupon.final_cents)
+      };
+    } else {
+      const priceId = await getOrCreatePriceId(course_id);
+      sessionParams.line_items = [{ price: priceId, quantity: 1 }];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
     res.json({ id: session.id, url: session.url });
   } catch (err) {
     console.error('[checkout] error:', err);
@@ -698,6 +872,14 @@ app.get(/^\/studio(?:\/.*)?$/, (_req, res) => {
 app.get('/admin/requests', (_req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(PUBLIC_DIR, 'admin-requests.html'));
+});
+
+// =====================================================================
+// Coupons admin (super-admin / tenant-admin). Client gates render via RLS.
+// =====================================================================
+app.get('/admin/coupons', (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(PUBLIC_DIR, 'admin', 'coupons.html'));
 });
 
 // =====================================================================

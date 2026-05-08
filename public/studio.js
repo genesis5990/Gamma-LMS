@@ -445,9 +445,10 @@ async function renderDashboard(view, coursesOnly) {
     $('#dash-courses').innerHTML = items.length ? items.map(c => {
       const stats = statsByVersion[c.current_version_id] || { modules: 0, lessons: 0, pages: 0 };
       const status = c.visibility || 'private';
+      const statusLabel = status === 'restricted' ? 'LE only' : status;
       return `<div class="dash-course-card">
         <div>
-          <span class="dash-status is-${status}">${status}</span>
+          <span class="dash-status is-${status}">${statusLabel}</span>
           <h3 style="margin-top:6px">${escapeHtml(c.title)}</h3>
           <div class="dash-cc-meta">slug: <code>${escapeHtml(c.slug)}</code> · pass ${c.pass_threshold ?? 80}% · updated ${fmtRelTime(c.updated_at)}</div>
         </div>
@@ -2677,10 +2678,14 @@ function renderMeta() {
       <div class="field"><label>Pass threshold (%)</label><input id="meta-thresh" type="number" min="0" max="100" value="${state.course.pass_threshold}"/></div>
       <div class="field"><label>Visibility</label>
         <select id="meta-vis">
-          <option value="private" ${state.course.visibility==='private'?'selected':''}>Private</option>
-          <option value="preview" ${state.course.visibility==='preview'?'selected':''}>Preview</option>
-          <option value="public"  ${state.course.visibility==='public' ?'selected':''}>Public</option>
+          <option value="private"    ${state.course.visibility==='private'   ?'selected':''}>Private</option>
+          <option value="preview"    ${state.course.visibility==='preview'   ?'selected':''}>Preview</option>
+          <option value="public"     ${state.course.visibility==='public'    ?'selected':''}>Public</option>
+          <option value="restricted" ${state.course.visibility==='restricted'?'selected':''}>Restricted (LE only)</option>
         </select>
+        <div class="meta-hint" style="margin-top:4px;font-size:12px;color:var(--studio-muted,#5b6788);">
+          Restricted courses are visible only to authenticated users with an approved access request.
+        </div>
       </div>
       <div class="meta-info">Slug: <code>${escapeHtml(state.course.slug)}</code><br><span class="meta-hint">Hero image &amp; directions are edited in the main pane.</span></div>
     </form>`;

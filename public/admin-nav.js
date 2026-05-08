@@ -35,9 +35,12 @@
 
   const ADMIN_ROLES = new Set(['super_admin', 'tenant_admin', 'instructor']);
 
+  const COUPON_ROLES = new Set(['super_admin', 'tenant_admin']);
+
   const NAV_ITEMS = [
     { href: '/admin',           label: 'Dashboard',       match: p => p === '/admin' || p === '/admin/' },
     { href: '/admin/requests',  label: 'Access requests', match: p => p.startsWith('/admin/requests') },
+    { href: '/admin/coupons',   label: 'Coupons',         match: p => p.startsWith('/admin/coupons'), roles: COUPON_ROLES },
     { href: '/studio',          label: 'Course Studio',   match: p => p === '/studio' || p.startsWith('/studio/') || p === '/studio.html' },
     { href: '/courses',         label: 'Catalog',         match: p => p === '/courses' || p === '/courses.html' },
     { href: '/',                label: 'Live site',       match: p => p === '/' || p === '/index.html' },
@@ -117,6 +120,7 @@
 
     const nav = document.createElement('nav');
     NAV_ITEMS.forEach(item => {
+      if (item.roles && !item.roles.has(role)) return;
       const a = document.createElement('a');
       a.href = item.href;
       a.textContent = item.label;

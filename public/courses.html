@@ -58,6 +58,35 @@
   }
   .card button:hover { background: var(--accent-2); }
   .card button:disabled { opacity: .5; cursor: not-allowed; }
+  .card .coupon-row {
+    display: flex; gap: 6px; margin: 0 0 12px; align-items: stretch;
+  }
+  .card .coupon-row input {
+    flex: 1; min-width: 0; padding: 9px 11px; font: inherit;
+    border: 1px solid var(--line); border-radius: 6px;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .card .coupon-row input:focus {
+    outline: 2px solid var(--accent); outline-offset: -1px;
+  }
+  .card .coupon-row button.apply {
+    padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+  }
+  .card .coupon-row button.apply:hover { background: var(--paper); }
+  .card .coupon-msg { font-size: 12.5px; margin: -6px 0 12px; min-height: 16px; }
+  .card .coupon-msg.is-ok { color: var(--good); }
+  .card .coupon-msg.is-err { color: var(--bad); }
+  .card .price.has-discount {
+    text-decoration: line-through; color: var(--muted); font-size: 18px; margin-bottom: 0;
+  }
+  .card .price.discounted { color: var(--good); margin-top: 2px; }
+  .badge-le {
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    background: #e6efff; color: var(--accent-2);
+    border: 1px solid #c5d6f6; padding: 3px 8px; border-radius: 999px;
+    letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px;
+  }
   .banner { padding: 14px 18px; border-radius: 8px; margin: 18px 0; font-size: 14px; }
   .banner.ok { background: #d8f0e2; color: #1b6b3d; }
   .banner.err { background: #fbe0e0; color: #8a1a1a; }
@@ -126,12 +155,34 @@ if (params.get('status') === 'success') {
   showBanner('Payment received. Check your inbox for a sign-in link to start the course.', 'ok');
 } else if (params.get('status') === 'cancelled') {
   showBanner('Checkout cancelled — no charge was made.', 'info');
+} else if (params.get('free') === '1') {
+  showBanner('Coupon applied — you are now enrolled at no cost. Visit your dashboard to start.', 'ok');
 }
 
 function formatPrice(cents, currency) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() })
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: (currency || 'usd').toUpperCase() })
     .format(cents / 100);
 }
+
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Per-course coupon state: { [course_id]: { code, applied: bool, original, final, discount, is_free, coupon_id } }
+const _couponState = {};
+
+const COUPON_REASON_MSG = {
+  not_found:           'Coupon code not recognized.',
+  inactive:            'This coupon is no longer active.',
+  expired:             'This coupon has expired.',
+  wrong_course:        'This coupon does not apply to this course.',
+  le_only:             'This coupon is restricted to law-enforcement users with an approved access request.',
+  max_redemptions:     'This coupon has been fully redeemed.',
+  already_redeemed:    'You have already redeemed this coupon.',
+  unknown_course:      'This course is not eligible for coupons yet.',
+  no_price:            'This course has no price configured.',
+  not_authenticated:   'Please sign in to apply a coupon.'
+};
 
 function renderCatalog(catalog) {
   const root = document.getElementById('catalog');
@@ -139,18 +190,134 @@ function renderCatalog(catalog) {
   for (const c of catalog) {
     const card = document.createElement('div');
     card.className = 'card';
+    card.setAttribute('data-course', c.course_id);
     card.innerHTML = `
-      <h3>${c.name}</h3>
-      <p class="desc">${c.description}</p>
-      <div class="price">${formatPrice(c.amount_cents, c.currency)}</div>
+      <h3>${escapeAttr(c.name)}</h3>
+      <p class="desc">${escapeAttr(c.description)}</p>
+      <div class="price" data-orig-price>${formatPrice(c.amount_cents, c.currency)}</div>
+      <div class="price discounted" data-final-price hidden></div>
       <div class="one-time">One-time purchase &middot; lifetime access</div>
-      <button data-buy="${c.course_id}">Buy now</button>
+      <div class="coupon-row">
+        <input type="text" data-coupon-input placeholder="Coupon code (optional)" autocomplete="off" maxlength="64" />
+        <button type="button" class="apply" data-coupon-apply>Apply</button>
+      </div>
+      <div class="coupon-msg" data-coupon-msg></div>
+      <button data-buy="${escapeAttr(c.course_id)}">Buy now</button>
     `;
     root.appendChild(card);
   }
   root.querySelectorAll('button[data-buy]').forEach(btn => {
     btn.addEventListener('click', () => startCheckout(btn.getAttribute('data-buy'), btn));
   });
+  root.querySelectorAll('button[data-coupon-apply]').forEach(btn => {
+    btn.addEventListener('click', () => applyCoupon(btn));
+  });
+  // Pressing Enter in the coupon field also applies it.
+  root.querySelectorAll('input[data-coupon-input]').forEach(inp => {
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const card = inp.closest('.card');
+        const btn = card && card.querySelector('button[data-coupon-apply]');
+        if (btn) applyCoupon(btn);
+      }
+    });
+    // Clearing the field resets state.
+    inp.addEventListener('input', () => {
+      const card = inp.closest('.card');
+      const courseId = card.getAttribute('data-course');
+      if (!inp.value.trim()) clearCouponDisplay(card, courseId);
+    });
+  });
+}
+
+function clearCouponDisplay(card, courseId) {
+  delete _couponState[courseId];
+  const orig = card.querySelector('[data-orig-price]');
+  const fin  = card.querySelector('[data-final-price]');
+  const msg  = card.querySelector('[data-coupon-msg]');
+  const buy  = card.querySelector('button[data-buy]');
+  orig.classList.remove('has-discount');
+  fin.hidden = true; fin.textContent = '';
+  msg.className = 'coupon-msg'; msg.textContent = '';
+  if (buy) buy.textContent = 'Buy now';
+}
+
+async function applyCoupon(applyBtn) {
+  const card = applyBtn.closest('.card');
+  if (!card) return;
+  const courseId = card.getAttribute('data-course');
+  const input = card.querySelector('input[data-coupon-input]');
+  const msg   = card.querySelector('[data-coupon-msg]');
+  const orig  = card.querySelector('[data-orig-price]');
+  const fin   = card.querySelector('[data-final-price]');
+  const buy   = card.querySelector('button[data-buy]');
+  const code  = (input.value || '').trim().toUpperCase();
+  input.value = code;
+  if (!code) {
+    clearCouponDisplay(card, courseId);
+    return;
+  }
+
+  const sb = window.supabaseClient;
+  if (!sb) {
+    msg.className = 'coupon-msg is-err';
+    msg.textContent = 'Coupon system unavailable. Please refresh and try again.';
+    return;
+  }
+  // Coupons require authentication.
+  let session = null;
+  try {
+    const { data } = await sb.auth.getSession();
+    session = data && data.session;
+  } catch (_e) { /* noop */ }
+  if (!session || !session.user) {
+    msg.className = 'coupon-msg is-err';
+    msg.textContent = 'Please sign in to apply a coupon code (Dashboard → sign in with email).';
+    return;
+  }
+
+  applyBtn.disabled = true;
+  msg.className = 'coupon-msg';
+  msg.textContent = 'Checking…';
+  try {
+    const { data, error } = await sb.rpc('preview_coupon', {
+      p_code: code, p_course_slug: courseId
+    });
+    if (error) throw error;
+    if (!data || data.valid !== true) {
+      const reason = (data && data.reason) || 'invalid';
+      msg.className = 'coupon-msg is-err';
+      msg.textContent = COUPON_REASON_MSG[reason] || ('Coupon could not be applied (' + reason + ').');
+      clearCouponDisplay(card, courseId);
+      // Restore the entered code so the user can edit it.
+      input.value = code;
+      return;
+    }
+    _couponState[courseId] = {
+      code,
+      applied:        true,
+      original_cents: data.original_cents,
+      final_cents:    data.final_cents,
+      discount_cents: data.discount_cents,
+      is_free:        data.is_free === true,
+      coupon_id:      data.coupon_id,
+      percent_off:    data.percent_off
+    };
+    orig.classList.add('has-discount');
+    fin.hidden = false;
+    fin.textContent = data.is_free ? 'FREE' : formatPrice(data.final_cents, 'usd');
+    msg.className = 'coupon-msg is-ok';
+    msg.textContent = data.is_free
+      ? `Coupon ${code} applied — 100% off (free).`
+      : `Coupon ${code} applied — ${data.percent_off}% off.`;
+    if (buy) buy.textContent = data.is_free ? 'Enroll for free' : 'Buy now';
+  } catch (err) {
+    msg.className = 'coupon-msg is-err';
+    msg.textContent = 'Could not check coupon: ' + (err.message || err);
+  } finally {
+    applyBtn.disabled = false;
+  }
 }
 
 async function startCheckout(courseId, btn) {
@@ -158,13 +325,32 @@ async function startCheckout(courseId, btn) {
   const orig = btn.textContent;
   btn.textContent = 'Redirecting…';
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    const sb = window.supabaseClient;
+    let session = null;
+    if (sb) {
+      try {
+        const { data } = await sb.auth.getSession();
+        session = data && data.session;
+      } catch (_e) { /* noop */ }
+    }
+    if (session && session.access_token) {
+      headers['Authorization'] = 'Bearer ' + session.access_token;
+    }
+    const body = { course_id: courseId };
+    const cs = _couponState[courseId];
+    if (cs && cs.applied && cs.code) body.coupon_code = cs.code;
+
     const resp = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ course_id: courseId })
+      method: 'POST', headers, body: JSON.stringify(body)
     });
-    const data = await resp.json();
-    if (!resp.ok || !data.url) throw new Error(data.error || 'checkout failed');
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || 'checkout failed');
+    if (data.free === true && data.redirect) {
+      window.location.href = data.redirect;
+      return;
+    }
+    if (!data.url) throw new Error('no checkout url returned');
     window.location.href = data.url;
   } catch (err) {
     showBanner('Could not start checkout: ' + err.message, 'err');

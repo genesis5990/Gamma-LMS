@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coupons — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script src="/tenant.js"></script>
+<script src="/auth.js"></script>
+<script src="/admin-nav.js" defer></script>
+<link rel="stylesheet" href="/tenant-themes.css" />
+<style>
+  :root {
+    --ink: #0d1424; --ink-2: #1d2a47;
+    --paper: #f7f8fc; --paper-2: #ffffff;
+    --line: #d9dfee; --line-2: #e8ecf6;
+    --accent: #1f63d6; --accent-2: #0a3d91;
+    --gold: #c8a64a; --muted: #5b6788;
+    --good: #2a9355; --bad: #c94545; --warn: #b97a09;
+    --shadow: 0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: var(--paper);
+  }
+  a { color: var(--accent-2); }
+
+  header.admin {
+    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:#fff; border-bottom: 3px solid var(--gold); padding: 14px 22px;
+  }
+  header.admin .row { display:flex; align-items:center; gap:14px; max-width:1400px; margin:0 auto; }
+  header.admin .badge {
+    width:46px; height:46px; border-radius:8px;
+    background: var(--gold); color: var(--ink);
+    display:grid; place-items:center; font-weight:800; font-size:18px;
+  }
+  header.admin h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
+  header.admin .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 28px clamp(16px, 3vw, 32px); }
+  .h { display:flex; align-items:baseline; gap:14px; margin-bottom: 18px; }
+  .h h2 { margin:0; font-size: 22px; }
+  .h .muted { color: var(--muted); font-size: 14px; }
+
+  .panel {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 22px; overflow: hidden;
+  }
+  .panel-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line-2);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .panel-head h3 { margin: 0; font-size: 15px; letter-spacing: .3px; }
+  .panel-head .tools { margin-left: auto; display:flex; gap:8px; align-items:center; }
+
+  .form-grid {
+    padding: 18px;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-grid label {
+    display: block; font-size: 12px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px;
+  }
+  .form-grid input[type=text],
+  .form-grid input[type=number],
+  .form-grid input[type=datetime-local],
+  .form-grid select,
+  .form-grid textarea {
+    width: 100%; padding: 9px 11px; font: inherit;
+    border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  }
+  .form-grid input[type=text]:focus,
+  .form-grid input[type=number]:focus,
+  .form-grid select:focus,
+  .form-grid textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .form-grid .check {
+    display: flex; align-items: center; gap: 8px; padding-top: 22px;
+  }
+  .form-grid .actions {
+    grid-column: 1 / -1; display: flex; gap: 10px; align-items: center;
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 9px 14px; font-size: 13.5px; font-weight: 600;
+    border-radius: 6px; border: 1px solid transparent; cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-2); }
+  .btn.primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.ghost { background: #fff; color: var(--ink); border-color: var(--line); }
+  .btn.ghost:hover { background: var(--paper); }
+  .btn.danger { background: #fff; color: var(--bad); border-color: var(--bad); }
+  .btn.danger:hover { background: #fbe0e0; }
+
+  table.rows { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.rows th {
+    text-align: left; padding: 10px 14px;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+    background: #fafbff; border-bottom: 1px solid var(--line-2);
+  }
+  table.rows td {
+    padding: 11px 14px; border-bottom: 1px solid var(--line-2); vertical-align: middle;
+  }
+  table.rows tr:last-child td { border-bottom: 0; }
+  table.rows td.actions { white-space: nowrap; }
+  table.rows td.actions .btn { padding: 6px 10px; font-size: 12px; margin-right: 4px; }
+  table.rows code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px; background: #f0f2fa; padding: 2px 6px; border-radius: 4px;
+  }
+  .pill {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: .5px; font-weight: 700;
+  }
+  .pill.ok    { background: #d8f0e2; color: #1b6b3d; }
+  .pill.off   { background: #f0f2fa; color: var(--muted); }
+  .pill.warn  { background: #fff3d4; color: #8a6314; }
+  .pill.le    { background: #e6efff; color: var(--accent-2); }
+
+  .empty { color: var(--muted); padding: 24px; text-align: center; }
+  .banner { padding: 12px 16px; border-radius: 8px; margin: 0 0 14px; font-size: 14px; }
+  .banner.ok  { background: #d8f0e2; color: #1b6b3d; }
+  .banner.err { background: #fbe0e0; color: #8a1a1a; }
+  .banner.info { background: #e6efff; color: var(--accent-2); }
+
+  .gate {
+    background:#fff; border:1px solid var(--line); border-radius: 12px;
+    padding: 32px; max-width: 480px; margin: 60px auto; text-align: center;
+  }
+  .gate h2 { margin: 0 0 12px; font-size: 18px; }
+  .gate input { padding: 10px 12px; width: 100%; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; margin: 8px 0; }
+  .gate button { padding: 10px 18px; font-size: 14px; background: var(--accent); color:#fff; border:0; border-radius:6px; cursor:pointer; font-weight:600; }
+
+  @media (max-width: 760px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/brand/icon-dark.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="theme-color" content="#060A16" />
+</head>
+<body>
+
+<header class="admin">
+  <div class="row">
+    <div class="badge">D</div>
+    <div>
+      <h1>Deconflict</h1>
+      <div class="sub">Coupons &middot; admin</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="banner" class="banner" style="display:none;"></div>
+  <div id="content"><div class="empty">Loading…</div></div>
+</main>
+
+<script id="coupons-app">
+(async function couponsAdmin() {
+  const sb = window.supabaseClient;
+  if (!sb) {
+    console.error('[coupons] supabaseClient missing');
+    document.getElementById('content').innerHTML =
+      '<div class="empty">Auth client unavailable. Reload the page.</div>';
+    return;
+  }
+
+  const ADMIN_ROLES = new Set(['super_admin', 'tenant_admin']);
+  const banner = document.getElementById('banner');
+  const root = document.getElementById('content');
+
+  function showBanner(text, kind) {
+    banner.textContent = text;
+    banner.className = 'banner ' + (kind || 'info');
+    banner.style.display = 'block';
+    if (kind === 'ok') setTimeout(() => { banner.style.display = 'none'; }, 4500);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString();
+  }
+  function fmtMoney(cents, currency) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: (currency || 'usd').toUpperCase() })
+      .format((cents || 0) / 100);
+  }
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const tzo = d.getTimezoneOffset() * 60000;
+    return new Date(d - tzo).toISOString().slice(0, 16);
+  }
+
+  function renderGate(message) {
+    root.innerHTML = `
+      <div class="gate">
+        <h2>${escapeHtml(message || 'Sign in required')}</h2>
+        <p style="color:var(--muted);font-size:13px;">This page is only available to program administrators.</p>
+        <input id="gateEmail" type="email" placeholder="admin@example.com" />
+        <button id="gateBtn" type="button">Email me a sign-in link</button>
+        <div id="gateMsg" style="color:var(--muted);font-size:13px;margin-top:12px;"></div>
+      </div>`;
+    document.getElementById('gateBtn').addEventListener('click', async () => {
+      const email = document.getElementById('gateEmail').value.trim();
+      if (!email) return;
+      const { error } = await sb.auth.signInWithOtp({
+        email, options: { emailRedirectTo: window.location.href }
+      });
+      document.getElementById('gateMsg').textContent =
+        error ? 'Could not send link: ' + error.message : 'Check your inbox for a sign-in link.';
+    });
+  }
+
+  // ---- Auth gate ----
+  await window.authReady;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !session.user) {
+    renderGate('Sign in to manage coupons');
+    return;
+  }
+
+  const { data: profile } = await sb.from('profiles')
+    .select('id, role').eq('id', session.user.id).maybeSingle();
+  if (!profile || !ADMIN_ROLES.has(profile.role)) {
+    root.innerHTML = '<div class="empty">You are signed in, but only super-admins or tenant-admins can manage coupons.</div>';
+    return;
+  }
+
+  // ---- Mount UI ----
+  root.innerHTML = `
+    <section class="panel" id="coupons-list-panel">
+      <div class="panel-head">
+        <h3>Coupons</h3>
+        <div class="tools">
+          <button class="btn ghost" id="refreshBtn" type="button">Refresh</button>
+        </div>
+      </div>
+      <div id="coupons-table"><div class="empty">Loading coupons…</div></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h3 id="form-title">Create coupon</h3></div>
+      <form class="form-grid" id="coupon-form" autocomplete="off">
+        <div>
+          <label for="f-code">Code</label>
+          <input id="f-code" type="text" required maxlength="64"
+                 placeholder="LE2026" style="text-transform:uppercase;letter-spacing:.5px;" />
+        </div>
+        <div>
+          <label for="f-percent">Percent off</label>
+          <input id="f-percent" type="number" min="1" max="100" required value="100" />
+        </div>
+        <div>
+          <label for="f-course">Course</label>
+          <select id="f-course"><option value="">All courses</option></select>
+        </div>
+        <div>
+          <label for="f-max">Max redemptions</label>
+          <input id="f-max" type="number" min="1" placeholder="Blank = unlimited" />
+        </div>
+        <div>
+          <label for="f-expires">Expires (optional)</label>
+          <input id="f-expires" type="datetime-local" />
+        </div>
+        <div class="check">
+          <input id="f-le" type="checkbox" />
+          <label for="f-le" style="margin:0;">LE-only (requires approved access request)</label>
+        </div>
+        <div class="check">
+          <input id="f-once" type="checkbox" checked />
+          <label for="f-once" style="margin:0;">One redemption per user</label>
+        </div>
+        <div class="check">
+          <input id="f-active" type="checkbox" checked />
+          <label for="f-active" style="margin:0;">Active</label>
+        </div>
+        <div class="full">
+          <label for="f-desc">Description (optional)</label>
+          <textarea id="f-desc" rows="2" maxlength="500" placeholder="Internal note shown to admins only."></textarea>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="saveBtn" type="submit">Create coupon</button>
+          <button class="btn ghost" id="cancelBtn" type="button" hidden>Cancel</button>
+          <span id="formMsg" style="color:var(--muted);font-size:13px;"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h3>Recent redemptions</h3>
+      </div>
+      <div id="redemptions-table"><div class="empty">Loading redemptions…</div></div>
+    </section>
+  `;
+
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    loadCoupons();
+    loadRedemptions();
+  });
+  document.getElementById('cancelBtn').addEventListener('click', resetForm);
+  document.getElementById('coupon-form').addEventListener('submit', onSubmit);
+  document.getElementById('f-code').addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase();
+  });
+
+  // ---- State ----
+  let _editId = null;        // null = create mode, else uuid of coupon being edited
+  let _courses = [];
+
+  async function loadCourses() {
+    const { data, error } = await sb.from('courses')
+      .select('id, slug, title')
+      .order('title', { ascending: true });
+    if (error) { console.warn('[coupons] courses load failed:', error.message); return; }
+    _courses = data || [];
+    const sel = document.getElementById('f-course');
+    sel.innerHTML = '<option value="">All courses</option>' + _courses.map(c =>
+      `<option value="${escapeHtml(c.id)}">${escapeHtml(c.title || c.slug)} (${escapeHtml(c.slug)})</option>`
+    ).join('');
+  }
+
+  async function loadCoupons() {
+    const host = document.getElementById('coupons-table');
+    host.innerHTML = '<div class="empty">Loading coupons…</div>';
+    const { data, error } = await sb.from('coupons')
+      .select('id, code, description, percent_off, course_id, le_only, max_redemptions, redemption_count, per_user_once, expires_at, is_active, created_at')
+      .order('created_at', { ascending: false });
+    if (error) {
+      host.innerHTML = `<div class="empty">Could not load coupons: ${escapeHtml(error.message)}</div>`;
+      return;
+    }
+    if (!data || !data.length) {
+      host.innerHTML = '<div class="empty">No coupons yet — use the form below to create one.</div>';
+      return;
+    }
+    const courseTitle = (id) => {
+      if (!id) return 'All courses';
+      const c = _courses.find(x => x.id === id);
+      return c ? (c.title || c.slug) : '(removed course)';
+    };
+    const now = Date.now();
+    const rows = data.map(c => {
+      const expired = c.expires_at && new Date(c.expires_at).getTime() < now;
+      const exhausted = c.max_redemptions != null && c.redemption_count >= c.max_redemptions;
+      let pill;
+      if (!c.is_active)         pill = '<span class="pill off">Inactive</span>';
+      else if (expired)         pill = '<span class="pill warn">Expired</span>';
+      else if (exhausted)       pill = '<span class="pill warn">Used up</span>';
+      else                      pill = '<span class="pill ok">Active</span>';
+      const usage = c.max_redemptions == null
+        ? `${c.redemption_count} / ∞`
+        : `${c.redemption_count} / ${c.max_redemptions}`;
+      return `<tr>
+        <td><code>${escapeHtml(c.code)}</code> ${c.le_only ? '<span class="pill le">LE</span>' : ''}</td>
+        <td>${escapeHtml(c.percent_off)}% off</td>
+        <td>${escapeHtml(courseTitle(c.course_id))}</td>
+        <td>${escapeHtml(usage)}</td>
+        <td>${escapeHtml(fmtDate(c.expires_at))}</td>
+        <td>${pill}</td>
+        <td class="actions">
+          <button class="btn ghost"  data-act="edit"   data-id="${escapeHtml(c.id)}">Edit</button>
+          <button class="btn ghost"  data-act="toggle" data-id="${escapeHtml(c.id)}">${c.is_active ? 'Deactivate' : 'Activate'}</button>
+          <button class="btn danger" data-act="delete" data-id="${escapeHtml(c.id)}">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+    host.innerHTML = `<table class="rows">
+      <thead><tr><th>Code</th><th>Discount</th><th>Course</th><th>Used</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    host.querySelectorAll('button[data-act]').forEach(b => {
+      const id  = b.getAttribute('data-id');
+      const act = b.getAttribute('data-act');
+      b.addEventListener('click', () => {
+        if (act === 'edit')   return startEdit(data.find(x => x.id === id));
+        if (act === 'toggle') return toggleActive(data.find(x => x.id === id));
+        if (act === 'delete') return deleteCoupon(data.find(x => x.id === id));
+      });
+    });
+  }
+
+  async function loadRedemptions() {
+    const host = document.getElementById('redemptions-table');
+    host.innerHTML = '<div class="empty">Loading redemptions…</div>';
+    const { data, error } = await sb.from('coupon_redemptions')
+      .select('id, redeemed_at, email, course_id, original_cents, discount_cents, final_cents, coupon_id, coupons(code)')
+      .order('redeemed_at', { ascending: false })
+      .limit(50);
+    if (error) {
+      host.innerHTML = `<div class="empty">Could not load redemptions: ${escapeHtml(error.message)}</div>`;
+      return;
+    }
+    if (!data || !data.length) {
+      host.innerHTML = '<div class="empty">No redemptions yet.</div>';
+      return;
+    }
+    const rows = data.map(r => `<tr>
+      <td>${escapeHtml(fmtDate(r.redeemed_at))}</td>
+      <td><code>${escapeHtml((r.coupons && r.coupons.code) || '—')}</code></td>
+      <td>${escapeHtml(r.email || '—')}</td>
+      <td>${escapeHtml(r.course_id || '—')}</td>
+      <td>${escapeHtml(fmtMoney(r.original_cents))}</td>
+      <td>−${escapeHtml(fmtMoney(r.discount_cents))}</td>
+      <td><strong>${escapeHtml(fmtMoney(r.final_cents))}</strong></td>
+    </tr>`).join('');
+    host.innerHTML = `<table class="rows">
+      <thead><tr><th>When</th><th>Code</th><th>Email</th><th>Course</th><th>Original</th><th>Discount</th><th>Final</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function resetForm() {
+    _editId = null;
+    document.getElementById('form-title').textContent = 'Create coupon';
+    document.getElementById('saveBtn').textContent = 'Create coupon';
+    document.getElementById('cancelBtn').hidden = true;
+    document.getElementById('coupon-form').reset();
+    document.getElementById('f-percent').value = '100';
+    document.getElementById('f-active').checked = true;
+    document.getElementById('f-once').checked = true;
+    document.getElementById('formMsg').textContent = '';
+  }
+
+  function startEdit(c) {
+    if (!c) return;
+    _editId = c.id;
+    document.getElementById('form-title').textContent = 'Edit coupon';
+    document.getElementById('saveBtn').textContent = 'Save changes';
+    document.getElementById('cancelBtn').hidden = false;
+    document.getElementById('f-code').value      = c.code || '';
+    document.getElementById('f-percent').value   = c.percent_off || 100;
+    document.getElementById('f-course').value    = c.course_id || '';
+    document.getElementById('f-max').value       = c.max_redemptions == null ? '' : c.max_redemptions;
+    document.getElementById('f-expires').value   = toLocalInput(c.expires_at);
+    document.getElementById('f-le').checked      = !!c.le_only;
+    document.getElementById('f-once').checked    = !!c.per_user_once;
+    document.getElementById('f-active').checked  = !!c.is_active;
+    document.getElementById('f-desc').value      = c.description || '';
+    document.getElementById('formMsg').textContent = `Editing ${c.code}`;
+    window.scrollTo({ top: document.getElementById('form-title').offsetTop - 80, behavior: 'smooth' });
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    const code    = (document.getElementById('f-code').value || '').trim().toUpperCase();
+    const percent = parseInt(document.getElementById('f-percent').value, 10);
+    const course  = document.getElementById('f-course').value || null;
+    const maxRaw  = document.getElementById('f-max').value;
+    const expRaw  = document.getElementById('f-expires').value;
+    const desc    = (document.getElementById('f-desc').value || '').trim();
+
+    if (!code)    { document.getElementById('formMsg').textContent = 'Code required.'; return; }
+    if (!(percent >= 1 && percent <= 100)) {
+      document.getElementById('formMsg').textContent = 'Percent off must be 1–100.';
+      return;
+    }
+    const payload = {
+      code,
+      description:     desc || null,
+      percent_off:     percent,
+      course_id:       course || null,
+      le_only:         document.getElementById('f-le').checked,
+      max_redemptions: maxRaw === '' ? null : parseInt(maxRaw, 10),
+      per_user_once:   document.getElementById('f-once').checked,
+      expires_at:      expRaw ? new Date(expRaw).toISOString() : null,
+      is_active:       document.getElementById('f-active').checked
+    };
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    document.getElementById('formMsg').textContent = 'Saving…';
+    try {
+      if (_editId) {
+        const { error } = await sb.from('coupons').update(payload).eq('id', _editId);
+        if (error) throw error;
+        showBanner(`Coupon ${code} updated.`, 'ok');
+      } else {
+        payload.created_by = session.user.id;
+        const { error } = await sb.from('coupons').insert(payload);
+        if (error) throw error;
+        showBanner(`Coupon ${code} created.`, 'ok');
+      }
+      resetForm();
+      await loadCoupons();
+    } catch (err) {
+      document.getElementById('formMsg').textContent = 'Save failed: ' + (err.message || err);
+      showBanner('Save failed: ' + (err.message || err), 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function toggleActive(c) {
+    if (!c) return;
+    const { error } = await sb.from('coupons')
+      .update({ is_active: !c.is_active }).eq('id', c.id);
+    if (error) { showBanner('Toggle failed: ' + error.message, 'err'); return; }
+    showBanner(`Coupon ${c.code} ${!c.is_active ? 'activated' : 'deactivated'}.`, 'ok');
+    loadCoupons();
+  }
+
+  async function deleteCoupon(c) {
+    if (!c) return;
+    if (!confirm(`Delete coupon ${c.code}? This cannot be undone (existing redemptions remain in history).`)) return;
+    const { error } = await sb.from('coupons').delete().eq('id', c.id);
+    if (error) { showBanner('Delete failed: ' + error.message, 'err'); return; }
+    showBanner(`Coupon ${c.code} deleted.`, 'ok');
+    loadCoupons();
+  }
+
+  await loadCourses();
+  loadCoupons();
+  loadRedemptions();
+})();
+</script>
+
+</body>
+</html>

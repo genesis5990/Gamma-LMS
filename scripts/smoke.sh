@@ -81,6 +81,7 @@ check "deconflict logo (transparent)" 200 "/assets/tenants/deconflict/transparen
 check "tenant theme stylesheet"     200 "/tenant-themes.css"     "deconflict"
 check "courses catalog"             200 "/courses"          "Deconflict"
 check "admin requests page"         200 "/admin/requests"   "Access requests"
+check "admin coupons page (gated)"  200 "/admin/coupons"    'id="coupons-app"'
 check "public-config endpoint"      200 "/api/public-config" "stripe_publishable_key"
 check "le preview page (gated)"     401 "/preview/le-field-tactics"
 check "le preview json (gated)"     401 "/preview/le-field-tactics.course.json"

@@ -78,6 +78,22 @@
     $('userChip').hidden = false;
     $('signOutBtn').hidden = false;
     $('signOutBtn').addEventListener('click', () => window.signOut && window.signOut());
+
+    // Free-enrollment banner (set by /api/checkout free-path redirect).
+    try {
+      const qs = new URLSearchParams(window.location.search);
+      if (qs.get('free') === '1') {
+        const slug = qs.get('course') || '';
+        const fb = $('freeBanner');
+        if (fb) {
+          fb.textContent = slug
+            ? `Coupon applied — you're now enrolled in "${slug}" at no cost.`
+            : 'Coupon applied — your enrollment is active.';
+          fb.style.display = 'block';
+        }
+      }
+    } catch (_e) { /* noop */ }
+
     hydrate(u, tenant);
   }
 
@@ -337,7 +353,7 @@
 
     let q = sb.from('courses')
       .select('id, slug, title, description, hero_image_url, tenant_id, visibility')
-      .in('visibility', ['preview', 'public']);
+      .in('visibility', ['preview', 'public', 'restricted']);
     if (tenantId === null) {
       q = q.is('tenant_id', null);
     } else {
@@ -359,6 +375,7 @@
       <div class="grid">
         ${avail.map(c => `
           <article class="ccard" data-slug="${escapeHtml(c.slug)}">
+            ${c.visibility === 'restricted' ? '<div class="le-badge">LE Restricted</div>' : ''}
             <h3>${escapeHtml(c.title || c.slug)}</h3>
             <p>${escapeHtml((c.description || '').slice(0, 160))}</p>
             <div class="meta"><span>&nbsp;</span>

@@ -629,9 +629,10 @@ body {
   font-weight: 600;
   text-transform: uppercase;
 }
-.dash-status.is-public  { background: #dff5e3; color: var(--st-good); }
-.dash-status.is-preview { background: #fdf1d2; color: var(--st-warn); }
-.dash-status.is-private { background: #f0f2fa; color: var(--st-muted); }
+.dash-status.is-public     { background: #dff5e3; color: var(--st-good); }
+.dash-status.is-preview    { background: #fdf1d2; color: var(--st-warn); }
+.dash-status.is-private    { background: #f0f2fa; color: var(--st-muted); }
+.dash-status.is-restricted { background: #e6efff; color: #0a3d91; }
 
 .dash-cols {
   display: grid;
