@@ -150,6 +150,14 @@
 
     document.body.classList.add('has-admin-nav');
     document.body.insertBefore(bar, document.body.firstChild);
+
+    // Hide page-local sign-out / user-chip controls to avoid duplicates.
+    // Dashboard and other pages render their own controls for non-admins;
+    // when admin-nav mounts, it owns the sign-out and identity display.
+    ['signOutBtn', 'userChip'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('hidden', '');
+    });
   }
 
   function escapeHtml(s) {

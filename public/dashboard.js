@@ -124,13 +124,13 @@
   async function renderProfile() {
     const host = $('profileCard');
     const { data: profile, error } = await sb.from('profiles')
-      .select('id, email, full_name, avatar_url, role, tenant_id, agency_name')
+      .select('id, email, full_name, role, tenant_id, agency_name, metadata')
       .eq('id', _state.user.id).maybeSingle();
     if (error) throw error;
     _state.profile = profile || { id: _state.user.id, email: _state.user.email };
 
     const name = (profile && profile.full_name) || '';
-    const av = profile && profile.avatar_url;
+    const av = profile && profile.metadata && profile.metadata.avatar_url;
     const orgName = _state.tenant && _state.tenant.name;
     host.innerHTML = `
       <h2>Your profile</h2>
@@ -149,7 +149,7 @@
 
   function openEditProfile(profile) {
     $('editFullName').value = profile.full_name || '';
-    $('editAvatar').value = profile.avatar_url || '';
+    $('editAvatar').value = (profile.metadata && profile.metadata.avatar_url) || '';
     $('editMsg').className = 'overlay-msg'; $('editMsg').textContent = '';
     $('editOverlay').classList.add('is-open');
     setTimeout(() => $('editFullName').focus(), 0);
@@ -164,7 +164,10 @@
     const msg = $('editMsg');
     msg.className = 'overlay-msg'; msg.textContent = 'Saving…';
     try {
-      const patch = { full_name: full, avatar_url: av || null };
+      const currentMeta = (_state.profile && _state.profile.metadata) || {};
+      const newMeta = { ...currentMeta };
+      if (av) newMeta.avatar_url = av; else delete newMeta.avatar_url;
+      const patch = { full_name: full, metadata: newMeta };
       await window.updateProfile(patch);
       msg.classList.add('is-ok'); msg.textContent = 'Saved.';
       setTimeout(() => $('editOverlay').classList.remove('is-open'), 600);
