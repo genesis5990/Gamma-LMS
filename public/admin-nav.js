@@ -146,9 +146,13 @@
     out.className = 'signout';
     out.textContent = 'Sign out';
     out.addEventListener('click', async () => {
-      try { await client.auth.signOut({ scope: 'local' }); } catch (_e) { /* noop */ }
-      // Belt-and-braces: even if signOut errored or no-op'd, drop the
-      // persisted token from localStorage so a reload starts logged-out.
+      if (typeof window.signOut === 'function') {
+        await window.signOut();
+        return;
+      }
+      // Defensive fallback: auth.js didn't load. Use global scope so the
+      // server-side JWT is actually revoked (SOC 2 F-03).
+      try { await client.auth.signOut({ scope: 'global' }); } catch (_e) { /* noop */ }
       try {
         const u = (window.SUPABASE_URL || '').replace(/^https?:\/\//, '').split('.')[0];
         if (u) localStorage.removeItem('sb-' + u + '-auth-token');

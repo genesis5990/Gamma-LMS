@@ -44,12 +44,13 @@ body {
   gap: 14px;
   flex-shrink: 0;
 }
-.studio-brand { display:flex; align-items:center; gap:12px; }
-.studio-badge {
-  width: 36px; height: 36px; border-radius: 6px;
-  background: var(--st-gold); color: var(--st-ink);
-  display: grid; place-items: center;
-  font-weight: 800; font-size: 14px;
+.studio-brand { display:flex; align-items:center; gap:12px; color:#fff; text-decoration:none; }
+.studio-brand:hover { text-decoration:none; }
+.studio-brand-mark { width:36px; height:36px; object-fit:contain; display:block; }
+.studio-brand-name {
+  font-size: 16px; font-weight: 800;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--st-gold);
 }
 .studio-title { font-size: 17px; font-weight: 600; letter-spacing: .3px; }
 .studio-version {

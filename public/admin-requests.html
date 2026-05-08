@@ -160,10 +160,7 @@ function showBanner(text, kind) {
   banner.style.display = 'block';
 }
 
-document.getElementById('signOutBtn').addEventListener('click', async () => {
-  await sb.auth.signOut();
-  window.location.reload();
-});
+document.getElementById('signOutBtn').addEventListener('click', () => window.signOut());
 
 // Tenant slug from URL (matches tenant.js logic)
 function tenantSlug() {

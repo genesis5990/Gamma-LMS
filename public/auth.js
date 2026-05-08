@@ -122,8 +122,14 @@ window.authReady = (async () => {
 window.currentUser = () => _user;
 
 window.signOut = async () => {
-  await sb.auth.signOut();
-  window.location.reload();
+  try { await sb.auth.signOut(); } catch (_e) { /* noop */ }
+  // Belt-and-braces: even if signOut errored or no-op'd, drop the persisted
+  // token from localStorage so a reload starts logged-out.
+  try {
+    const u = (window.SUPABASE_URL || '').replace(/^https?:\/\//, '').split('.')[0];
+    if (u) localStorage.removeItem('sb-' + u + '-auth-token');
+  } catch (_e) { /* noop */ }
+  window.location.href = '/';
 };
 
 window.signInWithEmail = async (email) => {
