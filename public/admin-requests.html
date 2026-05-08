@@ -11,6 +11,7 @@
 <script src="/admin-nav.js" defer></script>
 <script src="/admin-welcome.js" defer></script>
 <link rel="stylesheet" href="/tenant-themes.css" />
+<link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
     --ink: #0d1424; --ink-2: #1d2a47;
@@ -26,37 +27,23 @@
     color: var(--ink); background: var(--paper);
     min-height: 100vh;
   }
-  header.admin {
-    background: linear-gradient(180deg, var(--brand-ink) 0%, #1d2a47 100%);
-    color:#fff; border-bottom: 3px solid var(--brand-bg, var(--gold)); padding: 14px 22px;
-  }
-  header.admin .row { display:flex; align-items:center; gap:14px; max-width:1400px; margin:0 auto; }
-  header.admin .badge {
-    height:46px; width:auto; max-width:200px;
-    display:block; object-fit:contain;
-    border-radius:6px;
-  }
-  header.admin h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
-  header.admin .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
-  header.admin .actions { margin-left:auto; display:flex; gap:10px; }
-  header.admin .btn-ghost {
+  .app-header .actions { margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .app-header .btn-ghost {
     background: transparent; color:#fff; border:1px solid rgba(255,255,255,.2);
     padding: 7px 12px; border-radius:6px; font-size:13px; cursor:pointer; text-decoration:none;
   }
-  header.admin .btn-ghost:hover { background: rgba(255,255,255,.08); }
-  header.admin .admin-nav { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
-  header.admin .admin-nav .btn-ghost.is-current,
-  header.admin .admin-nav .btn-ghost[aria-current="page"] {
+  .app-header .btn-ghost:hover { background: rgba(255,255,255,.08); }
+  .app-header .admin-nav { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .app-header .admin-nav .btn-ghost.is-current,
+  .app-header .admin-nav .btn-ghost[aria-current="page"] {
     background: rgba(200,166,74,.18);
     border-color: var(--gold);
     color: #f5e7bf;
     font-weight: 600;
   }
   @media (max-width: 760px) {
-    header.admin .row { flex-wrap: wrap; }
-    header.admin .actions { width: 100%; flex-wrap: wrap; }
+    .app-header .actions { width: 100%; flex-wrap: wrap; }
   }
-  header.admin img[data-tenant-logo] { max-height:46px; }
 
   main { max-width: 1100px; margin: 0 auto; padding: 28px clamp(16px, 3vw, 32px); }
   .h { display:flex; align-items:baseline; gap:14px; margin-bottom: 18px; }
@@ -116,25 +103,22 @@
 </head>
 <body>
 
-<header class="admin">
-  <div class="row">
-    <img data-tenant-logo="dark" hidden style="display:none;" />
-    <img class="badge" id="defaultBadge" src="/brand/logo-mark.svg" alt="Deconflict" />
-    <div>
-      <h1 data-tenant-name>Deconflict</h1>
-      <div class="sub">Access requests &middot; admin</div>
-    </div>
-    <div class="actions">
-      <nav class="admin-nav" aria-label="Admin sections">
-        <a class="btn-ghost" href="/admin">Dashboard</a>
-        <a class="btn-ghost is-current" href="/admin/requests" aria-current="page">Access requests</a>
-        <a class="btn-ghost" href="/admin/coupons">Coupons</a>
-        <a class="btn-ghost" href="/studio">Course Studio</a>
-        <a class="btn-ghost" href="/courses">Catalog</a>
-        <a class="btn-ghost" href="/">Live site</a>
-      </nav>
-      <button class="btn-ghost" id="signOutBtn" type="button">Sign out</button>
-    </div>
+<header class="app-header">
+  <a class="brand" href="/" aria-label="Deconflict home">
+    <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="36" height="36" />
+    <span class="brand-name">DECONFLICT</span>
+    <span class="page-title">Access Requests</span>
+  </a>
+  <div class="actions">
+    <nav class="admin-nav" aria-label="Admin sections">
+      <a class="btn-ghost" href="/admin">Dashboard</a>
+      <a class="btn-ghost is-current" href="/admin/requests" aria-current="page">Access requests</a>
+      <a class="btn-ghost" href="/admin/coupons">Coupons</a>
+      <a class="btn-ghost" href="/studio">Course Studio</a>
+      <a class="btn-ghost" href="/courses">Catalog</a>
+      <a class="btn-ghost" href="/">Live site</a>
+    </nav>
+    <button class="btn-ghost" id="signOutBtn" type="button">Sign out</button>
   </div>
 </header>
 

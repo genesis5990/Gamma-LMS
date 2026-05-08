@@ -8,6 +8,7 @@
 <script src="/config.js"></script>
 <script src="/admin-nav.js" defer></script>
 <meta name="description" content="Deconflict — Crypto Intelligence Sharing. Pay-per-course training in cryptocurrency, blockchain forensics, and digital asset compliance for investigators." />
+<link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
     --ink: #0d1424; --ink-2: #1d2a47;
@@ -23,18 +24,6 @@
     min-height: 100vh; display:flex; flex-direction:column;
   }
   a { color: var(--accent-2); }
-  header.site {
-    background: linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
-    color:#fff; border-bottom: 3px solid var(--gold); padding: 14px 22px;
-  }
-  header.site .row { display:flex; align-items:center; gap:14px; max-width:1200px; margin:0 auto; }
-  header.site .badge {
-    height:46px; width:auto; max-width:200px;
-    display:block; object-fit:contain;
-    border-radius:6px;
-  }
-  header.site h1 { font-size: 17px; margin:0; letter-spacing:.3px; }
-  header.site .sub { font-size: 12px; color:#aab2c8; margin-top:2px; letter-spacing:.5px; text-transform:uppercase; }
   main { flex:1; max-width: 980px; margin: 0 auto; padding: 56px clamp(20px, 4vw, 40px); width: 100%; }
   .hero h2 {
     font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin: 0 0 14px;
@@ -100,14 +89,12 @@
 </head>
 <body>
 
-<header class="site">
-  <div class="row">
-    <img class="badge" src="/brand/logo-mark.svg" alt="Deconflict" />
-    <div>
-      <h1>Deconflict</h1>
-      <div class="sub">Crypto Intelligence Sharing · cryptocurrency &amp; blockchain forensics</div>
-    </div>
-  </div>
+<header class="app-header">
+  <a class="brand" href="/" aria-label="Deconflict home">
+    <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="36" height="36" />
+    <span class="brand-name">DECONFLICT</span>
+    <span class="page-title">Catalog</span>
+  </a>
 </header>
 
 <main>

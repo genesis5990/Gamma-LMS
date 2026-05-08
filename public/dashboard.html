@@ -10,6 +10,7 @@
 <script src="/tenant.js"></script>
 <script src="/auth.js"></script>
 <script src="/admin-nav.js" defer></script>
+<link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
     --ink: #060A16;
@@ -37,28 +38,14 @@
   button { font: inherit; cursor: pointer; }
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
 
-  /* ---- Header ---- */
-  .top {
-    background: var(--brand-ink); color: #fff;
-    padding: 14px 22px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    border-bottom: 3px solid var(--brand-bg);
-  }
-  .top .left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .top .left img { height: 36px; max-width: 200px; object-fit: contain; }
-  .top .left .badge-fb {
-    height: 36px; width: auto; max-width: 160px;
-    display: inline-block; object-fit: contain;
-    border-radius: 6px;
-  }
-  .top h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .3px; }
-  .top .right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-  .top .user-chip { background: rgba(255,255,255,.08); padding: 6px 10px; border-radius: 999px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .top .btn-out {
+  /* ---- Header right-side actions ---- */
+  .app-header .right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .app-header .user-chip { background: rgba(255,255,255,.08); padding: 6px 10px; border-radius: 999px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+  .app-header .btn-out {
     background: transparent; border: 1px solid rgba(255,255,255,.25);
     color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 13px;
   }
-  .top .btn-out:hover { background: rgba(255,255,255,.08); }
+  .app-header .btn-out:hover { background: rgba(255,255,255,.08); }
 
   /* ---- Top progress strip ---- */
   .progress-strip {
@@ -258,12 +245,12 @@
 </head>
 <body>
 
-<header class="top">
-  <div class="left">
-    <img data-tenant-logo="dark" hidden alt="" />
-    <img class="badge-fb" data-tenant-fallback src="/brand/logo-mark.svg" alt="Deconflict" />
-    <h1 id="dashTitle">Dashboard</h1>
-  </div>
+<header class="app-header">
+  <a class="brand" href="/" aria-label="Deconflict home">
+    <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="36" height="36" />
+    <span class="brand-name">DECONFLICT</span>
+    <span class="page-title" id="dashTitle">Dashboard</span>
+  </a>
   <div class="right">
     <span class="user-chip" id="userChip" hidden></span>
     <button type="button" class="btn-out" id="signOutBtn" hidden>Sign out</button>

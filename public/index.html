@@ -49,11 +49,12 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 24px; gap: 16px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+  .brand:hover { text-decoration: none; }
   .brand svg { display: block; }
-  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 1.2px; text-transform: uppercase; }
+  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--gold); }
   .brand-name b { color: var(--gold); font-weight: 800; }
-  .brand-mark { width: 34px; height: 34px; object-fit: contain; }
+  .brand-mark { width: 36px; height: 36px; object-fit: contain; }
   .brand-sub { font-size: 11px; color: var(--muted); margin-top: -2px; letter-spacing: .8px; text-transform: uppercase; }
   .nav-links { display: flex; align-items: center; gap: 16px; }
   .nav-links a { font-size: 14px; color: var(--ink-2); padding: 6px 2px; border-bottom: 2px solid transparent; }
@@ -314,7 +315,7 @@
 <header class="site-header" id="siteHeader">
   <div class="nav">
     <a class="brand" href="/" aria-label="Deconflict home">
-      <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="40" height="40" />
+      <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="36" height="36" />
       <span>
         <span class="brand-name">DECONFLICT</span>
         <div class="brand-sub">Crypto Intelligence Sharing</div>
