@@ -702,7 +702,14 @@
   if (typeof window.onSignedIn === 'function') {
     window.onSignedIn(() => {
       const gate = document.getElementById('signInGate');
-      if (gate && !gate.hidden) {
+      const gateOpen = gate && !gate.hidden;
+      // Re-render when the late sign-in arrives. Two cases:
+      //  (a) gate is still visible -> swap it for the dashboard.
+      //  (b) we already painted dashboardRoot but every section saw null user
+      //      and short-circuited (empty cards). Detect that by checking if
+      //      _state was never populated.
+      const stale = !_state;
+      if (gateOpen || stale) {
         gateOrRender().catch(err => console.error('[dashboard] re-render failed', err));
       }
     });

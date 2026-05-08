@@ -53,44 +53,70 @@ function _postSignInRedirect() {
 }
 
 window.authReady = (async () => {
-  // Handle magic-link callback (?code=... or #access_token=...)
-  const { data } = await sb.auth.getSession();
-  _user = data.session?.user || null;
+  // Strip token fragments from the URL eagerly. detectSessionInUrl has
+  // already kicked off parsing by the time this script runs, so the hash
+  // is just visual noise that makes a hard refresh re-attempt parsing a
+  // consumed token.
+  function _cleanAuthHash() {
+    try {
+      const hash = window.location.hash || '';
+      if (/(?:^|#|&)(access_token|refresh_token|type|expires_in)=/.test(hash)) {
+        const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    } catch (_e) { /* noop */ }
+  }
 
-  // Strip the access_token hash off the URL once the session has been
-  // captured. detectSessionInUrl already parsed it; leaving it in the
-  // address bar makes the page look broken and a hard refresh would try
-  // to re-parse a token that's already been consumed.
-  try {
-    const hash = window.location.hash || '';
-    if (/(?:^|#|&)(access_token|refresh_token|type|expires_in)=/.test(hash) && _user) {
-      const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
-      window.history.replaceState({}, '', cleanUrl);
-    }
-  } catch { /* noop */ }
-
+  // Register the auth-state listener FIRST so we never miss INITIAL_SESSION
+  // (fires once detectSessionInUrl finishes parsing the hash).
+  let _initialSessionResolved = false;
+  let _resolveInitial = null;
+  const _initialSessionPromise = new Promise((resolve) => { _resolveInitial = resolve; });
   sb.auth.onAuthStateChange((event, session) => {
     const wasNull = !_user;
     _user = session?.user || null;
+    if (event === 'INITIAL_SESSION') {
+      _initialSessionResolved = true;
+      _cleanAuthHash();
+      if (_resolveInitial) _resolveInitial();
+    }
     if (wasNull && _user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
-      try { _postSignInRedirect(); } catch { /* noop */ }
-      // Notify any page-level subscribers (dashboard re-render, etc.)
+      _cleanAuthHash();
+      try { _postSignInRedirect(); } catch (_e) { /* noop */ }
       _onSignInCbs.forEach(cb => { try { cb(_user); } catch (err) { console.warn('onSignedIn cb failed:', err); } });
     }
   });
 
+  // Always ask for the current session — covers the no-hash case where
+  // INITIAL_SESSION may fire before our listener if the SDK is fast.
+  const { data } = await sb.auth.getSession();
+  _user = data.session?.user || _user;
+
+  // If the URL has a magic-link hash but our session is still null, wait
+  // briefly for INITIAL_SESSION to land. Cap the wait so a malformed hash
+  // doesn't block forever.
+  const hashHasToken = /(?:^|#|&)(access_token|refresh_token)=/.test(window.location.hash || '');
+  if (hashHasToken && !_user && !_initialSessionResolved) {
+    await Promise.race([
+      _initialSessionPromise,
+      new Promise(r => setTimeout(r, 1500))
+    ]);
+  }
+
+  // Final hash cleanup regardless of whether _user landed — leaving the
+  // token in the address bar is always wrong by this point.
+  _cleanAuthHash();
+
   // Phase 3: detect a gating rejection from handle_new_user (insufficient_privilege)
-  // Supabase surfaces it as ?error=...&error_description=... in the URL after the redirect.
   try {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
     const errDesc = params.get('error_description') || params.get('error');
     if (errDesc && /approval|invitation|insufficient_privilege/i.test(errDesc)) {
-      // Clear the error from the URL
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
       window._gatingRejection = decodeURIComponent(errDesc.replace(/\+/g, ' '));
     }
-  } catch { /* noop */ }
+  } catch (_e) { /* noop */ }
 })();
 
 window.currentUser = () => _user;
