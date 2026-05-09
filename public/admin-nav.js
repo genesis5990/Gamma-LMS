@@ -197,10 +197,22 @@
     } catch (_e) { return; }
 
     if (!ADMIN_ROLES.has(role)) return;
-    injectStyles();
+
+    // Skip injection if the page already provides its own inline admin nav
+    // inside the unified app-header (post-v0.4.49 admin pages). Avoids the
+    // double-nav stack on /admin and /admin/requests.
+    function hasInlineAdminNav() {
+      return !!document.querySelector('.app-header .admin-nav');
+    }
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => buildBar(role, session.user.email));
+      document.addEventListener('DOMContentLoaded', () => {
+        if (hasInlineAdminNav()) return;
+        injectStyles();
+        buildBar(role, session.user.email);
+      });
     } else {
+      if (hasInlineAdminNav()) return;
+      injectStyles();
       buildBar(role, session.user.email);
     }
   }
