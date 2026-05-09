@@ -1369,10 +1369,12 @@ function renderModule1Stub() {
 // ============================================================================
 // Boot — wait for auth, then either show sign-in modal or load the course.
 async function boot() {
+  console.log('[boot] starting');
   // Wait for tenant config too so the sign-in modal is branded for the tenant
   // and the inline "Request access" link is wired up before the modal appears.
   await Promise.all([window.authReady, window.tenantReady].filter(Boolean));
   const user = window.currentUser();
+  console.log('[boot] auth/tenant ready; user=', user?.email || null);
   if (!user) {
     document.getElementById('authOverlay').style.display = 'flex';
     return;
@@ -1380,9 +1382,6 @@ async function boot() {
   document.getElementById('authOverlay').style.display = 'none';
 
   // First-time profile check — gate the course until name + agency are filled in.
-  // Canonical check is field-presence (window.profileIsComplete), so existing
-  // users with populated full_name/agency_name don't get re-prompted even if
-  // their metadata blob is empty.
   const profile = await window.getProfile();
   if (!window.profileIsComplete(profile)) {
     await showProfileModal(profile);
@@ -1391,15 +1390,11 @@ async function boot() {
   document.getElementById('banner').style.display = 'block';
   document.getElementById('signOutBtn').style.display = '';
   document.getElementById('resetBtn').style.display = '';
-  // Show signed-in chip in topbar
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = user.email;
 
-  // Load progress, course data, and appendix items in parallel.
-  // All slugs (including crypto101 since v0.4.43) pull live data from Supabase
-  // via loadCourseFromSupabase so author edits in studio show up immediately.
-  // The static /course_data.json file remains as a manual fallback if needed.
   const slug = window.COURSE_SLUG || resolveCourseSlug();
+  console.log('[boot] loading course slug=', slug);
   const courseFetch = loadCourseFromSupabase(slug);
   const [serverProgress, data] = await Promise.all([
     window.loadProgress(),
@@ -1408,12 +1403,28 @@ async function boot() {
   ]);
   progress = serverProgress;
   COURSE = data;
+  console.log('[boot] course loaded:', {
+    has_data: !!data,
+    lessons: data?.lesson_map?.length,
+    first: data?.lesson_map?.[0]?.title
+  });
   if (data && data.pass_threshold) window.PASS_THRESHOLD = data.pass_threshold;
   buildSidebar();
   // Default to first incomplete lesson, otherwise first lesson
   const firstIncomplete = COURSE.lesson_map.find(l => l.type !== 'quiz' && !progress[l.id]?.complete);
   const first = firstIncomplete || COURSE.lesson_map.find(l => l.type !== 'quiz');
-  if (first) renderLesson(first.id);
+  console.log('[boot] first lesson selected:', first?.id, first?.title);
+  if (first) {
+    try { renderLesson(first.id); }
+    catch (renderErr) {
+      console.error('[boot] renderLesson threw:', renderErr);
+      document.getElementById('content').innerHTML =
+        `<div class="lesson-card" style="color:var(--bad);">Render error: ${renderErr.message}<br><small>${(renderErr.stack||'').split('\n').slice(0,3).join('<br>')}</small></div>`;
+    }
+  } else {
+    document.getElementById('content').innerHTML =
+      `<div class="lesson-card" style="color:var(--bad);">No lessons found for course "${slug}". lesson_map length: ${COURSE?.lesson_map?.length ?? 'n/a'}.</div>`;
+  }
 }
 boot()
   .catch(e => {
