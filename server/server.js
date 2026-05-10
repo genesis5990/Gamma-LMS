@@ -23,6 +23,7 @@ const RESERVED = new Set([
   'auth.js', 'config.js', 'tenant.js', 'course_data.json',
   'course.html', 'admin.html', 'index.html', 'courses.html', 'admin-requests.html',
   'verify', 'health', 'api', 'courses', 'preview', 'studio', 'dashboard',
+  'terms', 'privacy',
   'studio.html', 'studio.js', 'studio.css',
   'dashboard.html', 'dashboard.js'
 ]);
@@ -1020,6 +1021,65 @@ async function fulfillPurchase({ email, courseId, sessionId, amountCents, curren
 // =====================================================================
 app.get(/^\/verify(?:\/([0-9a-f]{64}))?\/?$/, (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'verify.html'));
+});
+
+// =====================================================================
+// Static disclosures: /terms and /privacy. Linked from the course title
+// page (added v0.4.59); learners need a working target before continuing.
+// Copy is intentionally minimal — replace with the canonical legal copy
+// when finalized.
+// =====================================================================
+function _disclosurePage(title, body) {
+  return `<!doctype html><html lang="en"><head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${title} — Deconflict</title>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <style>
+      :root { --ink:#0d1424; --paper:#f7f8fc; --line:#d9dfee; --accent:#0a3d91; }
+      body { margin:0; font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--paper); }
+      main { max-width: 820px; margin: 40px auto; padding: 28px clamp(20px,4vw,40px); background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 1px 3px rgba(13,20,36,.06); }
+      h1 { margin: 0 0 12px; font-size: 28px; }
+      h2 { margin-top: 24px; font-size: 18px; }
+      a { color: var(--accent); }
+      .small { font-size: 13px; color:#5b6788; margin-top: 30px; }
+    </style></head><body><main>${body}<p class="small">Last updated 2026-05-10. <a href="/">Back to home</a></p></main></body></html>`;
+}
+
+app.get('/terms', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(_disclosurePage('Terms of Service', `
+    <h1>Terms of Service</h1>
+    <p>By accessing the Deconflict / mygenesis-training platform you agree to these terms. The platform is provided on an as-is basis for training and educational use. We may update or modify the courses, certificates, and platform behavior at any time.</p>
+    <h2>Acceptable use</h2>
+    <p>Do not share your account, attempt to circumvent security or access controls, scrape platform content for resale, or use the platform to train derivative AI systems without written permission.</p>
+    <h2>No warranties</h2>
+    <p>Course content is provided without warranty of any kind. Nothing on this platform is legal, financial, investment, tax, or operational advice — see the per-course disclosures and consult qualified professionals for your specific situation.</p>
+    <h2>Account termination</h2>
+    <p>We reserve the right to suspend or terminate accounts that violate these terms or applicable law.</p>
+    <h2>Contact</h2>
+    <p>Questions: <a href="mailto:support@mygenesis-training.com">support@mygenesis-training.com</a></p>
+  `));
+});
+
+app.get('/privacy', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(_disclosurePage('Privacy Policy', `
+    <h1>Privacy Policy</h1>
+    <p>This page summarizes what data the Deconflict / mygenesis-training platform collects and how it is used.</p>
+    <h2>What we collect</h2>
+    <ul>
+      <li>Account profile (email, full name, agency / department, optional badge number)</li>
+      <li>Course progress: lessons viewed, quiz attempts, scores</li>
+      <li>Terms of Service acceptance records (course, timestamp, user agent)</li>
+      <li>Server access logs for security and fraud prevention</li>
+    </ul>
+    <h2>How we use it</h2>
+    <p>We use this data to deliver courses, issue certificates, support reporting to your agency, secure the platform, and respond to support requests. We do not sell user data.</p>
+    <h2>Sharing</h2>
+    <p>Course completion data may be visible to your tenant administrators (typically your agency). Service providers (Supabase for storage / auth, Resend for email, Stripe for payments where applicable) process data on our behalf under their own agreements.</p>
+    <h2>Your rights</h2>
+    <p>You may request access to or deletion of your account data by emailing <a href="mailto:support@mygenesis-training.com">support@mygenesis-training.com</a>.</p>
+  `));
 });
 
 // =====================================================================

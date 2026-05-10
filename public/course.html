@@ -115,21 +115,27 @@
     color: var(--ink);
   }
   .lesson-meta { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
-  .lesson-hero {
+  /* Hero image wrapper: fit-width / auto-height. The block grows/shrinks
+     to match the image's aspect ratio — no cropping, no letterboxing. */
+  .lesson-hero,
+  .title-hero-img {
     margin: 0 0 18px 0;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    display: block;
     border-radius: 10px;
     overflow: hidden;
     background: var(--paper-2);
     border: 1px solid var(--line);
   }
-  .lesson-hero img {
+  .lesson-hero img,
+  .title-hero-img img {
     display: block;
     width: 100%;
-    max-height: 380px;
-    object-fit: cover;
-  }
-  @media (max-width: 700px) {
-    .lesson-hero img { max-height: 220px; }
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
   }
   .lesson-card {
     background: var(--paper-2); border: 1px solid var(--line);
@@ -404,6 +410,57 @@
     background: rgba(255, 220, 100, .45);
     border-radius: 4px;
   }
+
+  /* ===== Course title page ===== */
+  .title-page { max-width: 820px; }
+  .title-page h1.title-page-title {
+    font-size: 34px; line-height: 1.15; margin: 0 0 14px;
+    color: var(--ink);
+  }
+  .title-page .title-page-welcome {
+    font-size: 16px; color: var(--ink-2); margin: 0 0 22px;
+    line-height: 1.6;
+  }
+  .title-page .title-page-disclosures {
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 22px; margin: 18px 0 22px;
+    box-shadow: var(--shadow);
+  }
+  .title-page .title-page-disclosures h3 {
+    font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  .title-page .title-page-disclosures dl { margin: 0; }
+  .title-page .title-page-disclosures dt {
+    font-weight: 700; color: var(--ink-2); margin-top: 12px;
+    font-size: 14px;
+  }
+  .title-page .title-page-disclosures dt:first-child { margin-top: 0; }
+  .title-page .title-page-disclosures dd {
+    margin: 4px 0 0; font-size: 14px; color: var(--ink); line-height: 1.55;
+  }
+  .title-page .title-page-disclosures a { color: var(--accent-2); }
+  .title-page .title-page-tos {
+    background: #fafbff; border: 1px solid var(--line);
+    border-left: 4px solid var(--gold);
+    border-radius: 8px; padding: 14px 18px; margin: 18px 0 18px;
+  }
+  .title-page .title-page-tos label {
+    display: flex; align-items: flex-start; gap: 10px;
+    cursor: pointer; font-size: 14px; line-height: 1.5;
+  }
+  .title-page .title-page-tos input[type="checkbox"] { margin-top: 3px; }
+  .title-page .title-page-tos a { color: var(--accent-2); }
+  .title-page .title-page-actions {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .title-page .title-page-preview-banner {
+    background: #fff7e6; border: 1px dashed #f0c976;
+    color: #6e4a07; font-size: 13px;
+    padding: 8px 12px; border-radius: 6px;
+    margin: 0 0 14px;
+  }
 </style>
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/svg+xml" href="/brand/icon-dark.svg" />
@@ -535,10 +592,26 @@ async function loadCourseFromSupabase(slug) {
   const sb = window.supabaseClient;
   if (!sb) throw new Error('supabase client missing');
 
-  const { data: course, error: cErr } = await sb.from('courses')
-    .select('id, slug, title, description, hero_image_url, hero_image_alt, current_version_id, visibility, tenant_id, pass_threshold')
-    .eq('slug', slug)
-    .maybeSingle();
+  // welcome_message landed in migration 0027. Try the new column first; if
+  // the column hasn't been applied to this environment, fall back to the
+  // original select so the page still loads.
+  let course = null;
+  let cErr = null;
+  {
+    const r = await sb.from('courses')
+      .select('id, slug, title, description, hero_image_url, hero_image_alt, welcome_message, current_version_id, visibility, tenant_id, pass_threshold')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (r.error && /welcome_message/i.test(r.error.message || '')) {
+      const r2 = await sb.from('courses')
+        .select('id, slug, title, description, hero_image_url, hero_image_alt, current_version_id, visibility, tenant_id, pass_threshold')
+        .eq('slug', slug)
+        .maybeSingle();
+      course = r2.data; cErr = r2.error;
+    } else {
+      course = r.data; cErr = r.error;
+    }
+  }
   if (cErr) throw cErr;
   if (!course) throw new Error('course "' + slug + '" not found');
   if (!course.current_version_id) throw new Error('course "' + slug + '" has no published version');
@@ -594,11 +667,23 @@ async function loadCourseFromSupabase(slug) {
   }
 
   // Build the player's COURSE shape: { lesson_map, lessons, quizzes, metadata }
+  // The synthetic title-page entry is unshifted in below so it appears as
+  // the first navigable item in the sidebar.
   const lesson_map = [];
   const lessonsOut = {};
   const quizzes = {};
   const metadata = {};
   let lessonCounter = 0;
+  const titleMeta = {
+    id: '__title__',
+    module: 0,
+    num: '0',
+    title: 'Welcome',
+    src: null,
+    type: 'title'
+  };
+  metadata['__title__'] = titleMeta;
+  lesson_map.push(titleMeta);
 
   for (const m of (modules || [])) {
     const moduleNum = moduleNumById.get(m.id);
@@ -673,8 +758,14 @@ async function loadCourseFromSupabase(slug) {
   return {
     lesson_map, lessons: lessonsOut, quizzes, metadata,
     course_meta: {
-      slug: course.slug, title: course.title, description: course.description,
-      hero_image_url: course.hero_image_url
+      id: course.id,
+      slug: course.slug,
+      title: course.title,
+      description: course.description,
+      hero_image_url: course.hero_image_url,
+      hero_image_alt: course.hero_image_alt,
+      welcome_message: course.welcome_message || null,
+      current_version_id: course.current_version_id || null
     },
     pass_threshold: typeof course.pass_threshold === 'number' ? (course.pass_threshold / 100) : 0.7
   };
@@ -841,7 +932,7 @@ function saveProgress() { /* writes happen via saveLessonProgress / saveQuizAtte
 function buildSidebar() {
   const sb = document.getElementById('sidebar');
   // progress card
-  const allLessons = COURSE.lesson_map.filter(l => l.type !== 'quiz');
+  const allLessons = COURSE.lesson_map.filter(l => l.id !== '__title__' && l.type !== 'quiz');
   const allQuizzes = Object.keys(COURSE.quizzes);
   const totalUnits = allLessons.length + allQuizzes.length;
   let doneUnits = 0;
@@ -856,6 +947,16 @@ function buildSidebar() {
       <div class="progress-bar"><div style="width:${pct}%"></div></div>
     </div>
   `;
+
+  // Welcome / title page — always first
+  html += `<div class="module-block">
+    <div class="module-head">Welcome</div>
+    <div class="lesson-link" data-id="__title__">
+      <span class="lnum">★</span>
+      <span class="ltitle">Title page</span>
+      <span class="lstat"></span>
+    </div>
+  </div>`;
 
   // Module 1
   html += `<div class="module-block"><div class="module-head">Module 1 — Foundations</div>`;
@@ -944,6 +1045,8 @@ function buildSidebar() {
     const id = el.getAttribute('data-id');
     if (id === 'finalstub') {
       el.addEventListener('click', () => renderFinalStub());
+    } else if (id === '__title__') {
+      el.addEventListener('click', () => renderTitlePage());
     } else if (id) {
       el.addEventListener('click', () => renderLesson(id));
     }
@@ -1215,7 +1318,7 @@ function wireQuiz(lid) {
 }
 
 function goNextLesson(currentId) {
-  const lessons = COURSE.lesson_map.filter(l => l.type !== 'quiz');
+  const lessons = COURSE.lesson_map.filter(l => l.id !== '__title__' && l.type !== 'quiz');
   const idx = lessons.findIndex(l => l.id === currentId);
   if (idx >= 0 && idx < lessons.length - 1) {
     renderLesson(lessons[idx+1].id);
@@ -1236,6 +1339,141 @@ function goNextLesson(currentId) {
     `;
     window.scrollTo({top:0, behavior:'smooth'});
   }
+}
+
+// ============================================================================
+// Title page — rendered as the first page of every course. Gated on a
+// per-user, per-course Terms-of-Service acceptance recorded in
+// public.course_tos_acceptances (migration 0027). Once accepted, future
+// loads skip the gate but the page is still navigable from the sidebar.
+// ============================================================================
+
+const TITLE_PAGE_ID = '__title__';
+
+// Studio author preview: ?preview=1 in the URL. In preview mode, ToS
+// acceptance is NOT persisted to Supabase and the gate can be bypassed
+// freely so authors can verify layout.
+function isStudioPreview() {
+  try {
+    const sp = new URLSearchParams(window.location.search);
+    return sp.get('preview') === '1';
+  } catch (_e) { return false; }
+}
+
+// Returns true iff the signed-in user has already accepted ToS for this
+// course. Returns false on any error (table missing, RLS denial, no user).
+async function hasAcceptedTos(courseId) {
+  const sb = window.supabaseClient;
+  const user = window.currentUser ? window.currentUser() : null;
+  if (!sb || !user || !courseId) return false;
+  try {
+    const { data, error } = await sb
+      .from('course_tos_acceptances')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .maybeSingle();
+    if (error) {
+      // Table missing (migration not yet applied) — treat as not accepted.
+      return false;
+    }
+    return !!data;
+  } catch (_e) {
+    return false;
+  }
+}
+
+async function recordTosAcceptance(courseId, courseVersionId) {
+  if (isStudioPreview()) return; // author preview never persists
+  const sb = window.supabaseClient;
+  const user = window.currentUser ? window.currentUser() : null;
+  if (!sb || !user || !courseId) return;
+  try {
+    const ua = (navigator && navigator.userAgent) ? String(navigator.userAgent).slice(0, 500) : null;
+    await sb.from('course_tos_acceptances').insert({
+      user_id: user.id,
+      course_id: courseId,
+      course_version_id: courseVersionId || null,
+      user_agent: ua
+    });
+  } catch (_e) {
+    // Non-fatal — gate already passed locally for this session.
+  }
+}
+
+function renderTitlePage() {
+  window.__activeId = TITLE_PAGE_ID;
+  const meta = (COURSE && COURSE.course_meta) || {};
+  const title = meta.title || 'Welcome';
+  const heroUrl = meta.hero_image_url || null;
+  const heroAlt = (meta.hero_image_alt == null ? title : meta.hero_image_alt);
+  const welcomeRaw = (meta.welcome_message && String(meta.welcome_message).trim())
+    || ('Welcome to ' + title + ". We're glad you're here.");
+  const previewBanner = isStudioPreview()
+    ? `<div class="title-page-preview-banner">Studio author preview — ToS acceptance is not recorded.</div>`
+    : '';
+
+  const heroHtml = heroUrl
+    ? `<figure class="title-hero-img"><img src="${escapeAttr(heroUrl)}" alt="${escapeAttr(heroAlt)}" loading="eager" /></figure>`
+    : '';
+
+  document.getElementById('content').innerHTML = `
+    <div class="title-page">
+      ${previewBanner}
+      ${heroHtml}
+      <h1 class="title-page-title">${escapeText(title)}</h1>
+      <p class="title-page-welcome">${escapeText(welcomeRaw)}</p>
+
+      <div class="title-page-disclosures">
+        <h3>Before you begin</h3>
+        <dl>
+          <dt>Terms of Service</dt>
+          <dd>Use of this training platform is subject to our <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>. Please review them before continuing.</dd>
+
+          <dt>Privacy Policy</dt>
+          <dd>We collect only the information needed to deliver the course and issue your certificate. See our <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> for details.</dd>
+
+          <dt>No legal or investment advice</dt>
+          <dd>This course is provided for educational purposes only. Nothing here constitutes legal, financial, investment, or tax advice. Consult qualified professionals for guidance on your specific situation.</dd>
+
+          <dt>Training-only · law-enforcement context</dt>
+          <dd>Material is for training and educational use only. Case examples are illustrative, not operational. Nothing in this course authorizes any specific investigative action — follow your agency's policies and applicable law.</dd>
+        </dl>
+      </div>
+
+      <div class="title-page-tos">
+        <label>
+          <input type="checkbox" id="titleTosAck" />
+          <span>By continuing, I acknowledge I have read and agree to the
+          <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and
+          <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+        </label>
+      </div>
+
+      <div class="title-page-actions">
+        <button class="btn btn-primary" id="titleContinueBtn" disabled>Begin course →</button>
+      </div>
+    </div>
+  `;
+
+  const cb  = document.getElementById('titleTosAck');
+  const btn = document.getElementById('titleContinueBtn');
+  cb.addEventListener('change', () => { btn.disabled = !cb.checked; });
+  btn.addEventListener('click', async () => {
+    if (!cb.checked) return;
+    btn.disabled = true;
+    try {
+      await recordTosAcceptance(meta.id, meta.current_version_id);
+    } catch (_e) { /* non-fatal */ }
+    // Advance to the first non-quiz lesson (resuming if learner already
+    // started one in a previous session).
+    const firstIncomplete = COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz' && !progress[l.id]?.complete);
+    const first = firstIncomplete || COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz');
+    if (first) renderLesson(first.id);
+  });
+
+  buildSidebar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderFinalStub() {
@@ -1410,20 +1648,31 @@ async function boot() {
   });
   if (data && data.pass_threshold) window.PASS_THRESHOLD = data.pass_threshold;
   buildSidebar();
-  // Default to first incomplete lesson, otherwise first lesson
-  const firstIncomplete = COURSE.lesson_map.find(l => l.type !== 'quiz' && !progress[l.id]?.complete);
-  const first = firstIncomplete || COURSE.lesson_map.find(l => l.type !== 'quiz');
-  console.log('[boot] first lesson selected:', first?.id, first?.title);
-  if (first) {
-    try { renderLesson(first.id); }
-    catch (renderErr) {
-      console.error('[boot] renderLesson threw:', renderErr);
-      document.getElementById('content').innerHTML =
-        `<div class="lesson-card" style="color:var(--bad);">Render error: ${renderErr.message}<br><small>${(renderErr.stack||'').split('\n').slice(0,3).join('<br>')}</small></div>`;
+
+  // Title-page gating:
+  //   - Studio author preview (?preview=1) ALWAYS shows the title page so
+  //     authors can verify layout, but never persists acceptance.
+  //   - Otherwise, if the user has already accepted ToS for this course,
+  //     skip the gate and resume normal lesson flow.
+  const courseId = COURSE?.course_meta?.id || null;
+  const accepted = !isStudioPreview() && await hasAcceptedTos(courseId);
+  const realLessons = COURSE.lesson_map.filter(l => l.id !== '__title__' && l.type !== 'quiz');
+  const firstIncomplete = realLessons.find(l => !progress[l.id]?.complete);
+  const firstLesson = firstIncomplete || realLessons[0];
+  console.log('[boot] tos_accepted=', accepted, 'first lesson:', firstLesson?.id);
+
+  try {
+    if (!accepted) {
+      renderTitlePage();
+    } else if (firstLesson) {
+      renderLesson(firstLesson.id);
+    } else {
+      renderTitlePage();
     }
-  } else {
+  } catch (renderErr) {
+    console.error('[boot] initial render threw:', renderErr);
     document.getElementById('content').innerHTML =
-      `<div class="lesson-card" style="color:var(--bad);">No lessons found for course "${slug}". lesson_map length: ${COURSE?.lesson_map?.length ?? 'n/a'}.</div>`;
+      `<div class="lesson-card" style="color:var(--bad);">Render error: ${renderErr.message}<br><small>${(renderErr.stack||'').split('\n').slice(0,3).join('<br>')}</small></div>`;
   }
 }
 boot()
@@ -1522,8 +1771,8 @@ document.getElementById('resetBtn').addEventListener('click', async () => {
   // Refresh progress from server (e.g. if user did work on another device)
   progress = await window.loadProgress();
   buildSidebar();
-  const first = COURSE.lesson_map.find(l => l.type !== 'quiz' && !progress[l.id]?.complete)
-             || COURSE.lesson_map.find(l => l.type !== 'quiz');
+  const first = COURSE.lesson_map.find(l => l.id !== '__title__' && l.type !== 'quiz' && !progress[l.id]?.complete)
+             || COURSE.lesson_map.find(l => l.id !== '__title__' && l.type !== 'quiz');
   if (first) renderLesson(first.id);
 });
 </script>

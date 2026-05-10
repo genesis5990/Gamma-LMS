@@ -46,7 +46,7 @@ window.onSignedIn = (cb) => { if (typeof cb === 'function') _onSignInCbs.push(cb
 const RESERVED_TOP_LEVEL = [
   'admin', 'studio', 'dashboard', 'api', 'auth', 'preview', 'verify',
   'courses', 'health', 'healthz', 'login', 'logout', 'signin', 'signup',
-  'signout', 'assets',
+  'signout', 'assets', 'terms', 'privacy',
   'config.js', 'auth.js', 'tenant.js', 'dashboard.js', 'studio.js',
   'admin-nav.js', 'admin-welcome.js',
   'course.html', 'admin.html', 'index.html', 'courses.html',
