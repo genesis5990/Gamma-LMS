@@ -6,10 +6,12 @@
 //        calls public.approve_access_request / public.deny_access_request
 //        as that user, so RLS + RPC checks gate authorization.
 //
-// Body:  { request_id: uuid, action: 'approve' | 'deny', reason?: string }
+// Body:  { request_id: uuid, action: 'approve' | 'deny', reason?: string, tenant_id?: uuid }
 //
 // On approve:
-//   1. RPC public.approve_access_request(p_request_id) → returns invitation info
+//   1. RPC public.approve_access_request(p_request_id, p_tenant_id) → returns invitation info
+//      (p_tenant_id is required when the access_requests row is an intake row with NULL tenant_id;
+//       ignored when the row already has a tenant_id.)
 //   2. POST /auth/v1/admin/generate_link (service role) → magic link
 //   3. POST https://api.resend.com/emails  → branded email with magic link
 //
@@ -158,15 +160,16 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) return bad(401, "missing bearer token");
 
-  let body: { request_id?: string; action?: string; reason?: string };
+  let body: { request_id?: string; action?: string; reason?: string; tenant_id?: string | null };
   try {
     body = await req.json();
   } catch {
     return bad(400, "invalid json body");
   }
-  const { request_id, action, reason } = body || {};
+  const { request_id, action, reason, tenant_id } = body || {};
   if (!request_id || typeof request_id !== "string") return bad(400, "request_id required");
   if (action !== "approve" && action !== "deny")     return bad(400, "action must be 'approve' or 'deny'");
+  if (tenant_id != null && typeof tenant_id !== "string") return bad(400, "tenant_id must be a string");
 
   // Caller-scoped client: RPC runs as the admin user; RLS + RPC auth checks gate it.
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -182,6 +185,7 @@ Deno.serve(async (req: Request) => {
   if (action === "approve") {
     const { data: rpcData, error: rpcErr } = await userClient.rpc("approve_access_request", {
       p_request_id: request_id,
+      p_tenant_id:  tenant_id ?? null,
     });
     if (rpcErr) {
       console.error("[approve-request] approve RPC failed", rpcErr);

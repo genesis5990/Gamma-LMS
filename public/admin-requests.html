@@ -73,15 +73,19 @@
   .stat.approved { background: #d8f0e2; color: #1b6b3d; }
   .stat.denied   { background: #fbe0e0; color: #8a1a1a; }
 
-  .req .actions { display:flex; flex-direction:column; gap:8px; min-width: 130px; }
+  .req .actions { display:flex; flex-direction:column; gap:8px; min-width: 170px; }
   .req .actions button {
     padding: 9px 12px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 0;
   }
   .req .actions .ok { background: var(--good); color: #fff; }
-  .req .actions .ok:hover { background: #237a47; }
+  .req .actions .ok:hover:not(:disabled) { background: #237a47; }
   .req .actions .ng { background: #fff; color: var(--bad); border: 1px solid var(--bad); }
   .req .actions .ng:hover { background: #fbe0e0; }
   .req .actions button:disabled { opacity: .5; cursor: not-allowed; }
+  .req .actions select.tenant-picker {
+    padding: 7px 8px; font-size: 13px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  .req .actions .hint { font-size: 11px; color: var(--muted); margin: -2px 0 -2px; line-height: 1.25; }
 
   .banner { padding: 12px 16px; border-radius: 8px; margin: 0 0 14px; font-size: 14px; }
   .banner.ok { background: #d8f0e2; color: #1b6b3d; }
@@ -156,6 +160,7 @@ function tenantSlug() {
 
 let _profile = null;
 let _activeTab = 'pending';
+let _tenants = []; // [{id, name}], loaded once for super_admins to populate intake-row pickers
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -189,6 +194,20 @@ function isAuthorized(profile) {
   if (profile.role === 'super_admin') return true;
   if (profile.role === 'tenant_admin') return true;
   return false;
+}
+
+async function loadTenants() {
+  if (_profile?.role !== 'super_admin') { _tenants = []; return; }
+  const { data, error } = await sb
+    .from('tenants')
+    .select('id,name')
+    .order('name', { ascending: true });
+  if (error) {
+    console.warn('[admin-requests] tenants load failed', error);
+    _tenants = [];
+    return;
+  }
+  _tenants = data || [];
 }
 
 async function loadRequests() {
@@ -226,8 +245,19 @@ function renderRequests(rows) {
       const noteBlock = r.note ? `<div class="note">${escapeHtml(r.note)}</div>` : '';
       const denyReasonBlock = r.status === 'denied' && r.deny_reason
         ? `<div class="note"><strong>Deny reason:</strong> ${escapeHtml(r.deny_reason)}</div>` : '';
+      const isIntake = r.status === 'pending' && !r.tenant_id;
+      const canAssign = isIntake && _profile?.role === 'super_admin' && _tenants.length > 0;
+      const tenantPicker = canAssign
+        ? `<select class="tenant-picker" data-id="${r.id}">
+             <option value="">— Assign tenant —</option>
+             ${_tenants.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('')}
+           </select>
+           <div class="hint">Assign tenant before approving</div>`
+        : '';
+      const approveDisabled = isIntake ? 'disabled' : '';
       const actionBtns = r.status === 'pending'
-        ? `<button class="ok" data-act="approve" data-id="${r.id}">Approve</button>
+        ? `${tenantPicker}
+           <button class="ok" data-act="approve" data-id="${r.id}" ${approveDisabled}>Approve</button>
            <button class="ng" data-act="deny" data-id="${r.id}">Deny…</button>`
         : '';
       html += `
@@ -250,21 +280,38 @@ function renderRequests(rows) {
     _activeTab = b.getAttribute('data-tab');
     refresh();
   }));
+  // Enable/disable Approve based on tenant picker selection (intake rows only)
+  content.querySelectorAll('select.tenant-picker').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const id = sel.getAttribute('data-id');
+      const approveBtn = content.querySelector(`button[data-act="approve"][data-id="${id}"]`);
+      if (approveBtn) approveBtn.disabled = !sel.value;
+    });
+  });
+
   content.querySelectorAll('button[data-act]').forEach(b => b.addEventListener('click', () => {
     const id  = b.getAttribute('data-id');
     const act = b.getAttribute('data-act');
-    if (act === 'approve') return doAction(id, 'approve', null, b);
+    if (act === 'approve') {
+      const picker = content.querySelector(`select.tenant-picker[data-id="${id}"]`);
+      const tenantId = picker ? (picker.value || null) : null;
+      if (picker && !tenantId) {
+        showBanner('Please assign a tenant before approving this intake request.', 'err');
+        return;
+      }
+      return doAction(id, 'approve', null, b, tenantId);
+    }
     const reason = window.prompt('Reason for denial (optional, will be sent to applicant):', '');
     if (reason === null) return;
-    doAction(id, 'deny', reason || null, b);
+    doAction(id, 'deny', reason || null, b, null);
   }));
 }
 
-async function doAction(requestId, action, reason, btn) {
+async function doAction(requestId, action, reason, btn, tenantId) {
   if (btn) btn.disabled = true;
-  const { data, error } = await sb.functions.invoke('approve-request', {
-    body: { request_id: requestId, action, reason }
-  });
+  const body = { request_id: requestId, action, reason };
+  if (tenantId) body.tenant_id = tenantId;
+  const { data, error } = await sb.functions.invoke('approve-request', { body });
   if (error || (data && data.error)) {
     showBanner((error?.message) || (data?.error) || `${action} failed`, 'err');
     if (btn) btn.disabled = false;
@@ -282,7 +329,8 @@ async function refresh() {
 (async () => {
   await window.authReady;
   const slug = tenantSlug();
-  document.getElementById('adminLink').setAttribute('href', slug ? `/${slug}/admin` : '/admin');
+  const adminLink = document.getElementById('adminLink');
+  if (adminLink) adminLink.setAttribute('href', slug ? `/${slug}/admin` : '/admin');
 
   const user = window.currentUser?.();
   if (!user) return renderGate('Sign in to review access requests');
@@ -293,6 +341,7 @@ async function refresh() {
     return renderGate('Your account is not authorized to view this page');
   }
 
+  await loadTenants();
   refresh();
 })();
 </script>
