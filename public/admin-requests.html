@@ -151,9 +151,25 @@ function showBanner(text, kind) {
 
 document.getElementById('signOutBtn').addEventListener('click', () => window.signOut());
 
-// Tenant slug from URL (matches tenant.js logic)
+// Tenant slug from URL (matches tenant.js logic). Reserved top-level paths
+// like /admin are NOT tenant slugs — keep in sync with auth.js + tenant.js.
+const RESERVED_TOP_LEVEL = new Set([
+  'admin', 'studio', 'dashboard', 'api', 'auth', 'preview', 'verify',
+  'courses', 'health', 'healthz', 'login', 'logout', 'signin', 'signup',
+  'signout', 'assets', 'terms', 'privacy',
+  'config.js', 'auth.js', 'tenant.js', 'dashboard.js', 'studio.js',
+  'admin-nav.js', 'admin-welcome.js', 'request-access.js',
+  'course.html', 'admin.html', 'index.html', 'courses.html',
+  'admin-requests.html', 'studio.html', 'dashboard.html', 'verify.html',
+  'studio.css', 'tenant-themes.css', 'brand-header.css', 'style.css',
+  'course_data.json',
+  'favicon.ico', 'robots.txt', 'sitemap.xml',
+  'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'
+]);
 function tenantSlug() {
   const parts = window.location.pathname.split('/').filter(Boolean);
+  const first = (parts[0] || '').toLowerCase();
+  if (RESERVED_TOP_LEVEL.has(first)) return null;
   if (parts[0] && /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(parts[0])) return parts[0];
   return null;
 }

@@ -2,12 +2,31 @@
 // Loaded BEFORE auth.js by course.html, admin.html, admin-requests.html.
 
 (function () {
+  // Keep in sync with RESERVED_TOP_LEVEL in auth.js. Any first path segment
+  // here is NOT a tenant slug — /admin/requests must not resolve to slug "admin".
+  const RESERVED_TOP_LEVEL = new Set([
+    'admin', 'studio', 'dashboard', 'api', 'auth', 'preview', 'verify',
+    'courses', 'health', 'healthz', 'login', 'logout', 'signin', 'signup',
+    'signout', 'assets', 'terms', 'privacy',
+    'config.js', 'auth.js', 'tenant.js', 'dashboard.js', 'studio.js',
+    'admin-nav.js', 'admin-welcome.js', 'request-access.js',
+    'course.html', 'admin.html', 'index.html', 'courses.html',
+    'admin-requests.html', 'studio.html', 'dashboard.html', 'verify.html',
+    'studio.css', 'tenant-themes.css', 'brand-header.css', 'style.css',
+    'course_data.json',
+    'favicon.ico', 'robots.txt', 'sitemap.xml',
+    'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'
+  ]);
+
   const pathParts = window.location.pathname.split('/').filter(Boolean);
-  const slugFromUrl = pathParts[0] && /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(pathParts[0])
+  const firstSeg = (pathParts[0] || '').toLowerCase();
+  const isReserved = RESERVED_TOP_LEVEL.has(firstSeg);
+  const slugFromUrl = (!isReserved && pathParts[0] && /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(pathParts[0]))
     ? pathParts[0].toLowerCase()
     : null;
 
-  const isSuperAdminView = pathParts[0] === 'admin' && pathParts.length === 1;
+  // Any /admin or /admin/* path is the super-admin global view (no tenant scope).
+  const isSuperAdminView = firstSeg === 'admin';
 
   const DEFAULT_THEME = {
     slug: null,
