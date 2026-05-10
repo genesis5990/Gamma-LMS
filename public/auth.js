@@ -38,6 +38,24 @@ window.onSignedIn = (cb) => { if (typeof cb === 'function') _onSignInCbs.push(cb
 // dashboard. Only fires on transitions to a signed-in state, and only on
 // the bare landing paths so existing /course.html, /admin*, /studio* flows
 // stay put. Skips if the URL already targets a dashboard.
+//
+// Mirrors server.js RESERVED — any first path segment listed here is NOT a
+// tenant slug and must not be rewritten to /{seg}/dashboard. Bug from
+// v0.4.57: /admin was matching the slug regex and redirecting super-admins
+// to /admin/dashboard (a non-existent tenant), rendering a blank dashboard.
+const RESERVED_TOP_LEVEL = [
+  'admin', 'studio', 'dashboard', 'api', 'auth', 'preview', 'verify',
+  'courses', 'health', 'healthz', 'login', 'logout', 'signin', 'signup',
+  'signout', 'assets',
+  'config.js', 'auth.js', 'tenant.js', 'dashboard.js', 'studio.js',
+  'admin-nav.js', 'admin-welcome.js',
+  'course.html', 'admin.html', 'index.html', 'courses.html',
+  'admin-requests.html', 'studio.html', 'dashboard.html', 'verify.html',
+  'studio.css', 'tenant-themes.css', 'brand-header.css', 'style.css',
+  'course_data.json',
+  'favicon.ico', 'robots.txt', 'sitemap.xml',
+  'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'
+];
 function _postSignInRedirect() {
   const path = window.location.pathname;
   if (/\/dashboard\/?$/.test(path)) return;
@@ -45,6 +63,9 @@ function _postSignInRedirect() {
     window.location.replace('/dashboard');
     return;
   }
+  // Don't treat reserved top-level routes as tenant slugs.
+  const firstSeg = (path.split('/').filter(Boolean)[0] || '').toLowerCase();
+  if (RESERVED_TOP_LEVEL.indexOf(firstSeg) !== -1) return;
   // Tenant landing root: /{slug}/ (no further segments)
   const m = path.match(/^\/([a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9]))\/?$/i);
   if (m) {
