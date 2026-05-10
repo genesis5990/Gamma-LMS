@@ -34,8 +34,17 @@ const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 const STRIPE_SECRET     = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PUB_KEY    = process.env.STRIPE_PUBLISHABLE_KEY || '';
 const STRIPE_WEBHOOK    = process.env.STRIPE_WEBHOOK_SECRET || '';
-const SUPABASE_URL      = process.env.SUPABASE_URL || 'https://fyacdyarcfgngqetmaoc.supabase.co';
-const SUPABASE_PUB_KEY  = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_GuhUwx3z7xPerxTNNd2iEA_cqOOeOwI';
+// SOC 2 F-02: no hardcoded fallbacks. The publishable key and project URL
+// are operational secrets from a rotation/abuse-response standpoint even
+// though they're "public" under Supabase's RLS threat model. They must
+// come from env (Fly secrets in prod). Boot fails loudly if missing so a
+// misconfigured deploy never silently uses a baked-in default.
+const SUPABASE_URL      = process.env.SUPABASE_URL || '';
+const SUPABASE_PUB_KEY  = process.env.SUPABASE_PUBLISHABLE_KEY || '';
+if (!SUPABASE_URL || !SUPABASE_PUB_KEY) {
+  console.error('[boot] FATAL: SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be set in env. Refusing to start.');
+  process.exit(1);
+}
 const SUPABASE_SVC_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const PUBLIC_SITE_URL   = process.env.PUBLIC_SITE_URL || 'https://mygenesis-training.fly.dev';
 const RESEND_API_KEY    = process.env.RESEND_API_KEY || '';
@@ -213,6 +222,25 @@ app.use('/preview', previewAuthGate);
 
 // Health check
 app.get('/health', (_req, res) => res.status(200).json({ ok: true, ts: Date.now() }));
+
+// SOC 2 F-02: /config.js is server-rendered from env at request time.
+// This MUST be registered before express.static so it shadows any
+// public/config.js file (which has been removed). Rotating the
+// publishable key is now "set Fly secret + restart" — no code change.
+app.get('/config.js', (_req, res) => {
+  res.set('Content-Type', 'application/javascript; charset=utf-8');
+  res.set('Cache-Control', 'no-store');
+  // JSON.stringify guards against any character in the env value breaking
+  // out of the string literal. PASS_THRESHOLD is a non-secret default —
+  // course.html overrides it per-course from server data.
+  res.send(
+    '// Runtime config — server-rendered from env (SOC 2 F-02). Do not commit a static copy.\n' +
+    'window.SUPABASE_URL = '             + JSON.stringify(SUPABASE_URL)       + ';\n' +
+    'window.SUPABASE_PUBLISHABLE_KEY = ' + JSON.stringify(SUPABASE_PUB_KEY)   + ';\n' +
+    'window.COURSE_ID = '                + JSON.stringify('crypto101')        + ';\n' +
+    'window.PASS_THRESHOLD = 0.7;\n'
+  );
+});
 
 // Runtime config for client pages (publishable values only — no secrets here).
 app.get('/api/public-config', (_req, res) => {
