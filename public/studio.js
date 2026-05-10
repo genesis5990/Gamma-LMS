@@ -839,10 +839,14 @@ async function loadCourse(courseId) {
   const versionId = state.course.current_version_id;
 
   // Step 1: version + modules + final exam (depend only on versionId)
+  // Final exam questions are loaded via the author_list_final_questions RPC
+  // because answer_index is REVOKEd from authenticated at the column level
+  // (migration 0025, SOC 2 F-11). The RPC is SECURITY DEFINER + author-gated
+  // and returns full rows including answer_index for the studio editor.
   const [versionRes, modulesRes, finalRes] = await Promise.all([
     sb.from('course_versions').select('*').eq('id', versionId).maybeSingle(),
     sb.from('modules').select('*').eq('course_version_id', versionId).order('position'),
-    sb.from('final_exam_questions').select('*').eq('course_version_id', versionId).order('position'),
+    sb.rpc('author_list_final_questions', { p_course_version_id: versionId }),
   ]);
   for (const r of [versionRes, modulesRes, finalRes]) {
     if (r.error) { toast('Load failed: ' + r.error.message, 'is-error'); console.error('loadCourse step1', r.error); return; }
@@ -856,9 +860,13 @@ async function loadCourse(courseId) {
   let kcRows = [];
   let appendixRows = [];
   if (moduleIds.length) {
+    // module_quiz_questions go through author_list_module_questions RPC —
+    // answer_index is column-REVOKEd from authenticated (migration 0025).
+    // Pass NULL to fetch every module the caller can author, then filter to
+    // this course's moduleIds in JS.
     const [lessonsRes, kcRes, apxRes] = await Promise.all([
       sb.from('lessons').select('*').in('module_id', moduleIds).order('position'),
-      sb.from('module_quiz_questions').select('*').in('module_id', moduleIds).order('position'),
+      sb.rpc('author_list_module_questions', { p_module_id: null }),
       sb.from('module_appendix_items')
         .select('id, module_id, kind, title, position, body_html, asset_id, url, description, created_at, updated_at, course_assets(public_url, filename, byte_size, mime_type)')
         .in('module_id', moduleIds).order('position'),
@@ -867,7 +875,8 @@ async function loadCourse(courseId) {
       if (r.error) { toast('Load failed: ' + r.error.message, 'is-error'); console.error('loadCourse step2', r.error); return; }
     }
     lessonRows = lessonsRes.data || [];
-    kcRows = kcRes.data || [];
+    const moduleIdSet = new Set(moduleIds);
+    kcRows = (kcRes.data || []).filter(r => moduleIdSet.has(r.module_id));
     appendixRows = apxRes.data || [];
   }
   const lessonIds = lessonRows.map(l => l.id);
@@ -1251,9 +1260,12 @@ async function addPage(lessonId) {
 async function addKc(moduleId) {
   const m = findModule(moduleId);
   const position = m.kc.length;
+  // Explicit column projection — answer_index is not selectable for
+  // authenticated (migration 0025); we already know it because we just
+  // inserted it (default 0).
   const { data, error } = await sb.from('module_quiz_questions').insert({
     module_id: moduleId, position, question: '', options: ['', '', '', ''], answer_index: 0, reference: '',
-  }).select().single();
+  }).select('id, module_id, position, question, options, reference, created_at, updated_at').single();
   if (error) return toast('Add failed: ' + error.message, 'is-error');
   toast('KC question added');
   if (!m.has_knowledge_check) {
@@ -1265,10 +1277,12 @@ async function addKc(moduleId) {
 
 async function addFinalQ() {
   const position = state.finalQs.length;
+  // Explicit column projection — answer_index is not selectable for
+  // authenticated (migration 0025); we already know the inserted value.
   const { data, error } = await sb.from('final_exam_questions').insert({
     course_version_id: state.version.id, position,
     question: '', options: ['', '', '', ''], answer_index: 0, reference: '',
-  }).select().single();
+  }).select('id, course_version_id, position, question, options, reference, source_module_slug, created_at, updated_at').single();
   if (error) return toast('Add failed: ' + error.message, 'is-error');
   toast('Final question added');
   await loadCourse(state.course.id);
@@ -4106,9 +4120,20 @@ async function saveDirty() {
     table: p.table, id: p.id, fields: Object.keys(p.patch || {})
   })));
   try {
-    const results = await Promise.all(patches.map(p =>
-      sb.from(p.table).update(p.patch).eq('id', p.id).select().single()
-    ));
+    // For quiz tables we cannot project * because answer_index is column-
+    // REVOKEd from authenticated (migration 0025, SOC 2 F-11). Project the
+    // remaining columns explicitly; we already know answer_index locally
+    // because we just wrote it.
+    const results = await Promise.all(patches.map(p => {
+      const q = sb.from(p.table).update(p.patch).eq('id', p.id);
+      if (p.table === 'module_quiz_questions') {
+        return q.select('id, module_id, position, question, options, reference, created_at, updated_at').single();
+      }
+      if (p.table === 'final_exam_questions') {
+        return q.select('id, course_version_id, position, question, options, reference, source_module_slug, created_at, updated_at').single();
+      }
+      return q.select().single();
+    }));
     console.info('[studio] saveDirty: results', results.map((r, i) => ({
       table: patches[i].table,
       id:    patches[i].id,
