@@ -1459,6 +1459,7 @@ function renderEditorBody() {
       });
       wireDropAndPaste(ed, ref.page);
       wireInlineAudioControls(ed, ref.page);
+      wireInlineImageControls(ed);
       // Sync any inline [n] markers' numbers to the current citation list
       recomputeCiteMarkers(ed, ref.page.citations || []);
     }
@@ -1760,6 +1761,7 @@ function wireTitlePageBody({ kind, node }) {
     });
     wireDropAndPasteOnTitleEditor(ed);
     wireInlineAudioControlsForTitle(ed);
+    wireInlineImageControlsForTitle(ed);
   }
 
   const heroEl = $('#title-hero');
@@ -2138,6 +2140,11 @@ function openAppendixHtmlEditor(m, it) {
            style="min-height:200px; max-height:480px; overflow:auto; padding:14px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; background:#fff;">${it.body_html || ''}</div>
     </div>
   `;
+  // Wire the same inline-image overlay (Move / Replace / Alt / Delete) on
+  // the appendix body so authors can edit/remove images here too.
+  const apxBodyEl = $('#apx-body');
+  if (apxBodyEl) wireInlineImageControls(apxBodyEl);
+
   $('#apx-back').addEventListener('click', () => {
     state.selection = { kind: 'appendix', id: m.id };
     renderEditorBody();
@@ -3763,6 +3770,265 @@ function wireInlineAudioControls(editor, _page) {
 // Install global audio listeners unconditionally at module load so the
 // toolbar works on first render — independent of editor wiring path.
 try { __inlineAudioInitOnce(); } catch (_) {}
+
+// =====================================================================
+// Inline-image overlay controls (mirror of inline-audio).
+//
+// Clicking any <img> inside a wired contenteditable shows a floating
+// toolbar: ▲ ▼ Replace / Alt / Delete. The same global delegate is
+// shared across the lesson editor (#html-editor), the title-page
+// editor (#title-html-editor), and the appendix item editor
+// (#apx-body) — anything wired through wireInlineImageControls or
+// wireInlineImageControlsForTitle.
+//
+// Replace re-uses the existing openImageInsertModal so authors get the
+// same Library / Upload / URL flow they used to insert. Alt text uses a
+// modal (NOT prompt()) because Chrome blocks sequential prompt() calls
+// and that bug already bit issue #3.
+// =====================================================================
+const __INLINE_IMAGE_DEBUG = false;
+let __inlineImageInit = false;
+let __inlineImageActive = null;
+let __inlineImageHideTimer = null;
+
+function __inlineImageBar() {
+  let bar = document.getElementById('inline-image-bar');
+  if (bar) return bar;
+  bar = document.createElement('div');
+  bar.id = 'inline-image-bar';
+  bar.className = 'inline-image-bar hidden';
+  bar.setAttribute('contenteditable', 'false');
+  bar.innerHTML = `
+    <button type="button" data-act="up"      title="Move up">▲</button>
+    <button type="button" data-act="down"    title="Move down">▼</button>
+    <button type="button" data-act="replace" title="Replace image">Replace</button>
+    <button type="button" data-act="alt"     title="Edit alt text">Alt</button>
+    <button type="button" data-act="delete"  class="danger" title="Delete">Delete</button>
+  `;
+  document.body.appendChild(bar);
+  return bar;
+}
+
+function __inlineImageEditorOf(img) {
+  if (!img || !img.closest) return null;
+  return img.closest('#html-editor')
+      || img.closest('#title-html-editor')
+      || img.closest('#apx-body');
+}
+
+function __inlineImagePosition() {
+  const bar = __inlineImageBar();
+  const a = __inlineImageActive;
+  if (!a || !document.body.contains(a)) {
+    bar.classList.add('hidden');
+    __inlineImageActive = null;
+    return;
+  }
+  bar.classList.remove('hidden');
+  const ar = a.getBoundingClientRect();
+  const top = window.scrollY + ar.top - bar.offsetHeight - 6;
+  bar.style.top  = (top < window.scrollY + 4 ? window.scrollY + ar.bottom + 6 : top) + 'px';
+  bar.style.left = (window.scrollX + ar.left) + 'px';
+}
+
+function __inlineImageHide() {
+  __inlineImageActive = null;
+  __inlineImageBar().classList.add('hidden');
+}
+
+function __inlineImageShow(img) {
+  if (__inlineImageHideTimer) { clearTimeout(__inlineImageHideTimer); __inlineImageHideTimer = null; }
+  __inlineImageActive = img;
+  if (__INLINE_IMAGE_DEBUG) console.log('[inline-image] show', img);
+  __inlineImagePosition();
+}
+
+// Open a tiny modal to edit alt text. Resolves to the new value (string,
+// possibly empty) or null if the user cancelled.
+function __inlineImageEditAltModal(currentAlt) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val) => { if (settled) return; settled = true; closeModal(); resolve(val); };
+    openModal({
+      title: 'Edit alt text',
+      bodyHtml: `
+        <div style="padding:6px 2px;">
+          <label for="inline-image-alt-input" style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--studio-muted, #5b6788); margin-bottom:6px;">Alt text (for screen readers)</label>
+          <input id="inline-image-alt-input" type="text" value="${escapeHtml(currentAlt || '')}"
+                 placeholder="Describe the image"
+                 style="width:100%; padding:8px 10px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; font-size:14px;" />
+          <p class="muted" style="margin-top:8px; font-size:12px;">Leave blank for purely decorative images.</p>
+        </div>
+      `,
+      footHtml: `
+        <button type="button" class="studio-btn" id="inline-image-alt-cancel">Cancel</button>
+        <button type="button" class="studio-btn primary" id="inline-image-alt-save">Save</button>
+      `,
+      onMount: (host) => {
+        const inp = host.querySelector('#inline-image-alt-input');
+        if (inp) { inp.focus(); inp.select(); }
+        host.querySelector('#inline-image-alt-cancel').addEventListener('click', () => finish(null));
+        host.querySelector('#inline-image-alt-save').addEventListener('click', () => {
+          finish(inp ? inp.value : '');
+        });
+        const onKey = (e) => {
+          if (host.classList.contains('hidden')) {
+            document.removeEventListener('keydown', onKey);
+            if (!settled) finish(null);
+            return;
+          }
+          if (e.key === 'Enter')  { e.preventDefault(); finish(inp ? inp.value : ''); }
+          if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+        };
+        document.addEventListener('keydown', onKey);
+      },
+    });
+  });
+}
+
+function __inlineImageInitOnce() {
+  if (__inlineImageInit) return;
+  __inlineImageInit = true;
+  __inlineImageBar();
+
+  // Click on an <img> inside a wired editor → show toolbar.
+  document.addEventListener('click', (e) => {
+    let img = e.target && e.target.closest && e.target.closest('img');
+    if (!img && typeof e.clientX === 'number') {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el && el.closest) img = el.closest('img');
+    }
+    const editor = __inlineImageEditorOf(img);
+    if (img && editor) {
+      __inlineImageShow(img);
+      return;
+    }
+    // Click outside both editor and bar → hide.
+    const t = e.target;
+    if (t && t.closest
+        && !t.closest('#html-editor')
+        && !t.closest('#title-html-editor')
+        && !t.closest('#apx-body')
+        && !t.closest('#inline-image-bar')
+        && !t.closest('#modal-host')) {
+      __inlineImageHide();
+    }
+  }, true);
+
+  // Toolbar button clicks.
+  __inlineImageBar().addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const img = __inlineImageActive;
+    if (!img || !document.body.contains(img)) { __inlineImageHide(); return; }
+    const act = btn.dataset.act;
+    // The element to physically move/delete is the wrapping figure/p if the
+    // image is its only child; otherwise the image itself.
+    const parent = img.parentElement;
+    const isWrapper = parent
+      && parent.id !== 'html-editor'
+      && parent.id !== 'title-html-editor'
+      && parent.id !== 'apx-body'
+      && parent.children.length === 1;
+    const target = isWrapper ? parent : img;
+    const editor = __inlineImageEditorOf(img);
+
+    if (act === 'up') {
+      const prev = target.previousElementSibling;
+      if (prev) target.parentElement.insertBefore(target, prev);
+    } else if (act === 'down') {
+      const next = target.nextElementSibling;
+      if (next) target.parentElement.insertBefore(next, target);
+    } else if (act === 'replace') {
+      // Re-use the existing image insert modal. We pass an onInsert that
+      // swaps the active <img>'s src/alt instead of inserting new HTML.
+      const captured = img;
+      // Determine course context for upload tab — best-effort, mirrors how
+      // toolbar Image button is wired in the page editors.
+      const courseId   = state.course?.id   || null;
+      const courseSlug = state.course?.slug || null;
+      openImageInsertModal({
+        mode: 'inline',
+        courseId,
+        courseSlug,
+        // Special replace hook: __imageInsertCommit calls onInsert(html)
+        // for inline mode. We parse out the new src/alt from that HTML and
+        // mutate the existing element in place, preserving surrounding
+        // markup (e.g. captions) and caret position.
+        onInsert: (html) => {
+          try {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            const fresh = tmp.querySelector('img');
+            if (!fresh) return;
+            const newSrc = fresh.getAttribute('src') || '';
+            const newAlt = fresh.getAttribute('alt') || '';
+            if (newSrc) captured.setAttribute('src', newSrc);
+            // Only overwrite alt if the new picker provided one; preserve
+            // the existing alt otherwise so authors don't silently lose it.
+            if (newAlt) captured.setAttribute('alt', newAlt);
+            // Reset width/height attrs that may have been set by a previous
+            // image so the new asset's natural dimensions take over.
+            captured.removeAttribute('width');
+            captured.removeAttribute('height');
+          } catch (err) {
+            console.error('[inline-image] replace failed:', err);
+            toast('Replace failed: ' + (err.message || err), 'is-error');
+            return;
+          }
+          if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+          setTimeout(__inlineImagePosition, 0);
+        },
+      });
+      return; // modal flow owns the rest; don't fire input event below
+    } else if (act === 'alt') {
+      const cur = img.getAttribute('alt') || '';
+      const next = await __inlineImageEditAltModal(cur);
+      if (next === null) return; // cancelled
+      img.setAttribute('alt', next);
+    } else if (act === 'delete') {
+      if (!confirm('Delete this image from the page?\n\nThe file in the media library is not affected.')) return;
+      target.remove();
+      __inlineImageHide();
+    }
+    if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(__inlineImagePosition, 0);
+  });
+
+  // Reposition / dismiss.
+  window.addEventListener('scroll', __inlineImagePosition, true);
+  window.addEventListener('resize', __inlineImagePosition);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && __inlineImageActive) __inlineImageHide();
+  });
+}
+
+function wireInlineImageControls(editor) {
+  if (!editor) return;
+  __inlineImageInitOnce();
+  // Decorate so the cursor doesn't get awkwardly trapped on the image and
+  // so authors get a pointer affordance.
+  const decorate = () => {
+    editor.querySelectorAll('img:not([data-img-decorated])').forEach(img => {
+      img.setAttribute('data-img-decorated', '1');
+      img.style.cursor = 'pointer';
+    });
+  };
+  decorate();
+  const mo = new MutationObserver(decorate);
+  mo.observe(editor, { childList: true, subtree: true });
+  __inlineImageHide();
+}
+
+// Same as wireInlineImageControls, kept as a separate name for symmetry
+// with wireInlineAudioControlsForTitle in case future divergence is
+// needed (e.g. blocking replace on hero images).
+function wireInlineImageControlsForTitle(editor) {
+  wireInlineImageControls(editor);
+}
+
+// Install global image listeners at module load (matches audio pattern).
+try { __inlineImageInitOnce(); } catch (_) {}
 
 function wireDropAndPaste(editor, page) {
   // drag over highlight

@@ -1220,6 +1220,49 @@ body {
 .inline-audio-bar button.danger { color: #b42318; }
 .inline-audio-bar button.danger:hover { background: #fef3f2; border-color: #fda29b; }
 
+/* Inline image overlay (Move / Replace / Alt / Delete) — mirror of audio. */
+#html-editor img,
+#title-html-editor img,
+#apx-body img {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color .12s ease;
+}
+#html-editor img:hover,
+#title-html-editor img:hover,
+#apx-body img:hover {
+  outline-color: color-mix(in srgb, var(--st-accent, #1f63d6) 30%, transparent);
+}
+.inline-image-bar {
+  position: absolute;
+  z-index: 9999;
+  display: inline-flex;
+  gap: 4px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--st-accent, #1f63d6);
+  border-radius: 8px;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, .22);
+  font-size: 12.5px;
+  user-select: none;
+  pointer-events: auto;
+}
+.inline-image-bar.hidden { display: none !important; }
+.inline-image-bar button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 4px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--st-ink, #0f172a);
+  line-height: 1.2;
+}
+.inline-image-bar button:hover { background: var(--st-paper-2, #f3f5fb); border-color: var(--st-line); }
+.inline-image-bar button.danger { color: #b42318; }
+.inline-image-bar button.danger:hover { background: #fef3f2; border-color: #fda29b; }
+
 /* ===== Title-page editor (course + module) ============================== */
 .title-page-editor {
   padding: 22px 28px 60px;
