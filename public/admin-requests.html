@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/tenant.js"></script>
+<script src="/request-access.js" defer></script>
 <script src="/auth.js"></script>
 <script src="/admin-nav.js" defer></script>
 <script src="/admin-welcome.js" defer></script>
@@ -218,7 +219,7 @@ function renderRequests(rows) {
     html += `<div class="empty">No ${_activeTab} requests.</div>`;
   } else {
     for (const r of rows) {
-      const tname = r.tenants?.name || '';
+      const tname = r.tenants?.name || (r.tenant_id ? '' : 'Intake (unassigned)');
       const supLine = r.supervisor_name || r.supervisor_email
         ? `Supervisor: ${escapeHtml(r.supervisor_name || '')}${r.supervisor_email ? ' &middot; ' + escapeHtml(r.supervisor_email) : ''}`
         : '';

@@ -7,6 +7,7 @@
 <meta name="description" content="Tamper-evident training for blockchain investigators and law-enforcement agencies. Browse courses, earn verifiable certificates, or stand up your own white-label academy." />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
+<script src="/request-access.js" defer></script>
 <style>
   :root {
     --ink: #060A16;
@@ -338,6 +339,7 @@
       <p class="lede">Deconflict delivers practical, evidence-grade training in cryptocurrency investigation — from on-chain tracing to courtroom-ready expert testimony.</p>
       <div class="hero-actions">
         <a href="#catalog" class="btn btn-gold">Browse public catalog</a>
+        <button type="button" class="btn btn-ghost" id="ctaRequestAccess" style="color:#fff; border-color:rgba(255,255,255,.45);">Request Access</button>
         <button type="button" class="btn btn-ghost" id="ctaOrg" style="color:#fff; border-color:rgba(255,255,255,.3);">Enter your organization</button>
       </div>
       <div class="hero-trust">
@@ -613,6 +615,9 @@
   const openOrg = () => { orgOverlay.classList.add('is-open'); setTimeout(() => document.getElementById('orgModalSlug').focus(), 0); };
   const closeOrg = () => { orgOverlay.classList.remove('is-open'); orgMsg.textContent = ''; };
   document.getElementById('ctaOrg').addEventListener('click', openOrg);
+  document.getElementById('ctaRequestAccess').addEventListener('click', () => {
+    if (typeof window.openRequestAccess === 'function') window.openRequestAccess({});
+  });
   document.getElementById('orgCancel').addEventListener('click', closeOrg);
   orgOverlay.addEventListener('click', (e) => { if (e.target === orgOverlay) closeOrg(); });
 
