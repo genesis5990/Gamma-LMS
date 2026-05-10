@@ -1062,12 +1062,17 @@ function buildSidebar() {
 // ============================================================================
 // Render lesson
 // ============================================================================
-function renderLesson(lid) {
+// opts.resume === true → open at last viewed page (used for course-level
+// resume on cold boot / post-ToS). Default (false) always opens at page 1
+// so direct lesson clicks from the sidebar feel predictable. Saved progress
+// (viewedPages, complete) is never wiped — only the entry point changes.
+function renderLesson(lid, opts) {
   window.__activeId = lid;
   const meta = COURSE.metadata[lid];
   const pages = COURSE.lessons[lid] || [];
   if (!progress[lid]) progress[lid] = { viewedPages: [], complete: false };
   const lp = progress[lid];
+  const resume = !!(opts && opts.resume);
 
   let pageIdx = 0;
   function showPage(i) {
@@ -1160,9 +1165,10 @@ function renderLesson(lid) {
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
-  // Resume on last viewed page if any, else page 0
-  const resume = lp.viewedPages.length ? Math.max(...lp.viewedPages) : 0;
-  showPage(resume);
+  // Direct lesson clicks always start at page 0; only course-level resume
+  // (cold boot, post-ToS) opens at the last viewed page.
+  const startIdx = (resume && lp.viewedPages.length) ? Math.max(...lp.viewedPages) : 0;
+  showPage(startIdx);
 }
 
 // ============================================================================
@@ -1469,7 +1475,7 @@ function renderTitlePage() {
     // started one in a previous session).
     const firstIncomplete = COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz' && !progress[l.id]?.complete);
     const first = firstIncomplete || COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz');
-    if (first) renderLesson(first.id);
+    if (first) renderLesson(first.id, { resume: true });
   });
 
   buildSidebar();
@@ -1665,7 +1671,7 @@ async function boot() {
     if (!accepted) {
       renderTitlePage();
     } else if (firstLesson) {
-      renderLesson(firstLesson.id);
+      renderLesson(firstLesson.id, { resume: true });
     } else {
       renderTitlePage();
     }

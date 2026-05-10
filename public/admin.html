@@ -475,12 +475,14 @@ function showForbidden(email) {
 }
 
 async function loadData() {
-  document.getElementById('loadingView').style.display = 'none';
-  document.getElementById('dashView').style.display = 'block';
-
+  // Keep loadingView up until the first fetch resolves so the dash never
+  // flashes empty stats as if they were real data.
   const { data, error } = await sbAdmin
     .from('student_summary')
     .select('*');
+
+  document.getElementById('loadingView').style.display = 'none';
+  document.getElementById('dashView').style.display = 'block';
 
   if (error) {
     document.getElementById('tableWrap').innerHTML =
@@ -489,6 +491,9 @@ async function loadData() {
   }
 
   allRows = data || [];
+  if (window.currentUser() && !allRows.length) {
+    console.warn('[admin:dashboard] student_summary returned empty for authed admin — possible RLS/data issue');
+  }
   computeStats(allRows);
   applyFilters();
 

@@ -145,6 +145,15 @@ $('#modal-host').addEventListener('click', (e) => { if (e.target.id === 'modal-h
 
 // ---------- auth gate ----------------------------------------------
 async function bootstrapAuth() {
+  // Wait for auth.js to finish its INITIAL_SESSION handling before reading
+  // the session here. Without this, on cold load getSession() can return
+  // null even though localStorage has a valid token, and the dashboard
+  // queries fly out without a JWT — Supabase RLS then returns empty rows
+  // silently and the dash renders with all zeros until the user refreshes.
+  if (window.authReady && typeof window.authReady.then === 'function') {
+    try { await window.authReady; } catch (_e) { /* fall through to getSession */ }
+  }
+
   const { data } = await sb.auth.getSession();
   state.user = data.session?.user || null;
 
@@ -342,6 +351,13 @@ async function renderDashboard(view, coursesOnly) {
   view.appendChild(tpl.content.cloneNode(true));
   $('#dash-greeting').textContent = `signed in as ${state.profile.full_name || state.profile.email}`;
 
+  // Loading state — visible until the first batch of queries resolves.
+  // Without this the dash briefly shows empty KPI/course slots which look
+  // identical to a "no data" state.
+  $('#dash-kpis').innerHTML = '<div class="studio-empty-state"><p>Loading dashboard…</p></div>';
+  $('#dash-courses').innerHTML = '<div class="studio-empty-state"><p>Loading courses…</p></div>';
+  $('#dash-feed').innerHTML = '<div class="studio-empty-state"><p>Loading recent edits…</p></div>';
+
   // Load all data in parallel ----------------------------------------
   const today = new Date(); today.setHours(0,0,0,0);
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
@@ -365,6 +381,13 @@ async function renderDashboard(view, coursesOnly) {
 
   const courses = coursesRes.data || [];
   state.allCoursesMeta = courses;
+
+  // If we're authed but came back empty across the board, that's almost
+  // always a hydration race or RLS misconfiguration — flag it loudly so
+  // it doesn't masquerade as "this account legitimately has no data".
+  if (state.user && !courses.length && !(profilesRes.count || 0) && !(recentPagesRes.data || []).length) {
+    console.warn('[studio:dashboard] queries returned empty for authed user — possible auth/RLS race');
+  }
 
   // Per-course stats (modules / lessons / pages) — flat IN-clause queries (no nested embed filters)
   const versionIds = courses.map(c => c.current_version_id).filter(Boolean);
