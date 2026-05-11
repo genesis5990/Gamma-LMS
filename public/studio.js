@@ -83,6 +83,28 @@ function debounce(fn, ms) {
   let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+// Bounded await for any promise. Used by the dashboard so a single hung
+// Supabase query (e.g. RLS-blocked, missing table) cannot leave the panels
+// stuck on "Loading…" forever. Mirrors the _awaitWithTimeout helper in
+// course.html added in v0.4.65.
+function _studioAwait(label, p, ms = 5000) {
+  if (!p || typeof p.then !== 'function') {
+    return Promise.resolve({ __studioTimeout: false, value: p });
+  }
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      console.warn('[studio]', label, 'TIMEOUT after', ms, 'ms');
+      resolve({ __studioTimeout: true });
+    }, ms);
+  });
+  return Promise.race([
+    p.then(v => ({ __studioTimeout: false, value: v }),
+           e => ({ __studioTimeout: false, error: e })),
+    timeout,
+  ]).finally(() => clearTimeout(timer));
+}
+
 // derivePageTitle: prefer p.title, else first heading text from body_html,
 // else first paragraph snippet, else "Untitled page". Used by the outline.
 function derivePageTitle(p) {
@@ -346,6 +368,27 @@ function renderCrumbs(...parts) {
 // DASHBOARD VIEW
 // =====================================================================
 async function renderDashboard(view, coursesOnly) {
+  console.log('[studio] renderDashboard: start (coursesOnly=' + !!coursesOnly + ')');
+  try {
+    await _renderDashboardInner(view, coursesOnly);
+    console.log('[studio] renderDashboard: done');
+  } catch (err) {
+    console.error('[studio] renderDashboard: unhandled error', err);
+    const msg = err && (err.message || String(err)) || 'unknown error';
+    const errHtml =
+      `<div class="studio-empty-state">
+         <p><strong>Dashboard failed to load.</strong> ${escapeHtml(msg)}</p>
+         <p><button class="studio-btn" id="dash-fatal-retry" type="button">Retry</button></p>
+       </div>`;
+    const kpis = $('#dash-kpis'); if (kpis) kpis.innerHTML = errHtml;
+    const cs = $('#dash-courses'); if (cs) cs.innerHTML = errHtml;
+    const fd = $('#dash-feed');    if (fd) fd.innerHTML = errHtml;
+    const btn = $('#dash-fatal-retry');
+    if (btn) btn.addEventListener('click', () => { view.innerHTML = ''; renderDashboard(view, coursesOnly); });
+  }
+}
+
+async function _renderDashboardInner(view, coursesOnly) {
   renderCrumbs({ label: 'Studio', href: '/studio' }, { label: coursesOnly ? 'Courses' : 'Dashboard' });
   const tpl = document.getElementById('tpl-dashboard');
   view.appendChild(tpl.content.cloneNode(true));
@@ -358,26 +401,85 @@ async function renderDashboard(view, coursesOnly) {
   $('#dash-courses').innerHTML = '<div class="studio-empty-state"><p>Loading courses…</p></div>';
   $('#dash-feed').innerHTML = '<div class="studio-empty-state"><p>Loading recent edits…</p></div>';
 
+  // Defensive: re-await authReady at the panel level. router() already gates
+  // on state.authReady, but if any caller bypasses that we still won't fire
+  // RLS-bound queries before the session is hydrated.
+  console.log('[studio] dashboard: awaiting authReady');
+  if (window.authReady && typeof window.authReady.then === 'function') {
+    await _studioAwait('authReady', window.authReady, 5000);
+  }
+  console.log('[studio] dashboard: authReady satisfied; firing queries');
+
   // Load all data in parallel ----------------------------------------
   const today = new Date(); today.setHours(0,0,0,0);
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
 
-  const [coursesRes, modulesRes, lessonsRes, pagesRes, profilesRes, enrollRes,
-         requestsRes, attemptsRes, assetsRes, recentPagesRes, recentKcRes, recentFinalRes]
+  // Per-query timeout (5s). We use Promise.allSettled semantics via
+  // _studioAwait so one hung/blocked query cannot stall the whole dashboard.
+  const QT = 5000;
+  function _q(label, builder) {
+    console.log('[studio] q:start', label);
+    let p;
+    try { p = builder(); } catch (e) {
+      console.error('[studio] q:throw', label, e);
+      return Promise.resolve({ __studioTimeout: false, error: e });
+    }
+    return _studioAwait(label, p, QT).then(r => {
+      if (r.__studioTimeout) { console.warn('[studio] q:timeout', label); return r; }
+      if (r.error)           console.error('[studio] q:reject', label, r.error);
+      else                   console.log('[studio] q:ok', label,
+        (r.value && (r.value.error ? 'sb-error' : (r.value.data ? `rows=${(r.value.data||[]).length}` : `count=${r.value.count ?? '?'}`))) || '');
+      return r;
+    });
+  }
+  // unwrap a _studioAwait result to a Supabase-like { data, count, error } shape
+  function _val(r, fallback = { data: [], count: 0, error: null }) {
+    if (!r) return fallback;
+    if (r.__studioTimeout) return { ...fallback, error: new Error('timeout') };
+    if (r.error)            return { ...fallback, error: r.error };
+    return r.value || fallback;
+  }
+
+  const [coursesR, modulesR, lessonsR, pagesR, profilesR, enrollR,
+         requestsR, attemptsR, assetsR, recentPagesR, recentKcR, recentFinalR]
     = await Promise.all([
-      sb.from('courses').select('id, slug, title, current_version_id, visibility, pass_threshold, updated_at, created_at'),
-      sb.from('modules').select('id, course_version_id', { count: 'exact', head: true }),
-      sb.from('lessons').select('id', { count: 'exact', head: true }),
-      sb.from('pages').select('id', { count: 'exact', head: true }),
-      sb.from('profiles').select('id', { count: 'exact', head: true }),
-      sb.from('enrollments').select('id, enrolled_at', { count: 'exact' }).gte('enrolled_at', sevenDaysAgo),
-      sb.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      sb.from('quiz_attempts').select('id', { count: 'exact', head: true }).gte('submitted_at', sevenDaysAgo),
-      sb.from('course_assets').select('id, byte_size'),
-      sb.from('pages').select('id, title, lesson_id, updated_at, lessons!inner(title, module_id, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!inner(slug, title))))').order('updated_at', { ascending: false }).limit(10),
-      sb.from('module_quiz_questions').select('id, question, updated_at, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!inner(slug, title)))').order('updated_at', { ascending: false }).limit(5),
-      sb.from('final_exam_questions').select('id, question, updated_at, course_version_id, course_versions!inner(course_id, courses!inner(slug, title))').order('updated_at', { ascending: false }).limit(5),
+      _q('courses',         () => sb.from('courses').select('id, slug, title, current_version_id, visibility, pass_threshold, updated_at, created_at')),
+      _q('modules.count',   () => sb.from('modules').select('id, course_version_id', { count: 'exact', head: true })),
+      _q('lessons.count',   () => sb.from('lessons').select('id', { count: 'exact', head: true })),
+      _q('pages.count',     () => sb.from('pages').select('id', { count: 'exact', head: true })),
+      _q('profiles.count',  () => sb.from('profiles').select('id', { count: 'exact', head: true })),
+      _q('enrollments.7d',  () => sb.from('enrollments').select('id, enrolled_at', { count: 'exact' }).gte('enrolled_at', sevenDaysAgo)),
+      _q('requests.pending',() => sb.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending')),
+      _q('attempts.7d',     () => sb.from('quiz_attempts').select('id', { count: 'exact', head: true }).gte('submitted_at', sevenDaysAgo)),
+      _q('assets',          () => sb.from('course_assets').select('id, byte_size')),
+      _q('recent.pages',    () => sb.from('pages').select('id, title, lesson_id, updated_at, lessons!inner(title, module_id, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!inner(slug, title))))').order('updated_at', { ascending: false }).limit(10)),
+      _q('recent.kc',       () => sb.from('module_quiz_questions').select('id, question, updated_at, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!inner(slug, title)))').order('updated_at', { ascending: false }).limit(5)),
+      _q('recent.final',    () => sb.from('final_exam_questions').select('id, question, updated_at, course_version_id, course_versions!inner(course_id, courses!inner(slug, title))').order('updated_at', { ascending: false }).limit(5)),
     ]);
+
+  const coursesRes      = _val(coursesR);
+  const modulesRes      = _val(modulesR);
+  const lessonsRes      = _val(lessonsR);
+  const pagesRes        = _val(pagesR);
+  const profilesRes     = _val(profilesR);
+  const enrollRes       = _val(enrollR);
+  const requestsRes     = _val(requestsR);
+  const attemptsRes     = _val(attemptsR);
+  const assetsRes       = _val(assetsR);
+  const recentPagesRes  = _val(recentPagesR);
+  const recentKcRes     = _val(recentKcR);
+  const recentFinalRes  = _val(recentFinalR);
+
+  // Track per-panel error visibility so we can replace the "Loading…"
+  // placeholder with something diagnostic instead of leaving it stuck.
+  function _errMsg(res, label) {
+    if (!res) return null;
+    if (res.error) {
+      const m = res.error.message || String(res.error);
+      return `Failed to load ${label}: ${m}`;
+    }
+    return null;
+  }
 
   const courses = coursesRes.data || [];
   state.allCoursesMeta = courses;
@@ -389,7 +491,8 @@ async function renderDashboard(view, coursesOnly) {
     console.warn('[studio:dashboard] queries returned empty for authed user — possible auth/RLS race');
   }
 
-  // Per-course stats (modules / lessons / pages) — flat IN-clause queries (no nested embed filters)
+  // Per-course stats (modules / lessons / pages) — flat IN-clause queries (no nested embed filters).
+  // Each step is also bounded so a hang here cannot wedge the dashboard.
   const versionIds = courses.map(c => c.current_version_id).filter(Boolean);
   let perCourseModulesData = [];
   let perCourseLessonsData = [];
@@ -397,20 +500,23 @@ async function renderDashboard(view, coursesOnly) {
   const moduleIdToVersion = {};
   const lessonIdToVersion = {};
   if (versionIds.length) {
-    const modsRes = await sb.from('modules').select('id, course_version_id').in('course_version_id', versionIds);
-    if (modsRes.error) console.error('dashboard modules', modsRes.error);
+    const modsRes = _val(await _q('per-course.modules',
+      () => sb.from('modules').select('id, course_version_id').in('course_version_id', versionIds)));
+    if (modsRes.error) console.error('[studio] dashboard modules', modsRes.error);
     perCourseModulesData = modsRes.data || [];
     for (const m of perCourseModulesData) moduleIdToVersion[m.id] = m.course_version_id;
     const moduleIds = perCourseModulesData.map(m => m.id);
     if (moduleIds.length) {
-      const lessRes = await sb.from('lessons').select('id, module_id').in('module_id', moduleIds);
-      if (lessRes.error) console.error('dashboard lessons', lessRes.error);
+      const lessRes = _val(await _q('per-course.lessons',
+        () => sb.from('lessons').select('id, module_id').in('module_id', moduleIds)));
+      if (lessRes.error) console.error('[studio] dashboard lessons', lessRes.error);
       perCourseLessonsData = lessRes.data || [];
       for (const l of perCourseLessonsData) lessonIdToVersion[l.id] = moduleIdToVersion[l.module_id];
       const lessonIds = perCourseLessonsData.map(l => l.id);
       if (lessonIds.length) {
-        const pgsRes = await sb.from('pages').select('id, lesson_id').in('lesson_id', lessonIds);
-        if (pgsRes.error) console.error('dashboard pages', pgsRes.error);
+        const pgsRes = _val(await _q('per-course.pages',
+          () => sb.from('pages').select('id, lesson_id').in('lesson_id', lessonIds)));
+        if (pgsRes.error) console.error('[studio] dashboard pages', pgsRes.error);
         perCoursePagesData = pgsRes.data || [];
       }
     }
@@ -451,16 +557,49 @@ async function renderDashboard(view, coursesOnly) {
     { label: 'Pending requests', value: requestsRes.count || 0,         sub: 'awaiting approval', kind: 'warn' },
     { label: 'Storage used',     value: fmtBytes(totalBytes),           sub: `${(assetsRes.data || []).length} assets` },
   ];
-  $('#dash-kpis').innerHTML = kpis.map(k =>
-    `<div class="dash-kpi ${k.kind ? 'is-' + k.kind : ''}">
-       <div class="dash-kpi-label">${escapeHtml(k.label)}</div>
-       <div class="dash-kpi-value">${escapeHtml(String(k.value))}</div>
-       <div class="dash-kpi-sub">${escapeHtml(k.sub || '')}</div>
-     </div>`
-  ).join('');
+  // KPI panel: if ALL KPI-feeding queries failed/timed out, show a single
+  // error block instead of a sea of zeros. Otherwise render the cards with
+  // the values we got (zeros for missing inputs).
+  const kpiErrs = [coursesRes, profilesRes, enrollRes, requestsRes, attemptsRes, assetsRes]
+    .map((r, i) => r.error && ['courses','profiles','enrollments','requests','attempts','assets'][i] + ': ' + (r.error.message || r.error))
+    .filter(Boolean);
+  const allKpiFailed = kpiErrs.length >= 5;  // tolerate a couple of misses
+  if (allKpiFailed) {
+    console.warn('[studio] dashboard KPIs: all queries failed', kpiErrs);
+    $('#dash-kpis').innerHTML =
+      `<div class="studio-empty-state">
+         <p><strong>Failed to load dashboard.</strong></p>
+         <p style="font-size:12px;color:var(--st-muted)">${escapeHtml(kpiErrs.join(' · '))}</p>
+         <p><button class="studio-btn" id="dash-retry-btn" type="button">Retry</button></p>
+       </div>`;
+    const btn = $('#dash-retry-btn');
+    if (btn) btn.addEventListener('click', () => { view.innerHTML = ''; renderDashboard(view, coursesOnly); });
+  } else {
+    if (kpiErrs.length) console.warn('[studio] dashboard KPIs: partial failure', kpiErrs);
+    $('#dash-kpis').innerHTML = kpis.map(k =>
+      `<div class="dash-kpi ${k.kind ? 'is-' + k.kind : ''}">
+         <div class="dash-kpi-label">${escapeHtml(k.label)}</div>
+         <div class="dash-kpi-value">${escapeHtml(String(k.value))}</div>
+         <div class="dash-kpi-sub">${escapeHtml(k.sub || '')}</div>
+       </div>`
+    ).join('');
+    console.log('[studio] dashboard: KPIs rendered');
+  }
 
   // Course grid -----------------------------------------------------
+  const coursesErr = _errMsg(coursesRes, 'courses');
   function renderCourseGrid(filter) {
+    if (coursesErr) {
+      console.warn('[studio] dashboard courses panel error:', coursesErr);
+      $('#dash-courses').innerHTML =
+        `<div class="studio-empty-state">
+           <p><strong>${escapeHtml(coursesErr)}.</strong> Try refreshing.</p>
+           <p><button class="studio-btn" id="dash-courses-retry" type="button">Retry</button></p>
+         </div>`;
+      const btn = $('#dash-courses-retry');
+      if (btn) btn.addEventListener('click', () => { view.innerHTML = ''; renderDashboard(view, coursesOnly); });
+      return;
+    }
     const f = (filter || '').toLowerCase();
     const items = courses.filter(c =>
       !f || c.slug.toLowerCase().includes(f) || (c.title || '').toLowerCase().includes(f)
@@ -488,9 +627,32 @@ async function renderDashboard(view, coursesOnly) {
     }).join('') : '<div class="studio-empty-state"><p>No courses match.</p></div>';
   }
   renderCourseGrid('');
+  if (!coursesErr) console.log('[studio] dashboard: courses rendered (n=' + courses.length + ')');
   $('#dash-course-filter').addEventListener('input', e => renderCourseGrid(e.target.value));
 
   // Recent edits feed ----------------------------------------------
+  // If ALL three "recent" queries failed, surface an error block. If only
+  // some failed we degrade gracefully and render whatever rows we have.
+  const feedErrs = [
+    _errMsg(recentPagesRes, 'recent pages'),
+    _errMsg(recentKcR && _val(recentKcR), 'recent knowledge-check'),
+    _errMsg(recentFinalR && _val(recentFinalR), 'recent final-exam'),
+  ].filter(Boolean);
+  const feedAllFailed = feedErrs.length === 3;
+  if (feedAllFailed) {
+    console.warn('[studio] dashboard recent-edits panel: all queries failed', feedErrs);
+    $('#dash-feed').innerHTML =
+      `<div class="studio-empty-state">
+         <p><strong>Failed to load recent edits.</strong></p>
+         <p style="font-size:12px;color:var(--st-muted)">${escapeHtml(feedErrs.join(' · '))}</p>
+         <p><button class="studio-btn" id="dash-feed-retry" type="button">Retry</button></p>
+       </div>`;
+    const btn = $('#dash-feed-retry');
+    if (btn) btn.addEventListener('click', () => { view.innerHTML = ''; renderDashboard(view, coursesOnly); });
+    return;
+  }
+  if (feedErrs.length) console.warn('[studio] dashboard recent-edits: partial failure', feedErrs);
+
   const feedRows = [];
   for (const p of (recentPagesRes.data || [])) {
     const courseTitle = p.lessons?.modules?.course_versions?.courses?.title || '';
@@ -528,6 +690,7 @@ async function renderDashboard(view, coursesOnly) {
        <span class="feed-when">${fmtRelTime(r.ts)}</span>
      </div>`
   ).join('') : '<div class="studio-empty-state"><p>No recent edits.</p></div>';
+  console.log('[studio] dashboard: recent edits rendered (n=' + feedRows.length + ')');
 }
 
 // =====================================================================
