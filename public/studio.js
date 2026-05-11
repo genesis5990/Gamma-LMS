@@ -179,7 +179,12 @@ async function bootstrapAuth() {
   const { data } = await sb.auth.getSession();
   state.user = data.session?.user || null;
 
-  sb.auth.onAuthStateChange(async (_e, session) => {
+  sb.auth.onAuthStateChange(async (event, session) => {
+    // bootstrapAuth() below runs checkAccess() once on cold load using the
+    // session it already awaited via window.authReady. Supabase also fires
+    // an INITIAL_SESSION event for the same session — ignore it here so we
+    // don't double-render the dashboard. React only to real auth transitions.
+    if (event === 'INITIAL_SESSION') return;
     state.user = session?.user || null;
     await checkAccess();
   });
@@ -452,9 +457,9 @@ async function _renderDashboardInner(view, coursesOnly) {
       _q('requests.pending',() => sb.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending')),
       _q('attempts.7d',     () => sb.from('quiz_attempts').select('id', { count: 'exact', head: true }).gte('submitted_at', sevenDaysAgo)),
       _q('assets',          () => sb.from('course_assets').select('id, byte_size')),
-      _q('recent.pages',    () => sb.from('pages').select('id, title, lesson_id, updated_at, lessons!inner(title, module_id, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!inner(slug, title))))').order('updated_at', { ascending: false }).limit(10)),
-      _q('recent.kc',       () => sb.from('module_quiz_questions').select('id, question, updated_at, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!inner(slug, title)))').order('updated_at', { ascending: false }).limit(5)),
-      _q('recent.final',    () => sb.from('final_exam_questions').select('id, question, updated_at, course_version_id, course_versions!inner(course_id, courses!inner(slug, title))').order('updated_at', { ascending: false }).limit(5)),
+      _q('recent.pages',    () => sb.from('pages').select('id, title, lesson_id, updated_at, lessons!inner(title, module_id, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!course_versions_course_id_fkey!inner(slug, title))))').order('updated_at', { ascending: false }).limit(10)),
+      _q('recent.kc',       () => sb.from('module_quiz_questions').select('id, question, updated_at, modules!inner(title, course_version_id, course_versions!inner(course_id, courses!course_versions_course_id_fkey!inner(slug, title)))').order('updated_at', { ascending: false }).limit(5)),
+      _q('recent.final',    () => sb.from('final_exam_questions').select('id, question, updated_at, course_version_id, course_versions!inner(course_id, courses!course_versions_course_id_fkey!inner(slug, title))').order('updated_at', { ascending: false }).limit(5)),
     ]);
 
   const coursesRes      = _val(coursesR);
