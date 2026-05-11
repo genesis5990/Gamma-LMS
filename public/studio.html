@@ -207,6 +207,15 @@
         <div class="media-head-actions">
           <input id="media-filter" class="studio-input" placeholder="Filter by filename or alt…" />
           <select id="media-course-filter" class="studio-select"></select>
+          <select id="media-type-filter" class="studio-select" aria-label="Filter by file type">
+            <option value="">All types</option>
+            <option value="image">Image</option>
+            <option value="audio">Audio</option>
+            <option value="video">Video</option>
+            <option value="pdf">PDF</option>
+            <option value="word">Word</option>
+            <option value="other">Other</option>
+          </select>
           <label class="studio-btn primary">
             Upload
             <input id="media-upload-input" type="file" accept="image/*,audio/*,application/pdf" multiple style="display:none" />

@@ -533,6 +533,21 @@ async function renderDashboard(view, coursesOnly) {
 // =====================================================================
 // MEDIA LIBRARY
 // =====================================================================
+function assetTypeCategory(asset) {
+  const mt = String(asset?.mime_type || '').toLowerCase();
+  const kind = String(asset?.kind || '').toLowerCase();
+  const name = String(asset?.filename || '').toLowerCase();
+  if (mt.startsWith('image/') || kind === 'image') return 'image';
+  if (mt.startsWith('audio/') || kind === 'audio') return 'audio';
+  if (mt.startsWith('video/') || kind === 'video') return 'video';
+  if (mt === 'application/pdf' || kind === 'pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (mt === 'application/msword'
+      || mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      || kind === 'docx' || kind === 'doc'
+      || name.endsWith('.doc') || name.endsWith('.docx')) return 'word';
+  return 'other';
+}
+
 async function renderMedia(view) {
   renderCrumbs({ label: 'Studio', href: '/studio' }, { label: 'Media Library' });
   const tpl = document.getElementById('tpl-media');
@@ -556,6 +571,15 @@ async function renderMedia(view) {
   let assets = [];
   let courseIdFilter = '';   // '' = all, '__shared__' = course_id IS NULL, else uuid
   let textFilter = '';
+  const TYPE_FILTER_KEY = 'mediaLibraryFilter';
+  const TYPE_LABELS = { image: 'Image', audio: 'Audio', video: 'Video', pdf: 'PDF', word: 'Word', other: 'Other' };
+  let typeFilter = '';
+  try {
+    const stored = localStorage.getItem(TYPE_FILTER_KEY) || '';
+    if (stored === '' || stored in TYPE_LABELS) typeFilter = stored;
+  } catch (_) { /* localStorage unavailable */ }
+  const typeSel = $('#media-type-filter');
+  if (typeSel) typeSel.value = typeFilter;
 
   async function load() {
     // Always fetch ALL accessible assets (RLS already filters); we filter client-side
@@ -581,9 +605,20 @@ async function renderMedia(view) {
       // Text filter (filename or alt)
       if (f && !((a.filename || '').toLowerCase().includes(f) ||
                  (a.alt_text || '').toLowerCase().includes(f))) return false;
+      // Type filter
+      if (typeFilter && assetTypeCategory(a) !== typeFilter) return false;
       return true;
     });
-    $('#media-empty').classList.toggle('hidden', items.length > 0);
+    const emptyEl = $('#media-empty');
+    emptyEl.classList.toggle('hidden', items.length > 0);
+    if (items.length === 0) {
+      const label = TYPE_LABELS[typeFilter];
+      const heading = label ? `No ${label} files yet` : 'No assets yet';
+      const sub = label
+        ? 'Try a different type filter, or upload one with the button above.'
+        : 'Drop a file above to get started.';
+      emptyEl.innerHTML = `<h2>${escapeHtml(heading)}</h2><p>${escapeHtml(sub)}</p>`;
+    }
     $('#media-grid').innerHTML = items.map(a => {
       const isImg = (a.mime_type || '').startsWith('image/');
       const thumb = isImg
@@ -638,6 +673,13 @@ async function renderMedia(view) {
 
   $('#media-filter').addEventListener('input', e => { textFilter = e.target.value; render(); });
   sel.addEventListener('change', e => { courseIdFilter = e.target.value; render(); });
+  if (typeSel) {
+    typeSel.addEventListener('change', e => {
+      typeFilter = e.target.value;
+      try { localStorage.setItem(TYPE_FILTER_KEY, typeFilter); } catch (_) {}
+      render();
+    });
+  }
 
   // When uploading from this page, pass the *real* course_id only when a single
   // course is selected. 'All courses' and 'Shared (no course)' both upload
