@@ -448,7 +448,7 @@ async function _renderDashboardInner(view, coursesOnly) {
   const [coursesR, modulesR, lessonsR, pagesR, profilesR, enrollR,
          requestsR, attemptsR, assetsR, recentPagesR, recentKcR, recentFinalR]
     = await Promise.all([
-      _q('courses',         () => sb.from('courses').select('id, slug, title, current_version_id, visibility, pass_threshold, updated_at, created_at')),
+      _q('courses',         () => sb.from('courses').select('id, slug, title, current_version_id, visibility, pass_threshold, updated_at, created_at, archived_at, deleted_at').is('deleted_at', null)),
       _q('modules.count',   () => sb.from('modules').select('id, course_version_id', { count: 'exact', head: true })),
       _q('lessons.count',   () => sb.from('lessons').select('id', { count: 'exact', head: true })),
       _q('pages.count',     () => sb.from('pages').select('id', { count: 'exact', head: true })),
@@ -613,9 +613,11 @@ async function _renderDashboardInner(view, coursesOnly) {
       const stats = statsByVersion[c.current_version_id] || { modules: 0, lessons: 0, pages: 0 };
       const status = c.visibility || 'private';
       const statusLabel = status === 'restricted' ? 'LE only' : status;
-      return `<div class="dash-course-card">
+      const archived = !!c.archived_at;
+      const archBadge = archived ? `<span class="dash-status is-archived" style="margin-left:6px">Archived</span>` : '';
+      return `<div class="dash-course-card${archived ? ' is-archived' : ''}">
         <div>
-          <span class="dash-status is-${status}">${statusLabel}</span>
+          <span class="dash-status is-${status}">${statusLabel}</span>${archBadge}
           <h3 style="margin-top:6px">${escapeHtml(c.title)}</h3>
           <div class="dash-cc-meta">slug: <code>${escapeHtml(c.slug)}</code> · pass ${c.pass_threshold ?? 80}% · updated ${fmtRelTime(c.updated_at)}</div>
         </div>
@@ -722,7 +724,7 @@ async function renderMedia(view) {
   view.appendChild(tpl.content.cloneNode(true));
 
   // load courses for filter (and cache for uploadFiles)
-  const { data: courses, error: coursesErr } = await sb.from('courses').select('id, slug, title').order('slug');
+  const { data: courses, error: coursesErr } = await sb.from('courses').select('id, slug, title').is('deleted_at', null).order('slug');
   if (coursesErr) console.warn('media: courses fetch failed', coursesErr);
   state.allCoursesMeta = courses || state.allCoursesMeta || [];
   const sel = $('#media-course-filter');
@@ -1045,7 +1047,8 @@ function flushHtml() {
 async function loadCourses() {
   const { data, error } = await sb
     .from('courses')
-    .select('id, slug, title, current_version_id, visibility, pass_threshold, includes_disclaimer, description, description_html, hero_image_url, hero_image_alt')
+    .select('id, slug, title, current_version_id, visibility, pass_threshold, includes_disclaimer, description, description_html, hero_image_url, hero_image_alt, archived_at, deleted_at')
+    .is('deleted_at', null)
     .order('slug');
   if (error) { toast('Load courses failed: ' + error.message, 'is-error'); return; }
   state.courses = data || [];
@@ -2941,11 +2944,13 @@ function renderMeta() {
           Restricted courses are visible only to authenticated users with an approved access request.
         </div>
       </div>
-      <div class="meta-info">Slug: <code>${escapeHtml(state.course.slug)}</code><br><span class="meta-hint">Hero image &amp; directions are edited in the main pane.</span></div>
-    </form>`;
+      <div class="meta-info">Slug: <code>${escapeHtml(state.course.slug)}</code>${state.course.archived_at ? ' · <strong style="color:#b58a00">Archived</strong>' : ''}${state.course.deleted_at ? ' · <strong style="color:#b42318">Soft-deleted</strong>' : ''}<br><span class="meta-hint">Hero image &amp; directions are edited in the main pane.</span></div>
+    </form>
+    <div id="course-danger-host"></div>`;
     $('#meta-title-in').addEventListener('input', e => stageCoursePatch({ title: e.target.value }));
     $('#meta-thresh').addEventListener('input',    e => stageCoursePatch({ pass_threshold: Number(e.target.value) }));
     $('#meta-vis').addEventListener('change',      e => stageCoursePatch({ visibility: e.target.value }));
+    renderCourseDangerZone();
     return;
   }
 
@@ -2958,6 +2963,156 @@ function renderMeta() {
 
   titleEl.textContent = 'Metadata';
   host.innerHTML = '';
+}
+
+// ---------- course danger zone (archive / soft-delete / hard-delete) -----
+// Visible to super_admin only. Progressive flow:
+//   active     -> Archive
+//   archived   -> Unarchive | Soft-delete (slug-typed confirm)
+//   soft-del'd -> Permanently delete (double slug-typed confirm)
+function renderCourseDangerZone() {
+  const host = $('#course-danger-host');
+  if (!host || !state.course) return;
+  if (state.profile?.role !== 'super_admin') { host.innerHTML = ''; return; }
+
+  const c = state.course;
+  const archived = !!c.archived_at;
+  const softDeleted = !!c.deleted_at;
+
+  let actionsHtml = '';
+  if (softDeleted) {
+    actionsHtml = `
+      <p class="dz-help">This course is soft-deleted. It is hidden from all views. Permanently delete to remove it from the database.</p>
+      <button type="button" class="studio-btn dz-btn dz-hard" id="dz-hard-delete">Permanently delete</button>`;
+  } else if (archived) {
+    actionsHtml = `
+      <p class="dz-help">This course is archived. Unarchive to restore, or soft-delete to hide it from all views (still recoverable by a super_admin).</p>
+      <button type="button" class="studio-btn dz-btn dz-unarchive" id="dz-unarchive">Unarchive</button>
+      <button type="button" class="studio-btn dz-btn dz-soft" id="dz-soft-delete">Delete (soft)</button>`;
+  } else {
+    actionsHtml = `
+      <p class="dz-help">Archive a course to mark it inactive without deleting any data. Archived courses remain visible to authors with an "Archived" badge.</p>
+      <button type="button" class="studio-btn dz-btn dz-archive" id="dz-archive">Archive</button>`;
+  }
+
+  host.innerHTML = `
+    <section class="meta-card dz-card">
+      <div class="meta-card-head" style="cursor:default">
+        <span class="meta-card-title" style="color:#b42318">⚠ Danger zone</span>
+      </div>
+      <div class="meta-card-body">
+        ${actionsHtml}
+      </div>
+    </section>`;
+
+  const arc = $('#dz-archive');
+  if (arc) arc.addEventListener('click', () => runArchive(c));
+  const una = $('#dz-unarchive');
+  if (una) una.addEventListener('click', () => runUnarchive(c));
+  const sd = $('#dz-soft-delete');
+  if (sd) sd.addEventListener('click', () => runSoftDelete(c));
+  const hd = $('#dz-hard-delete');
+  if (hd) hd.addEventListener('click', () => runHardDelete(c));
+}
+
+async function runArchive(c) {
+  if (!confirm(`Archive course "${c.title}"? It will be marked archived but no data is deleted.`)) return;
+  const { error } = await sb.rpc('archive_course', { p_course_id: c.id });
+  if (error) { toast('Archive failed: ' + error.message, 'is-error'); return; }
+  toast('Course archived');
+  c.archived_at = new Date().toISOString();
+  renderCourseDangerZone();
+  renderMeta();
+}
+
+async function runUnarchive(c) {
+  const { error } = await sb.rpc('unarchive_course', { p_course_id: c.id });
+  if (error) { toast('Unarchive failed: ' + error.message, 'is-error'); return; }
+  toast('Course unarchived');
+  c.archived_at = null;
+  renderCourseDangerZone();
+  renderMeta();
+}
+
+function runSoftDelete(c) {
+  openModal({
+    title: 'Soft-delete course',
+    bodyHtml: `
+      <p>Soft-delete <strong>${escapeHtml(c.title)}</strong>?</p>
+      <p>It will be hidden from all views but can be restored by an admin.</p>
+      <p style="margin-top:12px">Type the course slug <code>${escapeHtml(c.slug)}</code> to confirm:</p>
+      <input id="dz-slug-input" type="text" autocomplete="off" spellcheck="false"
+             style="width:100%;padding:8px;border:1px solid #d0d7de;border-radius:6px;margin-top:6px"/>`,
+    footHtml: `
+      <button type="button" class="studio-btn" id="dz-cancel">Cancel</button>
+      <button type="button" class="studio-btn dz-btn dz-soft" id="dz-confirm" disabled>Soft-delete</button>`,
+    onMount: (root) => {
+      const input = root.querySelector('#dz-slug-input');
+      const btn = root.querySelector('#dz-confirm');
+      input.addEventListener('input', () => { btn.disabled = input.value !== c.slug; });
+      root.querySelector('#dz-cancel').addEventListener('click', closeModal);
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const { error } = await sb.rpc('soft_delete_course', { p_course_id: c.id });
+        if (error) { toast('Soft-delete failed: ' + error.message, 'is-error'); btn.disabled = false; return; }
+        closeModal();
+        toast('Course soft-deleted');
+        navigate('/studio/courses');
+      });
+      input.focus();
+    }
+  });
+}
+
+function runHardDelete(c) {
+  openModal({
+    title: 'Permanently delete course',
+    bodyHtml: `
+      <p style="color:#b42318"><strong>This action cannot be undone.</strong></p>
+      <p>Permanently deleting <strong>${escapeHtml(c.title)}</strong> will remove the course and ALL associated data:</p>
+      <ul style="margin:8px 0 12px 22px">
+        <li>Versions, modules, lessons, pages</li>
+        <li>Knowledge-check and final-exam questions</li>
+        <li>Course assets (images, audio)</li>
+        <li>Enrollments, quiz attempts, ToS acceptances</li>
+      </ul>`,
+    footHtml: `
+      <button type="button" class="studio-btn" id="dz-cancel">Cancel</button>
+      <button type="button" class="studio-btn dz-btn dz-hard" id="dz-next">I understand — continue</button>`,
+    onMount: (root) => {
+      root.querySelector('#dz-cancel').addEventListener('click', closeModal);
+      root.querySelector('#dz-next').addEventListener('click', () => hardDeleteSecondConfirm(c));
+    }
+  });
+}
+
+function hardDeleteSecondConfirm(c) {
+  openModal({
+    title: 'Final confirmation',
+    bodyHtml: `
+      <p style="color:#b42318"><strong>Last chance.</strong> Type the course slug to permanently delete:</p>
+      <p><code>${escapeHtml(c.slug)}</code></p>
+      <input id="dz-slug-input2" type="text" autocomplete="off" spellcheck="false"
+             style="width:100%;padding:8px;border:1px solid #d0d7de;border-radius:6px;margin-top:6px"/>`,
+    footHtml: `
+      <button type="button" class="studio-btn" id="dz-cancel">Cancel</button>
+      <button type="button" class="studio-btn dz-btn dz-hard" id="dz-confirm-hard" disabled>Permanently delete</button>`,
+    onMount: (root) => {
+      const input = root.querySelector('#dz-slug-input2');
+      const btn = root.querySelector('#dz-confirm-hard');
+      input.addEventListener('input', () => { btn.disabled = input.value !== c.slug; });
+      root.querySelector('#dz-cancel').addEventListener('click', closeModal);
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const { error } = await sb.rpc('hard_delete_course', { p_course_id: c.id });
+        if (error) { toast('Permanent delete failed: ' + error.message, 'is-error'); btn.disabled = false; return; }
+        closeModal();
+        toast('Course permanently deleted');
+        navigate('/studio/courses');
+      });
+      input.focus();
+    }
+  });
 }
 
 // ---------- audio narration picker -------------------------------

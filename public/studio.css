@@ -634,6 +634,23 @@ body {
 .dash-status.is-preview    { background: #fdf1d2; color: var(--st-warn); }
 .dash-status.is-private    { background: #f0f2fa; color: var(--st-muted); }
 .dash-status.is-restricted { background: #e6efff; color: #0a3d91; }
+.dash-status.is-archived   { background: #fff3cd; color: #8a6d00; }
+.dash-course-card.is-archived { opacity: .68; }
+
+/* Danger zone (course archive / soft-delete / hard-delete) */
+.dz-card { border: 1px solid #f0c7c1; background: #fff8f7; margin-top: 14px; }
+.dz-card .meta-card-title { color: #b42318; }
+.dz-help { font-size: 12.5px; color: var(--st-muted, #5b6788); margin: 0 0 10px; }
+.studio-btn.dz-btn { margin-right: 6px; margin-top: 4px; font-weight: 600; }
+.studio-btn.dz-archive   { background: #fff8db; border-color: #ead38a; color: #8a6d00; }
+.studio-btn.dz-archive:hover:not(:disabled) { background: #fdedb1; }
+.studio-btn.dz-unarchive { background: #f5f6fa; border-color: #d0d7de; color: var(--st-muted, #5b6788); }
+.studio-btn.dz-unarchive:hover:not(:disabled) { background: #e9ecf2; }
+.studio-btn.dz-soft      { background: #ffe6cc; border-color: #f0a35e; color: #8a4500; }
+.studio-btn.dz-soft:hover:not(:disabled) { background: #ffd2a8; }
+.studio-btn.dz-hard      { background: #fde2e1; border-color: #f0998f; color: #b42318; }
+.studio-btn.dz-hard:hover:not(:disabled) { background: #fbcbc7; }
+.studio-btn.dz-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 .dash-cols {
   display: grid;
