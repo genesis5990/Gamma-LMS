@@ -96,6 +96,15 @@ window.authReady = (async () => {
   sb.auth.onAuthStateChange((event, session) => {
     const wasNull = !_user;
     _user = session?.user || null;
+    try {
+      const exp = session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'none';
+      if (event === 'TOKEN_REFRESHED') console.log('[auth] TOKEN_REFRESHED exp=' + exp);
+      else if (event === 'SIGNED_OUT')  console.log('[auth] SIGNED_OUT');
+      else if (event === 'SIGNED_IN')   console.log('[auth] SIGNED_IN exp=' + exp);
+      else if (event === 'INITIAL_SESSION') console.log('[auth] INITIAL_SESSION ' + (session ? 'exp=' + exp : '(no session)'));
+      else if (event === 'USER_UPDATED') console.log('[auth] USER_UPDATED');
+      else console.log('[auth] event=' + event);
+    } catch (_e) { /* noop */ }
     if (event === 'INITIAL_SESSION') {
       _initialSessionResolved = true;
       _cleanAuthHash();

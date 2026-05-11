@@ -87,7 +87,7 @@ function debounce(fn, ms) {
 // Supabase query (e.g. RLS-blocked, missing table) cannot leave the panels
 // stuck on "Loading…" forever. Mirrors the _awaitWithTimeout helper in
 // course.html added in v0.4.65.
-function _studioAwait(label, p, ms = 5000) {
+function _studioAwait(label, p, ms = 8000) {
   if (!p || typeof p.then !== 'function') {
     return Promise.resolve({ __studioTimeout: false, value: p });
   }
@@ -411,17 +411,83 @@ async function _renderDashboardInner(view, coursesOnly) {
   // RLS-bound queries before the session is hydrated.
   console.log('[studio] dashboard: awaiting authReady');
   if (window.authReady && typeof window.authReady.then === 'function') {
-    await _studioAwait('authReady', window.authReady, 5000);
+    await _studioAwait('authReady', window.authReady, 8000);
   }
   console.log('[studio] dashboard: authReady satisfied; firing queries');
+
+  // ---- Session validity check (v0.4.70) -------------------------------
+  // Background: when the browser tab has been idle, the persisted Supabase
+  // session can be expired (or within the refresh grace window) by the
+  // time the user clicks back in. PostgREST then either hangs the OPTIONS
+  // preflight or returns 401 silently, and all 12 parallel dashboard
+  // queries time out together. Validate (and refresh if needed) BEFORE
+  // firing the batch so the queries always go out with a live JWT.
+  try {
+    const { data: sessData, error: sessErr } = await sb.auth.getSession();
+    if (sessErr) console.warn('[studio] getSession error', sessErr);
+    let session = sessData?.session || null;
+    const expMs  = session?.expires_at ? session.expires_at * 1000 : 0;
+    const nearExpiry = !session || (expMs - Date.now() < 30000);
+    if (nearExpiry) {
+      console.log('[studio] session refresh attempt');
+      try {
+        const { data: refreshed, error: refreshErr } = await sb.auth.refreshSession();
+        if (refreshErr || !refreshed?.session) {
+          console.warn('[studio] session refresh failed:', refreshErr || 'null session');
+          const errHtml =
+            `<div class="studio-empty-state">
+               <p><strong>Session expired — please sign in again.</strong></p>
+               <p>
+                 <button class="studio-btn" id="dash-signin-btn" type="button">Sign in</button>
+                 <button class="studio-btn" id="dash-reload-btn" type="button">Reload</button>
+               </p>
+             </div>`;
+          const k = $('#dash-kpis');    if (k) k.innerHTML = errHtml;
+          const c = $('#dash-courses'); if (c) c.innerHTML = errHtml;
+          const f = $('#dash-feed');    if (f) f.innerHTML = errHtml;
+          const signIn = $('#dash-signin-btn');
+          if (signIn) signIn.addEventListener('click', () => {
+            try { if (typeof window.signOut === 'function') window.signOut(); else window.location.href = '/'; }
+            catch (_e) { window.location.href = '/'; }
+          });
+          const reload = $('#dash-reload-btn');
+          if (reload) reload.addEventListener('click', () => window.location.reload());
+          return;
+        }
+        session = refreshed.session;
+        console.log('[studio] session refresh ok');
+      } catch (e) {
+        console.warn('[studio] session refresh failed:', e);
+        const errHtml =
+          `<div class="studio-empty-state">
+             <p><strong>Session expired — please sign in again.</strong></p>
+             <p><button class="studio-btn" id="dash-reload-btn" type="button">Reload</button></p>
+           </div>`;
+        const k = $('#dash-kpis');    if (k) k.innerHTML = errHtml;
+        const c = $('#dash-courses'); if (c) c.innerHTML = errHtml;
+        const f = $('#dash-feed');    if (f) f.innerHTML = errHtml;
+        const reload = $('#dash-reload-btn');
+        if (reload) reload.addEventListener('click', () => window.location.reload());
+        return;
+      }
+    }
+    if (session?.expires_at) {
+      console.log('[studio] session check ok exp=' + new Date(session.expires_at * 1000).toISOString());
+    } else {
+      console.log('[studio] session check ok (no expires_at)');
+    }
+  } catch (e) {
+    console.warn('[studio] session check threw — proceeding with queries', e);
+  }
 
   // Load all data in parallel ----------------------------------------
   const today = new Date(); today.setHours(0,0,0,0);
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
 
-  // Per-query timeout (5s). We use Promise.allSettled semantics via
+  // Per-query timeout (8s). We use Promise.allSettled semantics via
   // _studioAwait so one hung/blocked query cannot stall the whole dashboard.
-  const QT = 5000;
+  // Bumped from 5s in v0.4.70 — 12 parallel queries on cold cache can be slow.
+  const QT = 8000;
   function _q(label, builder) {
     console.log('[studio] q:start', label);
     let p;
