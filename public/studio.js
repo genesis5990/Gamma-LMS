@@ -294,7 +294,7 @@ async function router() {
   $('#btn-toggle-preview').classList.add('hidden');
   $('#btn-discard').classList.add('hidden');
   $('#btn-save').classList.add('hidden');
-  setSaveState('', 'Idle');
+  setSaveState('ready', '● Ready');
 
   // active nav highlight
   const navMap = { dashboard:'/studio', courses:'/studio/courses', media:'/studio/media', users:'/studio/users', editor:'/studio/edit/' };
@@ -415,66 +415,99 @@ async function _renderDashboardInner(view, coursesOnly) {
   }
   console.log('[studio] dashboard: authReady satisfied; firing queries');
 
-  // ---- Session validity check (v0.4.70) -------------------------------
+  // ---- Hard render-watchdog (v0.4.71) ---------------------------------
+  // Belt-and-braces: even if an await deep in this function never settles,
+  // we MUST not leave the user staring at "Loading dashboard…" forever.
+  // After 12s, swap any still-loading placeholder for an error + Retry.
+  // We clear this timer at the end of _renderDashboardInner once we've
+  // rendered everything we can.
+  const _watchdog = setTimeout(() => {
+    console.warn('[studio] dashboard watchdog: 12s elapsed, panels still loading — surfacing error');
+    const stuckHtml =
+      `<div class="studio-empty-state">
+         <p><strong>Dashboard is taking longer than expected.</strong></p>
+         <p style="font-size:12px;color:var(--st-muted)">The server didn't respond within 12s. This usually means a stale session or a temporary Supabase hiccup.</p>
+         <p>
+           <button class="studio-btn primary" id="dash-watchdog-retry" type="button">Retry</button>
+           <button class="studio-btn" id="dash-watchdog-reload" type="button">Hard reload</button>
+         </p>
+       </div>`;
+    function _swapIfLoading(sel) {
+      const el = $(sel);
+      if (el && /Loading/i.test(el.textContent || '')) el.innerHTML = stuckHtml;
+    }
+    _swapIfLoading('#dash-kpis');
+    _swapIfLoading('#dash-courses');
+    _swapIfLoading('#dash-feed');
+    const retry = $('#dash-watchdog-retry');
+    if (retry) retry.addEventListener('click', () => { view.innerHTML = ''; renderDashboard(view, coursesOnly); });
+    const reload = $('#dash-watchdog-reload');
+    if (reload) reload.addEventListener('click', () => window.location.reload());
+  }, 12000);
+
+  // ---- Session validity check (v0.4.70, bounded in v0.4.71) -----------
   // Background: when the browser tab has been idle, the persisted Supabase
   // session can be expired (or within the refresh grace window) by the
   // time the user clicks back in. PostgREST then either hangs the OPTIONS
   // preflight or returns 401 silently, and all 12 parallel dashboard
   // queries time out together. Validate (and refresh if needed) BEFORE
   // firing the batch so the queries always go out with a live JWT.
+  //
+  // v0.4.71: both getSession() and refreshSession() are now bounded by
+  // _studioAwait. v0.4.70 awaited them naked, and the GoTrue client can
+  // hang those calls indefinitely (network blip, CORS, locked storage
+  // mutex) — which left the dashboard panels stuck on "Loading…".
   try {
-    const { data: sessData, error: sessErr } = await sb.auth.getSession();
-    if (sessErr) console.warn('[studio] getSession error', sessErr);
-    let session = sessData?.session || null;
-    const expMs  = session?.expires_at ? session.expires_at * 1000 : 0;
-    const nearExpiry = !session || (expMs - Date.now() < 30000);
-    if (nearExpiry) {
-      console.log('[studio] session refresh attempt');
-      try {
-        const { data: refreshed, error: refreshErr } = await sb.auth.refreshSession();
-        if (refreshErr || !refreshed?.session) {
-          console.warn('[studio] session refresh failed:', refreshErr || 'null session');
-          const errHtml =
-            `<div class="studio-empty-state">
-               <p><strong>Session expired — please sign in again.</strong></p>
-               <p>
-                 <button class="studio-btn" id="dash-signin-btn" type="button">Sign in</button>
-                 <button class="studio-btn" id="dash-reload-btn" type="button">Reload</button>
-               </p>
-             </div>`;
-          const k = $('#dash-kpis');    if (k) k.innerHTML = errHtml;
-          const c = $('#dash-courses'); if (c) c.innerHTML = errHtml;
-          const f = $('#dash-feed');    if (f) f.innerHTML = errHtml;
-          const signIn = $('#dash-signin-btn');
-          if (signIn) signIn.addEventListener('click', () => {
-            try { if (typeof window.signOut === 'function') window.signOut(); else window.location.href = '/'; }
-            catch (_e) { window.location.href = '/'; }
-          });
-          const reload = $('#dash-reload-btn');
-          if (reload) reload.addEventListener('click', () => window.location.reload());
-          return;
-        }
-        session = refreshed.session;
-        console.log('[studio] session refresh ok');
-      } catch (e) {
-        console.warn('[studio] session refresh failed:', e);
-        const errHtml =
-          `<div class="studio-empty-state">
-             <p><strong>Session expired — please sign in again.</strong></p>
-             <p><button class="studio-btn" id="dash-reload-btn" type="button">Reload</button></p>
-           </div>`;
-        const k = $('#dash-kpis');    if (k) k.innerHTML = errHtml;
-        const c = $('#dash-courses'); if (c) c.innerHTML = errHtml;
-        const f = $('#dash-feed');    if (f) f.innerHTML = errHtml;
-        const reload = $('#dash-reload-btn');
-        if (reload) reload.addEventListener('click', () => window.location.reload());
-        return;
-      }
-    }
-    if (session?.expires_at) {
-      console.log('[studio] session check ok exp=' + new Date(session.expires_at * 1000).toISOString());
+    const sessR = await _studioAwait('auth.getSession', sb.auth.getSession(), 4000);
+    if (sessR.__studioTimeout) {
+      console.warn('[studio] auth.getSession timed out — proceeding with whatever JWT supabase-js holds');
     } else {
-      console.log('[studio] session check ok (no expires_at)');
+      const sessData = sessR.value?.data;
+      const sessErr  = sessR.value?.error || sessR.error;
+      if (sessErr) console.warn('[studio] getSession error', sessErr);
+      let session = sessData?.session || null;
+      const expMs  = session?.expires_at ? session.expires_at * 1000 : 0;
+      const nearExpiry = !session || (expMs - Date.now() < 30000);
+      if (nearExpiry) {
+        console.log('[studio] session refresh attempt');
+        const refR = await _studioAwait('auth.refreshSession', sb.auth.refreshSession(), 4000);
+        if (refR.__studioTimeout) {
+          console.warn('[studio] auth.refreshSession timed out — proceeding anyway');
+        } else {
+          const refreshed   = refR.value?.data;
+          const refreshErr  = refR.value?.error || refR.error;
+          if (refreshErr || !refreshed?.session) {
+            console.warn('[studio] session refresh failed:', refreshErr || 'null session');
+            clearTimeout(_watchdog);
+            const errHtml =
+              `<div class="studio-empty-state">
+                 <p><strong>Session expired — please sign in again.</strong></p>
+                 <p>
+                   <button class="studio-btn" id="dash-signin-btn" type="button">Sign in</button>
+                   <button class="studio-btn" id="dash-reload-btn" type="button">Reload</button>
+                 </p>
+               </div>`;
+            const k = $('#dash-kpis');    if (k) k.innerHTML = errHtml;
+            const c = $('#dash-courses'); if (c) c.innerHTML = errHtml;
+            const f = $('#dash-feed');    if (f) f.innerHTML = errHtml;
+            const signIn = $('#dash-signin-btn');
+            if (signIn) signIn.addEventListener('click', () => {
+              try { if (typeof window.signOut === 'function') window.signOut(); else window.location.href = '/'; }
+              catch (_e) { window.location.href = '/'; }
+            });
+            const reload = $('#dash-reload-btn');
+            if (reload) reload.addEventListener('click', () => window.location.reload());
+            return;
+          }
+          session = refreshed.session;
+          console.log('[studio] session refresh ok');
+        }
+      }
+      if (session?.expires_at) {
+        console.log('[studio] session check ok exp=' + new Date(session.expires_at * 1000).toISOString());
+      } else {
+        console.log('[studio] session check ok (no expires_at)');
+      }
     }
   } catch (e) {
     console.warn('[studio] session check threw — proceeding with queries', e);
@@ -722,6 +755,7 @@ async function _renderDashboardInner(view, coursesOnly) {
        </div>`;
     const btn = $('#dash-feed-retry');
     if (btn) btn.addEventListener('click', () => { view.innerHTML = ''; renderDashboard(view, coursesOnly); });
+    clearTimeout(_watchdog);
     return;
   }
   if (feedErrs.length) console.warn('[studio] dashboard recent-edits: partial failure', feedErrs);
@@ -764,6 +798,7 @@ async function _renderDashboardInner(view, coursesOnly) {
      </div>`
   ).join('') : '<div class="studio-empty-state"><p>No recent edits.</p></div>';
   console.log('[studio] dashboard: recent edits rendered (n=' + feedRows.length + ')');
+  clearTimeout(_watchdog);
 }
 
 // =====================================================================
@@ -4562,7 +4597,7 @@ async function onPickFromLibrary() {
     .select('id, public_url, filename, kind, mime_type, byte_size, alt_text, course_id, width, height, created_at')
     .order('created_at', { ascending: false }).limit(200);
   if (error) { setSaveState('error', 'Library load failed'); toast(error.message, 'is-error'); return; }
-  setSaveState('', 'Idle');
+  setSaveState('ready', '● Ready');
   const images = (data || []).filter(a => (a.mime_type || '').startsWith('image/'));
   if (!images.length) { toast('No images in library yet', 'is-error'); return; }
   openModal({

@@ -499,6 +499,11 @@ body {
 .studio-savestate.is-saving { color: #ffd982; }
 .studio-savestate.is-dirty  { color: #ffb482; }
 .studio-savestate.is-error  { color: #ff8b8b; }
+.studio-savestate.is-ready  { color: #8fe5a8; animation: studio-savestate-pulse 2.4s ease-in-out infinite; }
+@keyframes studio-savestate-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
 
 /* ============================================================
  * DASHBOARD VIEW
