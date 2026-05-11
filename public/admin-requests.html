@@ -135,6 +135,7 @@
 </main>
 
 <script>
+(function () {
 // Single shared Supabase client created by auth.js (loaded earlier on this page).
 const sb = window.supabaseClient;
 if (!sb) {
@@ -359,6 +360,7 @@ async function refresh() {
 
   await loadTenants();
   refresh();
+})();
 })();
 </script>
 

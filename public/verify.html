@@ -110,6 +110,7 @@
 </footer>
 
 <script>
+(function () {
 document.getElementById('yr').textContent = new Date().getFullYear();
 
 // Single shared Supabase client. admin-nav.js (deferred) will reuse this
@@ -222,6 +223,7 @@ function renderResult(hash, data) {
       <p class="lede">${escapeHtml(err.message || 'Unknown error')}</p>
     `;
   }
+})();
 })();
 </script>
 
