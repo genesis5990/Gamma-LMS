@@ -83,6 +83,56 @@ function debounce(fn, ms) {
   let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+// Debug panel (v0.4.73). Append `?debug=1` to any /studio URL to surface a
+// fixed-position panel that records every bounded await, its duration, and
+// any error. Toggle with the keyboard chord `D` (when the panel exists).
+// Next time the dashboard hangs we can read the panel instead of guessing.
+const _STUDIO_DEBUG = (() => {
+  try { return new URLSearchParams(window.location.search).get('debug') === '1'; }
+  catch (_e) { return false; }
+})();
+function _debugEnsurePanel() {
+  if (!_STUDIO_DEBUG) return null;
+  let host = document.getElementById('studio-debug-panel');
+  if (host) return host;
+  host = document.createElement('div');
+  host.id = 'studio-debug-panel';
+  host.style.cssText = [
+    'position:fixed','right:8px','bottom:8px','z-index:9999',
+    'width:380px','max-height:50vh','overflow:auto',
+    'background:rgba(6,10,22,0.94)','color:#cbd5e1',
+    'font:11px/1.4 ui-monospace,monospace','padding:8px 10px',
+    'border:1px solid #334155','border-radius:6px',
+    'box-shadow:0 6px 24px rgba(0,0,0,0.45)'
+  ].join(';');
+  host.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+    '<strong style="color:#60a5fa">studio debug</strong>' +
+    '<button id="studio-debug-clear" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:3px;padding:1px 6px;cursor:pointer">clear</button>' +
+    '</div><div id="studio-debug-log"></div>';
+  document.body.appendChild(host);
+  host.querySelector('#studio-debug-clear').addEventListener('click', () => {
+    const log = host.querySelector('#studio-debug-log');
+    if (log) log.innerHTML = '';
+  });
+  return host;
+}
+function _debugLog(line, kind) {
+  if (!_STUDIO_DEBUG) return;
+  const host = _debugEnsurePanel();
+  if (!host) return;
+  const log = host.querySelector('#studio-debug-log');
+  if (!log) return;
+  const t = new Date().toISOString().slice(11, 23);
+  const colour = kind === 'err' ? '#fca5a5' : kind === 'warn' ? '#fbbf24'
+               : kind === 'ok' ? '#86efac' : '#94a3b8';
+  const row = document.createElement('div');
+  row.style.cssText = 'color:' + colour + ';white-space:pre-wrap;word-break:break-word';
+  row.textContent = t + ' ' + line;
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+}
+
 // Bounded await for any promise. Used by the dashboard so a single hung
 // Supabase query (e.g. RLS-blocked, missing table) cannot leave the panels
 // stuck on "Loading…" forever. Mirrors the _awaitWithTimeout helper in
@@ -92,15 +142,28 @@ function _studioAwait(label, p, ms = 8000) {
     return Promise.resolve({ __studioTimeout: false, value: p });
   }
   let timer;
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  _debugLog('start ' + label + ' (timeout=' + ms + 'ms)');
   const timeout = new Promise((resolve) => {
     timer = setTimeout(() => {
+      const dt = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
       console.warn('[studio]', label, 'TIMEOUT after', ms, 'ms');
+      _debugLog('TIMEOUT ' + label + ' after ' + dt + 'ms', 'err');
       resolve({ __studioTimeout: true });
     }, ms);
   });
   return Promise.race([
-    p.then(v => ({ __studioTimeout: false, value: v }),
-           e => ({ __studioTimeout: false, error: e })),
+    p.then(v => {
+      const dt = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+      const err = v && v.error;
+      if (err) _debugLog('ok-with-err ' + label + ' ' + dt + 'ms · ' + (err.message || err), 'warn');
+      else _debugLog('ok ' + label + ' ' + dt + 'ms', 'ok');
+      return { __studioTimeout: false, value: v };
+    }, e => {
+      const dt = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+      _debugLog('reject ' + label + ' ' + dt + 'ms · ' + (e?.message || e), 'err');
+      return { __studioTimeout: false, error: e };
+    }),
     timeout,
   ]).finally(() => clearTimeout(timer));
 }
@@ -179,18 +242,39 @@ async function bootstrapAuth() {
   const { data } = await sb.auth.getSession();
   state.user = data.session?.user || null;
 
+  // ROOT CAUSE (v0.4.73): _renderDashboardInner calls sb.auth.refreshSession()
+  // which makes the GoTrue client emit TOKEN_REFRESHED. Prior versions of this
+  // listener handled every non-INITIAL_SESSION event by calling checkAccess()
+  // → router() → renderDashboard() → refreshSession() — an infinite re-entry
+  // loop that fired 12+ parallel Supabase queries per cycle until the
+  // connection pool / rate limiter saturated and panels appeared "hung".
+  //
+  // The two earlier fixes (v0.4.70 bound the awaits, v0.4.71 added a 12s
+  // watchdog) treated symptoms: each new re-entry built a new render frame,
+  // so the watchdog's `_swapIfLoading` lookups never matched the latest DOM
+  // and panels stayed stuck.
+  //
+  // Fix: only re-render on the auth events that genuinely change who the user
+  // is (SIGNED_IN, SIGNED_OUT, USER_UPDATED). TOKEN_REFRESHED is a background
+  // refresh — the JWT changes, the user does not, and we must not re-enter
+  // the dashboard. Also guard against concurrent checkAccess() runs.
   sb.auth.onAuthStateChange(async (event, session) => {
-    // bootstrapAuth() below runs checkAccess() once on cold load using the
-    // session it already awaited via window.authReady. Supabase also fires
-    // an INITIAL_SESSION event for the same session — ignore it here so we
-    // don't double-render the dashboard. React only to real auth transitions.
     if (event === 'INITIAL_SESSION') return;
+    if (event === 'TOKEN_REFRESHED') {
+      // Update cached user but DO NOT re-render. The dashboard's in-flight
+      // queries will pick up the new JWT on their next request automatically.
+      state.user = session?.user || state.user;
+      return;
+    }
+    const sameUser = (state.user?.id || null) === (session?.user?.id || null);
     state.user = session?.user || null;
+    if (sameUser && event !== 'SIGNED_OUT') return;
     await checkAccess();
   });
 
   await checkAccess();
 }
+
 
 async function checkAccess() {
   const gate     = $('#studio-gate');
@@ -5186,7 +5270,10 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
+console.log('[studio] boot v0.4.73' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.73');
 bootstrapAuth().catch(err => {
   console.error(err);
+  _debugLog('bootstrapAuth threw: ' + (err?.message || err), 'err');
   toast('Boot error: ' + err.message, 'is-error');
 });
