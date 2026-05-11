@@ -906,11 +906,63 @@ body {
 
 .studio-pane.studio-center { position: relative; }
 
-/* Drag handle on outline */
-.outline-node[draggable="true"] { cursor: grab; }
+/* Drag handle on outline ----------------------------------------
+ * The handle (≡) is the ONLY drag affordance — the rest of the row
+ * keeps its click-to-edit behavior. */
+.outline-node { transition: background .15s ease, transform .15s ease, opacity .15s ease; }
+.outline-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  border-radius: 3px;
+  color: var(--st-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: grab;
+  opacity: 0;
+  flex-shrink: 0;
+  user-select: none;
+  transition: opacity .15s ease, background .15s ease, color .15s ease;
+}
+.outline-handle:active { cursor: grabbing; }
+.outline-node:hover .outline-handle,
+.outline-node.is-selected .outline-handle { opacity: .85; }
+.outline-handle:hover { background: rgba(0,0,0,.08); color: var(--st-fg); opacity: 1; }
+.outline-node.is-selected .outline-handle { color: rgba(255,255,255,.9); }
+.outline-node.is-selected .outline-handle:hover { background: rgba(255,255,255,.18); color: #fff; }
+/* Keep the row indent from the existing .outline-lesson / .outline-page
+ * padding-left rules; the handle simply takes the leading flex slot. We
+ * pull it slightly left of the icon so the row layout stays consistent
+ * with the rest of the outline. */
+.outline-node.outline-lesson .outline-handle,
+.outline-node.outline-page   .outline-handle { margin-left: -4px; }
+
+.outline-node.is-dragging {
+  opacity: .45;
+  background: var(--st-line-2);
+}
 .outline-node.is-drag-over {
+  box-shadow: inset 0 2px 0 0 var(--st-accent);
+  background: rgba(40,90,180,.06);
+}
+.outline-node.is-drag-over-after {
+  box-shadow: inset 0 -2px 0 0 var(--st-accent);
+  background: rgba(40,90,180,.06);
+}
+.outline-node.outline-module.is-drag-over {
   background: #fdf1d2;
   outline: 1px dashed var(--st-warn);
+  box-shadow: none;
+}
+.outline-node.is-just-dropped {
+  animation: outlineFlash .55s ease-out;
+}
+@keyframes outlineFlash {
+  0%   { background: rgba(40,140,90,.30); }
+  100% { background: transparent; }
 }
 .outline-node-actions {
   display: none;

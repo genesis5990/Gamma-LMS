@@ -1276,8 +1276,8 @@ function renderOutline() {
     <span class="outline-label" data-rename="course">${escapeHtml(state.course.title)}</span>
   </div>`);
   for (const m of state.modules) {
-    html.push(`<div class="outline-children">`);
-    html.push(`<div class="outline-node outline-module" draggable="true" data-kind="module" data-id="${m.id}" title="Click to edit · double-click to rename">
+    html.push(`<div class="outline-children" data-module-id="${m.id}">`);
+    html.push(`<div class="outline-node outline-module" data-kind="module" data-id="${m.id}" title="Click to edit · double-click to rename">
       <span class="outline-icon">M</span>
       <span class="outline-label" data-rename="module">${escapeHtml(m.title)}</span>
       <span class="outline-meta">${m.lessons.length}L</span>
@@ -1289,7 +1289,8 @@ function renderOutline() {
       </span>
     </div>`);
     for (const l of m.lessons) {
-      html.push(`<div class="outline-node outline-lesson" draggable="true" data-kind="lesson" data-id="${l.id}" title="Click to edit · double-click to rename">
+      html.push(`<div class="outline-node outline-lesson" data-kind="lesson" data-id="${l.id}" data-parent-id="${m.id}" title="Click to edit · double-click to rename">
+        <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder lesson" title="Drag to reorder">≡</span>
         <span class="outline-icon">L</span>
         <span class="outline-label" data-rename="lesson">${escapeHtml(l.title)}</span>
         <span class="outline-meta">${l.pages.length}p</span>
@@ -1303,7 +1304,8 @@ function renderOutline() {
         const p = l.pages[i];
         const pageLabel = derivePageTitle(p);
         const isDerived = !(p.title && p.title.trim());
-        html.push(`<div class="outline-node outline-page" draggable="true" data-kind="page" data-id="${p.id}" title="Double-click to rename">
+        html.push(`<div class="outline-node outline-page" data-kind="page" data-id="${p.id}" data-parent-id="${l.id}" title="Double-click to rename">
+          <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder page" title="Drag to reorder">≡</span>
           <span class="outline-icon">${i+1}</span>
           <span class="outline-label${isDerived ? ' is-derived' : ''}" data-rename="page">${escapeHtml(pageLabel)}</span>
           <span class="outline-node-actions">
@@ -1374,6 +1376,8 @@ function renderOutline() {
       if (e.target.closest('.outline-node-actions')) return;
       // ignore label clicks while in inline-rename mode
       if (e.target.closest('.outline-label.is-renaming')) return;
+      // ignore clicks on the drag handle — it's a drag affordance, not a selector
+      if (e.target.closest('.outline-handle')) return;
       selectNode(n.dataset.kind, n.dataset.id);
     });
   });
@@ -1457,74 +1461,276 @@ function startInlineRename(labelEl) {
 }
 
 function wireOutlineReorder(root) {
-  let dragSrc = null;
+  // Drag is initiated only from .outline-handle (≡ grip), so clicks on the
+  // rest of the row continue to select/edit normally.
+  let dragSrc = null;       // { kind, id, node, parentId }
+
   root.addEventListener('dragstart', (e) => {
-    const n = e.target.closest('.outline-node[draggable="true"]');
+    const handle = e.target.closest('.outline-handle');
+    if (!handle) return;
+    const n = handle.closest('.outline-node');
     if (!n) return;
-    dragSrc = { kind: n.dataset.kind, id: n.dataset.id };
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', n.dataset.id);
+    const kind = n.dataset.kind;
+    if (kind !== 'lesson' && kind !== 'page') return;
+    dragSrc = { kind, id: n.dataset.id, node: n, parentId: n.dataset.parentId };
+    n.setAttribute('aria-grabbed', 'true');
+    n.classList.add('is-dragging');
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', n.dataset.id);
+      // Use the whole row as the drag image so the user sees what they're moving.
+      const rect = n.getBoundingClientRect();
+      e.dataTransfer.setDragImage(n, e.clientX - rect.left, e.clientY - rect.top);
+    } catch (_) {}
   });
-  root.addEventListener('dragover', (e) => {
-    const n = e.target.closest('.outline-node[draggable="true"]');
-    if (!n || !dragSrc) return;
-    if (n.dataset.kind !== dragSrc.kind) return;   // only reorder among siblings of same kind
-    e.preventDefault();
+
+  root.addEventListener('dragend', () => {
+    if (dragSrc?.node) {
+      dragSrc.node.classList.remove('is-dragging');
+      dragSrc.node.setAttribute('aria-grabbed', 'false');
+    }
     $$('.outline-node.is-drag-over', root).forEach(x => x.classList.remove('is-drag-over'));
-    n.classList.add('is-drag-over');
+    $$('.outline-node.is-drag-over-after', root).forEach(x => x.classList.remove('is-drag-over-after'));
+    dragSrc = null;
   });
+
+  root.addEventListener('dragover', (e) => {
+    if (!dragSrc) return;
+    // Lessons can drop onto a sibling lesson (same module) OR — stretch goal —
+    // onto another module's row (move-to-module). Pages can only drop onto a
+    // sibling page in the same lesson.
+    let target = e.target.closest('.outline-node[data-kind="' + dragSrc.kind + '"]');
+    let intoModule = null;
+    if (!target && dragSrc.kind === 'lesson') {
+      intoModule = e.target.closest('.outline-node[data-kind="module"]');
+      if (!intoModule) return;
+    } else if (!target) {
+      return;
+    }
+    e.preventDefault();
+    try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+    $$('.outline-node.is-drag-over', root).forEach(x => x.classList.remove('is-drag-over'));
+    $$('.outline-node.is-drag-over-after', root).forEach(x => x.classList.remove('is-drag-over-after'));
+    if (target && target.dataset.id !== dragSrc.id) {
+      // Decide above-vs-below based on cursor position within the row.
+      const rect = target.getBoundingClientRect();
+      const isAfter = (e.clientY - rect.top) > rect.height / 2;
+      target.classList.add(isAfter ? 'is-drag-over-after' : 'is-drag-over');
+    } else if (intoModule) {
+      intoModule.classList.add('is-drag-over');
+    }
+  });
+
   root.addEventListener('dragleave', (e) => {
     const n = e.target.closest('.outline-node');
-    if (n) n.classList.remove('is-drag-over');
+    if (n) { n.classList.remove('is-drag-over'); n.classList.remove('is-drag-over-after'); }
   });
+
   root.addEventListener('drop', async (e) => {
     e.preventDefault();
-    $$('.outline-node.is-drag-over', root).forEach(x => x.classList.remove('is-drag-over'));
-    const target = e.target.closest('.outline-node[draggable="true"]');
-    if (!target || !dragSrc) return;
-    if (target.dataset.kind !== dragSrc.kind) return;
-    if (target.dataset.id === dragSrc.id) return;
-    await reorderSibling(dragSrc.kind, dragSrc.id, target.dataset.id);
+    if (!dragSrc) return;
+    const src = dragSrc;
     dragSrc = null;
+    if (src.node) {
+      src.node.classList.remove('is-dragging');
+      src.node.setAttribute('aria-grabbed', 'false');
+    }
+    $$('.outline-node.is-drag-over', root).forEach(x => x.classList.remove('is-drag-over'));
+    $$('.outline-node.is-drag-over-after', root).forEach(x => x.classList.remove('is-drag-over-after'));
+
+    const sameKindTarget = e.target.closest('.outline-node[data-kind="' + src.kind + '"]');
+    if (sameKindTarget && sameKindTarget.dataset.id !== src.id) {
+      const rect = sameKindTarget.getBoundingClientRect();
+      const isAfter = (e.clientY - rect.top) > rect.height / 2;
+      await reorderSibling(src.kind, src.id, sameKindTarget.dataset.id, isAfter);
+      return;
+    }
+    if (src.kind === 'lesson') {
+      const moduleTarget = e.target.closest('.outline-node[data-kind="module"]');
+      if (moduleTarget && moduleTarget.dataset.id !== src.parentId) {
+        await moveLessonToModule(src.id, moduleTarget.dataset.id);
+        return;
+      }
+    }
   });
 }
 
-async function reorderSibling(kind, srcId, beforeTargetId) {
-  // find sibling array; rebuild positions
-  let arr, table, parentKey;
-  if (kind === 'module') { arr = state.modules; table = 'modules'; }
-  else if (kind === 'lesson') {
+// Reorder a lesson or page within its current parent, placing the dragged
+// item before/after the target. Optimistic UI: snapshot positions, mutate the
+// in-memory state, re-render, then call the RPC (with a per-row UPDATE
+// fallback if the RPC isn't deployed yet). On failure, restore the snapshot
+// and re-render.
+async function reorderSibling(kind, srcId, targetId, placeAfter) {
+  let arr, parentId, rpcName, rpcParentArg;
+  if (kind === 'lesson') {
     const ref = findLesson(srcId); if (!ref) return;
-    arr = ref.module.lessons; table = 'lessons';
+    arr = ref.module.lessons; parentId = ref.module.id;
+    rpcName = 'reorder_lessons'; rpcParentArg = 'p_module_id';
   } else if (kind === 'page') {
     const ref = findPage(srcId); if (!ref) return;
-    arr = ref.lesson.pages; table = 'pages';
-  } else return;
-
+    arr = ref.lesson.pages; parentId = ref.lesson.id;
+    rpcName = 'reorder_pages'; rpcParentArg = 'p_lesson_id';
+  } else {
+    return;
+  }
   const srcIdx = arr.findIndex(x => x.id === srcId);
-  const dstIdx = arr.findIndex(x => x.id === beforeTargetId);
+  let dstIdx = arr.findIndex(x => x.id === targetId);
   if (srcIdx < 0 || dstIdx < 0) return;
+
+  // Snapshot positions so we can roll back on failure.
+  const snapshot = arr.map(x => ({ id: x.id, position: x.position }));
+
   const [moved] = arr.splice(srcIdx, 1);
+  if (srcIdx < dstIdx) dstIdx -= 1;
+  if (placeAfter) dstIdx += 1;
   arr.splice(dstIdx, 0, moved);
   arr.forEach((x, i) => { x.position = i; });
 
-  const updates = arr.map(x => sb.from(table).update({ position: x.position }).eq('id', x.id));
-  setSaveState('saving', 'Saving order…');
-  const results = await Promise.all(updates);
-  const errs = results.filter(r => r.error);
-  if (errs.length) {
-    setSaveState('error', 'Reorder failed');
-    toast('Reorder failed: ' + errs[0].error.message, 'is-error');
-  } else {
-    setSaveState('saved', 'Order saved');
-    toast('Reordered');
-  }
+  // Optimistic render with the dragged row highlighted briefly.
   renderOutline();
   if (state.selection) {
     document.querySelectorAll('.outline-node').forEach(n => {
       n.classList.toggle('is-selected', n.dataset.kind === state.selection.kind && n.dataset.id === state.selection.id);
     });
   }
+  const movedEl = document.querySelector(`.outline-node[data-kind="${kind}"][data-id="${srcId}"]`);
+  if (movedEl) {
+    movedEl.classList.add('is-just-dropped');
+    setTimeout(() => movedEl.classList.remove('is-just-dropped'), 600);
+  }
+
+  setSaveState('saving', 'Saving order…');
+  const orderedIds = arr.map(x => x.id);
+  const rpcArgs = { p_ordered_ids: orderedIds };
+  rpcArgs[rpcParentArg] = parentId;
+  const { error: rpcErr } = await sb.rpc(rpcName, rpcArgs);
+
+  let finalErr = rpcErr;
+  if (rpcErr && _isMissingRpc(rpcErr)) {
+    // Fallback: per-row UPDATEs (no transaction, but better than nothing).
+    finalErr = await _fallbackUpdatePositions(kind === 'lesson' ? 'lessons' : 'pages', arr);
+  }
+
+  if (finalErr) {
+    // Roll back: restore positions and re-render.
+    for (const snap of snapshot) {
+      const row = arr.find(x => x.id === snap.id);
+      if (row) row.position = snap.position;
+    }
+    arr.sort((a, b) => a.position - b.position);
+    renderOutline();
+    setSaveState('error', 'Reorder failed');
+    toast('Reorder failed: ' + (finalErr.message || finalErr), 'is-error');
+    return;
+  }
+  setSaveState('saved', 'Order saved');
+  toast('Reordered');
+}
+
+// Stretch goal: move a lesson to a different module (same course version).
+// Places the lesson at the end of the destination module's lesson list.
+async function moveLessonToModule(lessonId, targetModuleId) {
+  const ref = findLesson(lessonId);
+  const target = findModule(targetModuleId);
+  if (!ref || !target) return;
+  if (ref.module.id === targetModuleId) return;
+
+  // Snapshot the source and destination lesson arrays for rollback.
+  const srcModule = ref.module;
+  const srcSnap = srcModule.lessons.map(x => ({ id: x.id, position: x.position }));
+  const dstSnap = target.lessons.map(x => ({ id: x.id, position: x.position }));
+  const srcModuleIdBefore = ref.lesson.module_id;
+
+  // Mutate in-memory state: remove from source, append to destination.
+  const srcIdx = srcModule.lessons.findIndex(x => x.id === lessonId);
+  const [moved] = srcModule.lessons.splice(srcIdx, 1);
+  moved.module_id = targetModuleId;
+  target.lessons.push(moved);
+  srcModule.lessons.forEach((x, i) => { x.position = i; });
+  target.lessons.forEach((x, i) => { x.position = i; });
+
+  renderOutline();
+  if (state.selection) {
+    document.querySelectorAll('.outline-node').forEach(n => {
+      n.classList.toggle('is-selected', n.dataset.kind === state.selection.kind && n.dataset.id === state.selection.id);
+    });
+  }
+  const movedEl = document.querySelector(`.outline-node[data-kind="lesson"][data-id="${lessonId}"]`);
+  if (movedEl) {
+    movedEl.classList.add('is-just-dropped');
+    setTimeout(() => movedEl.classList.remove('is-just-dropped'), 600);
+  }
+
+  setSaveState('saving', 'Moving lesson…');
+  const orderedIds = target.lessons.map(x => x.id);
+  const { error: rpcErr } = await sb.rpc('move_lesson_to_module', {
+    p_lesson_id: lessonId,
+    p_target_module_id: targetModuleId,
+    p_ordered_ids: orderedIds,
+  });
+
+  let finalErr = rpcErr;
+  if (rpcErr && _isMissingRpc(rpcErr)) {
+    // Fallback: update the lesson's module_id + reorder both modules with
+    // per-row UPDATEs. Not transactional, but the RPC is the preferred path.
+    const moveRes = await sb.from('lessons')
+      .update({ module_id: targetModuleId, position: target.lessons.length - 1 })
+      .eq('id', lessonId);
+    if (moveRes.error) {
+      finalErr = moveRes.error;
+    } else {
+      const e1 = await _fallbackUpdatePositions('lessons', srcModule.lessons);
+      const e2 = await _fallbackUpdatePositions('lessons', target.lessons);
+      finalErr = e1 || e2 || null;
+    }
+  }
+
+  if (finalErr) {
+    // Roll back: restore both arrays.
+    const restored = target.lessons.find(x => x.id === lessonId);
+    if (restored) {
+      target.lessons = target.lessons.filter(x => x.id !== lessonId);
+      restored.module_id = srcModuleIdBefore;
+      srcModule.lessons.push(restored);
+    }
+    for (const snap of srcSnap) {
+      const row = srcModule.lessons.find(x => x.id === snap.id);
+      if (row) row.position = snap.position;
+    }
+    for (const snap of dstSnap) {
+      const row = target.lessons.find(x => x.id === snap.id);
+      if (row) row.position = snap.position;
+    }
+    srcModule.lessons.sort((a, b) => a.position - b.position);
+    target.lessons.sort((a, b) => a.position - b.position);
+    renderOutline();
+    setSaveState('error', 'Move failed');
+    toast('Move failed: ' + (finalErr.message || finalErr), 'is-error');
+    return;
+  }
+  setSaveState('saved', 'Lesson moved');
+  toast('Moved to ' + (target.title || 'module'));
+}
+
+// Heuristic: detect Postgres "function does not exist" / "schema cache" misses
+// from the supabase-js error shape so we can fall back to per-row UPDATEs
+// until migration 0031 is applied.
+function _isMissingRpc(err) {
+  if (!err) return false;
+  const code = err.code || '';
+  const msg  = (err.message || '').toLowerCase();
+  return code === 'PGRST202'
+    || code === '42883'
+    || msg.includes('could not find the function')
+    || msg.includes('does not exist');
+}
+
+async function _fallbackUpdatePositions(table, rows) {
+  const results = await Promise.all(
+    rows.map(x => sb.from(table).update({ position: x.position }).eq('id', x.id))
+  );
+  const err = results.find(r => r.error)?.error;
+  return err || null;
 }
 
 // ---------- outline actions (add/dup/del) -------------------------
