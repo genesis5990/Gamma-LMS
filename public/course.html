@@ -1613,40 +1613,96 @@ function renderModule1Stub() {
 // Boot
 // ============================================================================
 // Boot — wait for auth, then either show sign-in modal or load the course.
+//
+// Diagnostics: every await in the boot path is wrapped with paired log lines
+// so a hang is visible to the precise step. Auth + tenant init are bounded
+// by a timeout so a stuck IIFE (or missing global) cannot deadlock the page.
+// v0.4.65: ?preview=1 now allows anonymous viewing (the sign-in modal is
+// skipped and progress writes are no-ops); previously the modal blocked
+// anonymous preview links from studio.
+async function _awaitWithTimeout(label, p, ms) {
+  if (!p || typeof p.then !== 'function') {
+    console.log('[boot]', label, 'not a promise — skipping');
+    return undefined;
+  }
+  console.log('[boot]', label, '-> waiting');
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      console.warn('[boot]', label, 'TIMEOUT after', ms, 'ms — proceeding without it');
+      resolve('__timeout__');
+    }, ms);
+  });
+  try {
+    const v = await Promise.race([p, timeout]);
+    if (v !== '__timeout__') console.log('[boot]', label, 'resolved');
+    return v;
+  } catch (err) {
+    console.warn('[boot]', label, 'rejected:', err && err.message || err);
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function boot() {
-  console.log('[boot] starting');
-  // Wait for tenant config too so the sign-in modal is branded for the tenant
-  // and the inline "Request access" link is wired up before the modal appears.
-  await Promise.all([window.authReady, window.tenantReady].filter(Boolean));
-  const user = window.currentUser();
+  console.log('[boot] starting; href=', window.location.href);
+  const previewMode = isStudioPreview();
+  console.log('[boot] preview mode=', previewMode);
+
+  // Wait for tenant config (branding) and auth (session). Bounded so a stuck
+  // promise from either IIFE cannot leave the page in the silent-shell state.
+  await _awaitWithTimeout('tenantReady', window.tenantReady, 5000);
+  await _awaitWithTimeout('authReady',   window.authReady,   5000);
+
+  const user = (typeof window.currentUser === 'function') ? window.currentUser() : null;
   console.log('[boot] auth/tenant ready; user=', user?.email || null);
-  if (!user) {
+
+  // In preview mode (?preview=1), the studio author may be sharing the link
+  // with stakeholders who aren't signed in. Proceed with course loading; any
+  // RLS denial on the data fetch will surface in the visible error block
+  // instead of hanging on the sign-in modal.
+  if (!user && !previewMode) {
+    console.log('[boot] no user and not preview — showing sign-in overlay');
     document.getElementById('authOverlay').style.display = 'flex';
     return;
   }
   document.getElementById('authOverlay').style.display = 'none';
 
   // First-time profile check — gate the course until name + agency are filled in.
-  const profile = await window.getProfile();
-  if (!window.profileIsComplete(profile)) {
-    await showProfileModal(profile);
+  // Anonymous preview viewers skip this entirely (no profile to fetch).
+  if (user) {
+    console.log('[boot] fetching profile');
+    const profile = await window.getProfile();
+    console.log('[boot] profile fetched; complete=', !!window.profileIsComplete(profile));
+    if (!window.profileIsComplete(profile)) {
+      console.log('[boot] showing profile completion modal');
+      await showProfileModal(profile);
+      console.log('[boot] profile modal complete');
+    }
   }
 
   document.getElementById('banner').style.display = 'block';
-  document.getElementById('signOutBtn').style.display = '';
-  document.getElementById('resetBtn').style.display = '';
-  const chip = document.getElementById('userChip');
-  if (chip) chip.textContent = user.email;
+  if (user) {
+    document.getElementById('signOutBtn').style.display = '';
+    document.getElementById('resetBtn').style.display = '';
+    const chip = document.getElementById('userChip');
+    if (chip) chip.textContent = user.email;
+  }
 
   const slug = window.COURSE_SLUG || resolveCourseSlug();
   console.log('[boot] loading course slug=', slug);
   const courseFetch = loadCourseFromSupabase(slug);
+  // loadProgress short-circuits to {} for null user; loadAppendixItems is
+  // best-effort and swallows its own errors.
+  console.log('[boot] starting parallel fetch: progress + course + appendix');
   const [serverProgress, data] = await Promise.all([
     window.loadProgress(),
     courseFetch,
     loadAppendixItems(),
   ]);
-  progress = serverProgress;
+  console.log('[boot] parallel fetch resolved');
+  progress = serverProgress || {};
   COURSE = data;
   console.log('[boot] course loaded:', {
     has_data: !!data,
@@ -1655,14 +1711,16 @@ async function boot() {
   });
   if (data && data.pass_threshold) window.PASS_THRESHOLD = data.pass_threshold;
   buildSidebar();
+  console.log('[boot] sidebar built');
 
   // Title-page gating:
   //   - Studio author preview (?preview=1) ALWAYS shows the title page so
   //     authors can verify layout, but never persists acceptance.
+  //   - Anonymous viewers have no ToS record; treat as not-yet-accepted.
   //   - Otherwise, if the user has already accepted ToS for this course,
   //     skip the gate and resume normal lesson flow.
   const courseId = COURSE?.course_meta?.id || null;
-  const accepted = !isStudioPreview() && await hasAcceptedTos(courseId);
+  const accepted = !previewMode && !!user && await hasAcceptedTos(courseId);
   const realLessons = COURSE.lesson_map.filter(l => l.id !== '__title__' && l.type !== 'quiz');
   const firstIncomplete = realLessons.find(l => !progress[l.id]?.complete);
   const firstLesson = firstIncomplete || realLessons[0];
@@ -1676,6 +1734,7 @@ async function boot() {
     } else {
       renderTitlePage();
     }
+    console.log('[boot] initial render complete');
   } catch (renderErr) {
     console.error('[boot] initial render threw:', renderErr);
     document.getElementById('content').innerHTML =
@@ -1684,10 +1743,11 @@ async function boot() {
 }
 boot()
   .catch(e => {
+    console.error('[boot] fatal:', e);
     const slug = window.COURSE_SLUG || 'unknown';
     const isRlsLike = e && /(row-level security|permission|denied|not found)/i.test(e.message || '');
     const hint = isRlsLike
-      ? `<p style="margin:8px 0 0;font-size:13px;color:var(--muted);">If you're a course author, sign in with the studio account that owns this course. Learner-side reads on authoring tables are not yet enabled (RLS).</p>`
+      ? `<p style="margin:8px 0 0;font-size:13px;color:var(--muted);">If you're a course author, sign in with the studio account that owns this course. Anonymous preview reads on this course's tables may be blocked by RLS — open the link in a browser signed in as the author.</p>`
       : '';
     document.getElementById('content').innerHTML =
       `<div class="lesson-card" style="color:var(--bad);">Couldn't load course "${slug}": ${e.message || e}${hint}</div>`;
