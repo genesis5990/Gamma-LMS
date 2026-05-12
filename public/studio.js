@@ -2163,6 +2163,22 @@ function renderEditorBody() {
       wireInlineAudioControls(ed, ref.page);
       wireInlineImageControls(ed);
       wireInlineBlockControls(ed);
+      // Per-editor wiring that previous versions ran in wirePageToolbar(),
+      // which executes BEFORE this element exists. Wire here so the keydown
+      // handlers actually bind to the live editor.
+      wirePendingInlineStyle(ed);
+      wireEditorTabKey(ed);
+      // Active-alignment-button sync — wireInlineFormatControls also tries
+      // to attach this lazily; attach explicitly so it doesn't depend on
+      // wiring order.
+      if (!ed.__alignSyncWired) {
+        ed.__alignSyncWired = true;
+        const tb = $('#editor-toolbar');
+        const sync = () => refreshActiveAlign(tb, ed);
+        ed.addEventListener('keyup', sync);
+        ed.addEventListener('mouseup', sync);
+        ed.addEventListener('focus', sync);
+      }
       // Sync any inline [n] markers' numbers to the current citation list
       recomputeCiteMarkers(ed, ref.page.citations || []);
     }
@@ -2279,6 +2295,86 @@ function __stripInlineStyleIn(root, cssProp) {
   });
 }
 
+// Walk ancestors of `range` (up to `editor`) and remove `cssProp` from any
+// element whose inline style contains it. If the element wraps text that
+// extends beyond the range, split it so only the in-range portion loses the
+// style. Returns the (possibly new) range that still spans the original
+// content. Used by the "Default" branch of applyInlineStyle so picking
+// Default actually undoes an enclosing styled <span>.
+function __stripInlineStyleOnAncestors(editor, range, cssProp) {
+  // Find ancestors with the style set inline, between range and editor.
+  const ancestors = [];
+  let n = range.commonAncestorContainer;
+  if (n && n.nodeType === 3) n = n.parentNode;
+  while (n && n !== editor) {
+    if (n.nodeType === 1 && n.style && n.style.getPropertyValue(cssProp)) {
+      ancestors.push(n);
+    }
+    n = n.parentNode;
+  }
+  if (!ancestors.length) return range;
+
+  // For each ancestor (deepest first), split it into up to 3 siblings:
+  // before-range | in-range | after-range, then remove the style on the
+  // in-range slice. Unwrap if the slice becomes a styleless plain <span>.
+  ancestors.forEach(anc => {
+    try {
+      // The new range we want to preserve, intersected with `anc`'s bounds.
+      const ancRange = document.createRange();
+      ancRange.selectNodeContents(anc);
+      // Clip to the actual selection
+      if (range.compareBoundaryPoints(Range.START_TO_START, ancRange) > 0) {
+        ancRange.setStart(range.startContainer, range.startOffset);
+      }
+      if (range.compareBoundaryPoints(Range.END_TO_END, ancRange) < 0) {
+        ancRange.setEnd(range.endContainer, range.endOffset);
+      }
+
+      // Slice contents: extract before+after to keep them styled, leave the
+      // middle in `anc` but strip the property.
+      const before = document.createRange();
+      before.setStart(anc, 0);
+      before.setEnd(ancRange.startContainer, ancRange.startOffset);
+      const after = document.createRange();
+      after.setStart(ancRange.endContainer, ancRange.endOffset);
+      after.setEnd(anc, anc.childNodes.length);
+
+      const beforeFrag = before.extractContents();
+      const afterFrag  = after.extractContents();
+      // `anc` now contains only the in-range content.
+
+      if (beforeFrag && beforeFrag.childNodes.length) {
+        const cloneBefore = anc.cloneNode(false);
+        while (beforeFrag.firstChild) cloneBefore.appendChild(beforeFrag.firstChild);
+        anc.parentNode.insertBefore(cloneBefore, anc);
+      }
+      if (afterFrag && afterFrag.childNodes.length) {
+        const cloneAfter = anc.cloneNode(false);
+        while (afterFrag.firstChild) cloneAfter.appendChild(afterFrag.firstChild);
+        anc.parentNode.insertBefore(cloneAfter, anc.nextSibling);
+      }
+
+      // Strip the property on `anc`. Unwrap if it became a styleless plain span.
+      anc.style.removeProperty(cssProp);
+      const isPlain = anc.tagName === 'SPAN'
+        && (!anc.getAttribute('style') || anc.getAttribute('style').trim() === '')
+        && !anc.className && !anc.id;
+      if (isPlain) {
+        const parent = anc.parentNode;
+        while (anc.firstChild) parent.insertBefore(anc.firstChild, anc);
+        parent.removeChild(anc);
+      } else if (anc.getAttribute('style') === '') {
+        anc.removeAttribute('style');
+      }
+    } catch (_) { /* keep going */ }
+  });
+  // Return a range that selects the original text — best-effort via the
+  // surviving start/end containers. If they got removed by unwrap, the
+  // caller dispatches an input event; the selection will simply collapse
+  // to the editor, which is acceptable for a Default action.
+  return range;
+}
+
 // Wrap the current selection in <span style="prop: value"> — or clear the
 // style entirely when `value` is empty. Works on contenteditable selections.
 function applyInlineStyle(editor, cmd, value) {
@@ -2301,7 +2397,8 @@ function applyInlineStyle(editor, cmd, value) {
     return;
   }
 
-  // "Default" — unwrap any inline font-family / font-size inside the range.
+  // "Default" — unwrap inline font-family / font-size / color / background
+  // anywhere on the range: in descendants AND in enclosing ancestors.
   if (!value) {
     // Expand to a temp wrapper so we can sweep descendants safely.
     const wrap = document.createElement('span');
@@ -2309,14 +2406,18 @@ function applyInlineStyle(editor, cmd, value) {
       wrap.appendChild(range.extractContents());
       range.insertNode(wrap);
       __stripInlineStyleIn(wrap, cssProp);
-      // Unwrap our temp wrapper
-      const parent = wrap.parentNode;
-      const newRange = document.createRange();
-      const first = wrap.firstChild, last = wrap.lastChild;
-      while (wrap.firstChild) parent.insertBefore(wrap.firstChild, wrap);
-      parent.removeChild(wrap);
-      if (first && last) { newRange.setStartBefore(first); newRange.setEndAfter(last); }
-      sel.removeAllRanges(); sel.addRange(newRange);
+      // Now strip the same property on ancestors that wrap the wrap.
+      __stripInlineStyleOnAncestors(editor, range, cssProp);
+      // Unwrap our temp wrapper (if it's still in DOM).
+      if (wrap.parentNode) {
+        const parent = wrap.parentNode;
+        const newRange = document.createRange();
+        const first = wrap.firstChild, last = wrap.lastChild;
+        while (wrap.firstChild) parent.insertBefore(wrap.firstChild, wrap);
+        parent.removeChild(wrap);
+        if (first && last) { newRange.setStartBefore(first); newRange.setEndAfter(last); }
+        sel.removeAllRanges(); sel.addRange(newRange);
+      }
     } catch (_) { /* no-op */ }
     editor.dispatchEvent(new Event('input', { bubbles: true }));
     return;
@@ -2370,6 +2471,39 @@ function wirePendingInlineStyle(editor) {
     sel.removeAllRanges(); sel.addRange(after);
     // One-shot: clear pending after first applied character
     editor.__pendingInlineStyle = null;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+// Tab key handler. Without this, pressing Tab inside a contenteditable
+// moves focus to the next tabbable element (a toolbar button), which the
+// user perceives as "Tab doesn't work" or "editor loses focus". Inside a
+// list item, Tab indents the item (Shift+Tab outdents). Anywhere else,
+// Tab inserts a literal tab character.
+function wireEditorTabKey(editor) {
+  if (!editor || editor.__tabKeyWired) return;
+  editor.__tabKeyWired = true;
+  editor.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+    // List handling — let execCommand indent/outdent.
+    let n = range.startContainer;
+    if (n.nodeType === 3) n = n.parentNode;
+    let inList = false;
+    while (n && n !== editor) {
+      if (n.tagName === 'LI') { inList = true; break; }
+      n = n.parentNode;
+    }
+    e.preventDefault();
+    if (inList) {
+      document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+    } else {
+      // Insert a literal tab. Use insertText so undo history works.
+      document.execCommand('insertText', false, '\t');
+    }
     editor.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
@@ -3063,6 +3197,18 @@ function wireTitlePageBody({ kind, node }) {
     wireInlineAudioControlsForTitle(ed);
     wireInlineImageControlsForTitle(ed);
     wireInlineBlockControls(ed);
+    // Per-editor wiring — wireTitlePageToolbar() ran before this element
+    // existed, so attach the keydown handlers here.
+    wirePendingInlineStyle(ed);
+    wireEditorTabKey(ed);
+    if (!ed.__alignSyncWired) {
+      ed.__alignSyncWired = true;
+      const tb = $('#editor-toolbar');
+      const sync = () => refreshActiveAlign(tb, ed);
+      ed.addEventListener('keyup', sync);
+      ed.addEventListener('mouseup', sync);
+      ed.addEventListener('focus', sync);
+    }
   }
 
   const heroEl = $('#title-hero');
@@ -3509,6 +3655,7 @@ function openAppendixHtmlEditor(m, it) {
     wireInlineBlockControls(apxBodyEl);
     wireAppendixToolbar();
     wirePendingInlineStyle(apxBodyEl);
+    wireEditorTabKey(apxBodyEl);
   }
 
   $('#apx-back').addEventListener('click', () => {
@@ -6274,8 +6421,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.78' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.78');
+console.log('[studio] boot v0.4.85' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.85');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
