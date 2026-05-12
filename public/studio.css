@@ -1746,3 +1746,85 @@ sup.cite-marker.cite-missing {
   margin: 0 0 12px;
   font-size: 12.5px;
 }
+
+/* =====================================================================
+   Sidebar truncation cleanup (v0.4.77)
+   Ellipsize long lesson / module / page titles in the outline so they
+   don't clip hard against the right edge, give the workflow status dot
+   its own column, and push the count badges (10L, 3p) to the right.
+   ===================================================================== */
+
+/* Flex parent must allow children to shrink for ellipsis to trigger. */
+.outline-node {
+  min-width: 0;
+}
+
+/* The label is the only flexible column — everything else (icon, dot,
+   meta badges, action buttons) keeps its intrinsic size. */
+.outline-node .outline-label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* Fixed-size siblings around the label. */
+.outline-node .outline-icon,
+.outline-node .outline-handle,
+.outline-node .outline-wf-dot {
+  flex-shrink: 0;
+}
+
+/* Count badges (e.g. "10L", "3p") should not crowd the title:
+   push them to the right and leave breathing room. */
+.outline-node .outline-meta {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+/* Workflow status dot — when sitting as a direct child of the row,
+   give it a clear column with right-margin so it never touches the
+   lesson title text. (Legacy: dot inside .outline-label gets a small
+   inline gap for backward compatibility.) */
+.outline-lesson > .outline-wf-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.outline-lesson.wf-working  > .outline-wf-dot { background: var(--wf-working); }
+.outline-lesson.wf-reviewed > .outline-wf-dot { background: var(--wf-reviewed); }
+.outline-lesson.wf-ready    > .outline-wf-dot { background: var(--wf-ready); }
+.outline-label > .outline-wf-dot { margin-right: 6px; }
+
+/* Breadcrumb in the header — the final crumb (course title) should
+   ellipsize cleanly when it's long. The container already has
+   overflow:hidden + text-overflow:ellipsis, but inline children won't
+   collapse on their own. Treat the last crumb as the shrinkable cell. */
+.studio-crumbs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.studio-crumbs > a,
+.studio-crumbs > span:not(.sep) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-crumbs > a { flex: 0 0 auto; }
+.studio-crumbs > span:not(.sep):last-child { flex: 1 1 auto; }
+.studio-crumbs .sep { flex: 0 0 auto; }
+
+/* Course slug dropdown (top of left pane) — the <select> itself
+   already truncates, but make sure its width is constrained so it
+   never pushes other toolbar items off-screen. */
+#course-picker {
+  max-width: 100%;
+  text-overflow: ellipsis;
+}

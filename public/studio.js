@@ -63,6 +63,16 @@ function escapeHtml(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+// Convert HTML to clean plain text (strips tags AND decodes entities like &nbsp;).
+// Use for any preview/snippet derived from body_html.
+function htmlToPlainText(html) {
+  try {
+    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  } catch {
+    return String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+  }
+}
 function fmtBytes(n) {
   if (!n) return '0 B';
   if (n < 1024) return `${n} B`;
@@ -175,20 +185,20 @@ function derivePageTitle(p) {
   if (p.title && String(p.title).trim()) return String(p.title).trim();
   const html = String(p.body_html || '');
   if (!html) return 'Untitled page';
-  // First heading h1–h6
+  // First heading h1–h6 — use htmlToPlainText so &nbsp; and entities are decoded
   const h = html.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
   if (h) {
-    const txt = h[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const txt = htmlToPlainText(h[1]);
     if (txt) return txt.length > 80 ? txt.slice(0, 77) + '…' : txt;
   }
   // First paragraph
   const para = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
   if (para) {
-    const txt = para[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const txt = htmlToPlainText(para[1]);
     if (txt) return txt.length > 80 ? txt.slice(0, 77) + '…' : txt;
   }
   // Fallback: any text
-  const stripped = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const stripped = htmlToPlainText(html);
   if (stripped) return stripped.length > 80 ? stripped.slice(0, 77) + '…' : stripped;
   return 'Untitled page';
 }
@@ -1238,7 +1248,18 @@ async function loadCourses() {
   if (error) { toast('Load courses failed: ' + error.message, 'is-error'); return; }
   state.courses = data || [];
   const sel = $('#course-picker');
-  sel.innerHTML = state.courses.map(c => `<option value="${c.id}">${escapeHtml(c.slug)} — ${escapeHtml(c.title)}</option>`).join('');
+  sel.innerHTML = state.courses.map(c => {
+    const label = `${c.slug} — ${c.title}`;
+    return `<option value="${c.id}" title="${escapeHtml(label)}">${escapeHtml(label)}</option>`;
+  }).join('');
+  // Reflect the full current selection in a tooltip on the select itself,
+  // since the visible row truncates when the title is long.
+  const syncSelTitle = () => {
+    const opt = sel.options[sel.selectedIndex];
+    if (opt) sel.title = opt.textContent || '';
+  };
+  syncSelTitle();
+  sel.addEventListener('change', syncSelTitle, { once: false });
 }
 
 async function loadCourse(courseId) {
@@ -1355,15 +1376,15 @@ function renderOutline() {
   const root = $('#outline-tree');
   if (!root) return;
   const html = [];
-  html.push(`<div class="outline-node outline-course is-course-root" data-kind="course" data-id="${state.course.id}" title="Click to edit · double-click to rename">
+  html.push(`<div class="outline-node outline-course is-course-root" data-kind="course" data-id="${state.course.id}" title="${escapeHtml(state.course.title)}">
     <span class="outline-icon">C</span>
-    <span class="outline-label" data-rename="course">${escapeHtml(state.course.title)}</span>
+    <span class="outline-label" data-rename="course" title="${escapeHtml(state.course.title)}">${escapeHtml(state.course.title)}</span>
   </div>`);
   for (const m of state.modules) {
     html.push(`<div class="outline-children" data-module-id="${m.id}">`);
-    html.push(`<div class="outline-node outline-module" data-kind="module" data-id="${m.id}" title="Click to edit · double-click to rename">
+    html.push(`<div class="outline-node outline-module" data-kind="module" data-id="${m.id}" title="${escapeHtml(m.title)}">
       <span class="outline-icon">M</span>
-      <span class="outline-label" data-rename="module">${escapeHtml(m.title)}</span>
+      <span class="outline-label" data-rename="module" title="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
       <span class="outline-meta">${m.lessons.length}L</span>
       <span class="outline-node-actions">
         <button data-act="add-lesson" title="Add lesson">+L</button>
@@ -1375,10 +1396,11 @@ function renderOutline() {
     for (const l of m.lessons) {
       const wfCls = l.workflow_status ? ` wf-${l.workflow_status}` : '';
       const wfDot = l.workflow_status ? `<span class="outline-wf-dot" title="${l.workflow_status}"></span>` : '';
-      html.push(`<div class="outline-node outline-lesson${wfCls}" data-kind="lesson" data-id="${l.id}" data-parent-id="${m.id}" title="Click to edit · double-click to rename">
+      html.push(`<div class="outline-node outline-lesson${wfCls}" data-kind="lesson" data-id="${l.id}" data-parent-id="${m.id}" title="${escapeHtml(l.title)}">
         <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder lesson" title="Drag to reorder">≡</span>
         <span class="outline-icon">L</span>
-        <span class="outline-label" data-rename="lesson">${wfDot}${escapeHtml(l.title)}</span>
+        ${wfDot}
+        <span class="outline-label" data-rename="lesson" title="${escapeHtml(l.title)}">${escapeHtml(l.title)}</span>
         <span class="outline-meta">${l.pages.length}p</span>
         <span class="outline-node-actions">
           <button data-act="add-page" title="Add page">+P</button>
@@ -1390,10 +1412,10 @@ function renderOutline() {
         const p = l.pages[i];
         const pageLabel = derivePageTitle(p);
         const isDerived = !(p.title && p.title.trim());
-        html.push(`<div class="outline-node outline-page" data-kind="page" data-id="${p.id}" data-parent-id="${l.id}" title="Double-click to rename">
+        html.push(`<div class="outline-node outline-page" data-kind="page" data-id="${p.id}" data-parent-id="${l.id}" title="${escapeHtml(pageLabel)}">
           <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder page" title="Drag to reorder">≡</span>
           <span class="outline-icon">${i+1}</span>
-          <span class="outline-label${isDerived ? ' is-derived' : ''}" data-rename="page">${escapeHtml(pageLabel)}</span>
+          <span class="outline-label${isDerived ? ' is-derived' : ''}" data-rename="page" title="${escapeHtml(pageLabel)}">${escapeHtml(pageLabel)}</span>
           <span class="outline-node-actions">
             <button data-act="dup" title="Duplicate">⎘</button>
             <button data-act="del" title="Delete">✕</button>
@@ -2539,7 +2561,7 @@ function renderAppendixItem(it) {
   const asset = it.course_assets || null;
   let detail = '';
   if (it.kind === 'html') {
-    const snippet = String(it.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+    const snippet = htmlToPlainText(it.body_html || '').slice(0, 140);
     detail = `<div class="appendix-item-detail">${escapeHtml(snippet) || '<em>(empty)</em>'}</div>`;
   } else if ((it.kind === 'pdf' || it.kind === 'docx') && asset) {
     detail = `<div class="appendix-item-detail"><a href="${escapeHtml(asset.public_url || '')}" target="_blank" rel="noopener noreferrer">${escapeHtml(asset.filename || 'file')}</a> · ${fmtBytes(asset.byte_size || 0)}</div>`;
@@ -5107,16 +5129,18 @@ function applyOutlineWorkflowTint(lesson) {
   const row = document.querySelector(`.outline-lesson[data-id="${lesson.id}"]`);
   if (!row) return;
   row.classList.remove('wf-working', 'wf-reviewed', 'wf-ready');
-  const label = row.querySelector('.outline-label');
-  const existingDot = label && label.querySelector('.outline-wf-dot');
-  if (existingDot) existingDot.remove();
+  // Remove any dot — could be a direct child (new layout) or inside .outline-label (legacy).
+  row.querySelectorAll('.outline-wf-dot').forEach(d => d.remove());
   if (lesson.workflow_status) {
     row.classList.add(`wf-${lesson.workflow_status}`);
+    const label = row.querySelector('.outline-label');
     if (label) {
       const dot = document.createElement('span');
       dot.className = 'outline-wf-dot';
       dot.title = lesson.workflow_status;
-      label.prepend(dot);
+      // Insert as a sibling immediately before the label so the dot gets its
+      // own column in the flex row and doesn't crowd the title text.
+      label.parentNode.insertBefore(dot, label);
     }
   }
 }
@@ -5380,8 +5404,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.76' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.76');
+console.log('[studio] boot v0.4.77' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.77');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
