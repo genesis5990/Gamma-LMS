@@ -271,9 +271,70 @@
     color: var(--muted);
     font-size: 13px; font-style: italic;
   }
-  .references-list li:target {
-    background: rgba(255, 220, 100, .45);
+  .references-list li:target,
+  .references-list li.cite-flash {
+    background: rgba(255, 220, 100, .55);
     border-radius: 4px;
+    transition: background-color .6s ease;
+  }
+  .references-list li.cite-flash {
+    animation: cite-flash-fade 1.6s ease forwards;
+  }
+  @keyframes cite-flash-fade {
+    0%   { background-color: rgba(255, 220, 100, .75); }
+    100% { background-color: rgba(255, 220, 100, 0); }
+  }
+
+  /* In-body citation markers — superscript [N] linking to the References list. */
+  .cite-marker {
+    position: relative;
+    font-size: 0.78em;
+    line-height: 0;
+    margin: 0 1px;
+    cursor: pointer;
+    vertical-align: super;
+  }
+  .cite-marker a {
+    color: var(--accent-2);
+    text-decoration: none;
+    padding: 0 1px;
+    border-radius: 2px;
+  }
+  .cite-marker:hover a { text-decoration: underline; }
+  .cite-marker.cite-missing a {
+    color: var(--muted);
+    text-decoration: line-through;
+    cursor: help;
+  }
+  /* Tooltip — populated from data-tooltip in JS, shown via :hover/:focus-within.
+     Touch devices fall back to the native tap (anchor scroll) without seeing it. */
+  .cite-marker[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    transform: translateX(-50%);
+    background: #1a2238;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: normal;
+    width: max-content;
+    max-width: 280px;
+    box-shadow: 0 6px 18px rgba(13,20,36,.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s ease;
+    z-index: 50;
+  }
+  .cite-marker[data-tooltip]:hover::after,
+  .cite-marker[data-tooltip]:focus-within::after {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .cite-marker[data-tooltip]::after { display: none; }
   }
   /* ===== Appendix (per-module reference sidebar) ===== */
   .appendix-toggle {
@@ -628,7 +689,7 @@ async function loadCourseFromSupabase(slug) {
       .select('id, module_id, slug, title, position, hero_image_url, hero_image_alt')
       .order('position'),
     sb.from('pages')
-      .select('id, lesson_id, position, page_type, title, body_html, audio_url, hero_image_url, hero_image_alt')
+      .select('id, lesson_id, position, page_type, title, body_html, audio_url, hero_image_url, hero_image_alt, citations')
       .order('position'),
     sb.from('module_quiz_questions')
       .select('id, module_id, position, question, options, reference')
@@ -700,7 +761,8 @@ async function loadCourseFromSupabase(slug) {
         title: p.title || '',
         page_type: p.page_type || 'text',
         hero_image_url: p.hero_image_url || null,
-        hero_image_alt: p.hero_image_alt == null ? null : p.hero_image_alt
+        hero_image_alt: p.hero_image_alt == null ? null : p.hero_image_alt,
+        citations: Array.isArray(p.citations) ? p.citations : []
       }));
       lessonsOut[id] = lessonPages;
       const meta = {
@@ -1162,6 +1224,8 @@ function renderLesson(lid, opts) {
 
     if (hasQuiz && isLastPage) wireQuiz(lid);
 
+    wireCitationInteractions(document.querySelector('.lesson-card'), page.citations);
+
     buildSidebar();
     window.scrollTo({top:0, behavior:'smooth'});
   }
@@ -1592,6 +1656,64 @@ function renderReferencesHTML(citations) {
   });
   html += '</ol></section>';
   return html;
+}
+
+// Wire up in-body citation markers: smooth-scroll to the matching <li>, flash
+// highlight it, and show a hover tooltip with the citation title/source. Also
+// renumbers/grays-out orphan markers whose data-cite no longer matches any
+// citation (e.g. studio deleted the entry but body markers remain).
+function wireCitationInteractions(container, citations) {
+  if (!container) return;
+  const list = Array.isArray(citations) ? citations : [];
+  const byId = new Map();
+  list.forEach((c, i) => {
+    const cid = (c && c.id) ? String(c.id) : ('idx-' + (i + 1));
+    byId.set(cid, { c, n: i + 1 });
+  });
+
+  const markers = container.querySelectorAll('.cite-marker');
+  markers.forEach(node => {
+    const cid = node.getAttribute('data-cite') || '';
+    const hit = byId.get(cid);
+    const a = node.querySelector('a');
+    if (!hit) {
+      node.classList.add('cite-missing');
+      node.setAttribute('title', 'Citation removed');
+      if (a) {
+        a.removeAttribute('href');
+        if (!a.textContent || a.textContent === '') a.textContent = '[?]';
+      }
+      return;
+    }
+    // Renumber to the live position; the studio normally keeps this in sync
+    // on save, but a stale body_html should still render correct numbers.
+    if (a) {
+      a.textContent = '[' + hit.n + ']';
+      a.setAttribute('href', '#cite-' + cid);
+    }
+    // Hover tooltip: short summary built from title/source/authors.
+    const c = hit.c || {};
+    const parts = [];
+    if (c.title)   parts.push(String(c.title));
+    if (c.authors) parts.push(String(c.authors));
+    if (c.source)  parts.push(String(c.source));
+    const tip = parts.join(' — ').slice(0, 240);
+    if (tip) node.setAttribute('data-tooltip', tip);
+
+    if (a) {
+      a.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const target = document.getElementById('cite-' + cid);
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.remove('cite-flash');
+        // restart animation
+        void target.offsetWidth;
+        target.classList.add('cite-flash');
+        setTimeout(() => target.classList.remove('cite-flash'), 1800);
+      });
+    }
+  });
 }
 
 function renderModule1Stub() {
