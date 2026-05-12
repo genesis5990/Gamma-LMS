@@ -352,8 +352,7 @@
 
       <label for="auRole">Role</label>
       <select id="auRole" name="role">
-        <option value="learner" selected>learner</option>
-        <option value="instructor">instructor</option>
+        <option value="student" selected>student</option>
         <option value="tenant_admin">tenant_admin</option>
       </select>
 
@@ -520,7 +519,7 @@ function wireAddUser() {
     form.reset();
     errEl.textContent = '';
     document.getElementById('auInvite').checked = true;
-    document.getElementById('auRole').value = 'learner';
+    document.getElementById('auRole').value = 'student';
   }
 
   btn.addEventListener('click', () => {

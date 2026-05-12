@@ -6402,8 +6402,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.85' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.85');
+console.log('[studio] boot v0.4.86' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.86');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);

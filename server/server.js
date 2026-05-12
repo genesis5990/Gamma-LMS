@@ -650,7 +650,7 @@ app.post('/api/checkout', async (req, res) => {
 // tenant_admin's tenant_id is forced from their own profile row.
 // =====================================================================
 const ADMIN_USER_CREATE_ROLES = new Set(['super_admin', 'tenant_admin']);
-const ADMIN_USER_TARGET_ROLES = new Set(['learner', 'instructor', 'tenant_admin']);
+const ADMIN_USER_TARGET_ROLES = new Set(['student', 'tenant_admin']);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const _adminCreateRl = new Map(); // ip -> [timestamps]
@@ -715,13 +715,17 @@ app.post('/api/admin/users', async (req, res) => {
   if (agency && agency.length > 200) return res.status(400).json({ error: 'agency_name too long (max 200)' });
   if (badge && badge.length > 50) return res.status(400).json({ error: 'badge_number too long (max 50)' });
   if (!ADMIN_USER_TARGET_ROLES.has(role)) {
-    return res.status(400).json({ error: 'role must be one of learner, instructor, tenant_admin' });
+    return res.status(400).json({ error: 'role must be one of student, tenant_admin' });
   }
 
   // Tenant assignment — tenant_admin is forced to their own tenant_id.
+  // super_admin may target any tenant via body.tenant_id, else defaults to
+  // their own tenant_id (required to insert a public.invitations row).
   let tenantId = null;
   if (caller.role === 'super_admin') {
-    tenantId = typeof body.tenant_id === 'string' && body.tenant_id ? body.tenant_id : null;
+    tenantId = (typeof body.tenant_id === 'string' && body.tenant_id)
+      ? body.tenant_id
+      : (caller.tenant_id || null);
   } else {
     tenantId = caller.tenant_id || null;
   }
@@ -731,8 +735,45 @@ app.post('/api/admin/users', async (req, res) => {
     agency_name: agency || null,
     badge_number: badge || null,
     role,
+    invited_role: role,
     tenant_id: tenantId
   };
+
+  // For sendInvite=true into request_approval/invite_only tenants, the
+  // handle_new_user trigger checks public.invitations first. Insert (or
+  // refresh) a pending invitation BEFORE calling Auth invite so the trigger's
+  // primary path takes over and the new user is provisioned with the right
+  // tenant_id + role on first sign-in.
+  if (sendInvite && tenantId) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/invitations?on_conflict=email,tenant_id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_SVC_KEY,
+          Authorization: `Bearer ${SUPABASE_SVC_KEY}`,
+          Prefer: 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          email,
+          role,
+          invited_by: caller.id,
+          source: 'admin_invite'
+        })
+      }).then(async (r) => {
+        if (!r.ok) {
+          const t = await r.text();
+          // Duplicate pending invites are fine — surface anything else.
+          if (!/duplicate key|already exists/i.test(t)) {
+            console.warn('[admin/users] invitations insert non-fatal:', r.status, t.slice(0, 200));
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[admin/users] invitations insert error (continuing):', err.message);
+    }
+  }
 
   let createdUser = null;
   try {
