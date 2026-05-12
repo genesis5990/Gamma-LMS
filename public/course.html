@@ -1433,42 +1433,67 @@ function isStudioPreview() {
 
 // Returns true iff the signed-in user has already accepted ToS for this
 // course. Returns false on any error (table missing, RLS denial, no user).
+// v0.4.87: surface real errors to the console so we can diagnose silent
+// RLS / FK failures instead of swallowing them.
 async function hasAcceptedTos(courseId) {
   const sb = window.supabaseClient;
   const user = window.currentUser ? window.currentUser() : null;
-  if (!sb || !user || !courseId) return false;
+  if (!sb || !user || !courseId) {
+    console.log('[tos] hasAcceptedTos short-circuit', { hasSb: !!sb, hasUser: !!user, courseId });
+    return false;
+  }
   try {
     const { data, error } = await sb
       .from('course_tos_acceptances')
-      .select('id')
+      .select('id, accepted_at')
       .eq('user_id', user.id)
       .eq('course_id', courseId)
       .maybeSingle();
     if (error) {
-      // Table missing (migration not yet applied) — treat as not accepted.
+      console.error('[tos] read failed:', error.code, error.message, error.details);
       return false;
     }
+    console.log('[tos] read ok', { courseId, accepted: !!data, accepted_at: data?.accepted_at });
     return !!data;
-  } catch (_e) {
+  } catch (e) {
+    console.error('[tos] read threw:', e);
     return false;
   }
 }
 
+// v0.4.87: switched from .insert() to .upsert(onConflict:'user_id,course_id')
+// so that re-acceptance is idempotent (the table has UNIQUE (user_id, course_id)
+// from migration 0027). Also surfaces errors to the console instead of swallowing.
 async function recordTosAcceptance(courseId, courseVersionId) {
-  if (isStudioPreview()) return; // author preview never persists
+  if (isStudioPreview()) {
+    console.log('[tos] studio preview — not persisting');
+    return;
+  }
   const sb = window.supabaseClient;
   const user = window.currentUser ? window.currentUser() : null;
-  if (!sb || !user || !courseId) return;
+  if (!sb || !user || !courseId) {
+    console.warn('[tos] cannot record — missing prerequisite', { hasSb: !!sb, hasUser: !!user, courseId });
+    return;
+  }
   try {
     const ua = (navigator && navigator.userAgent) ? String(navigator.userAgent).slice(0, 500) : null;
-    await sb.from('course_tos_acceptances').insert({
-      user_id: user.id,
-      course_id: courseId,
-      course_version_id: courseVersionId || null,
-      user_agent: ua
-    });
-  } catch (_e) {
-    // Non-fatal — gate already passed locally for this session.
+    const { data, error } = await sb
+      .from('course_tos_acceptances')
+      .upsert({
+        user_id: user.id,
+        course_id: courseId,
+        course_version_id: courseVersionId || null,
+        user_agent: ua
+      }, { onConflict: 'user_id,course_id', ignoreDuplicates: false })
+      .select('id, accepted_at')
+      .maybeSingle();
+    if (error) {
+      console.error('[tos] write failed:', error.code, error.message, error.details, error.hint);
+      return;
+    }
+    console.log('[tos] write ok', { id: data?.id, accepted_at: data?.accepted_at });
+  } catch (e) {
+    console.error('[tos] write threw:', e);
   }
 }
 
