@@ -2374,14 +2374,22 @@ function applyInlineStyle(editor, cmd, value) {
     // have a stable handle on "exactly what was selected".
     const wrap = document.createElement('span');
     try {
+      console.log('[a2trace] BEFORE extract: editor=', editor.innerHTML);
+      console.log('[a2trace] range:', { sc: range.startContainer.nodeName, so: range.startOffset, ec: range.endContainer.nodeName, eo: range.endOffset, collapsed: range.collapsed });
       wrap.appendChild(range.extractContents());
+      console.log('[a2trace] AFTER extract: editor=', editor.innerHTML, ' wrap=', wrap.outerHTML);
+      console.log('[a2trace] range:', { sc: range.startContainer.nodeName, so: range.startOffset, ec: range.endContainer.nodeName, eo: range.endOffset, collapsed: range.collapsed });
       range.insertNode(wrap);
+      console.log('[a2trace] AFTER insertNode: editor=', editor.innerHTML);
+      console.log('[a2trace] range:', { sc: range.startContainer.nodeName, so: range.startOffset, ec: range.endContainer.nodeName, eo: range.endOffset });
       // Step 2: strip the property on any DESCENDANT of the wrap (the
       // selection's own styled children).
       __stripInlineStyleIn(wrap, cssProp);
+      console.log('[a2trace] AFTER stripDescendants: editor=', editor.innerHTML);
       // Step 3: lift the wrap out of any ANCESTOR span that carries the
       // property, splitting that ancestor around the wrap.
       __liftNodeOutOfStyledAncestors(editor, wrap, cssProp);
+      console.log('[a2trace] AFTER lift: editor=', editor.innerHTML);
       // Step 4: dissolve the temp wrap, leaving its contents in place.
       if (wrap.parentNode) {
         const parent = wrap.parentNode;
