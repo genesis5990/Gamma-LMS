@@ -869,6 +869,54 @@ body {
 #stat-validation.has-issues { color: var(--st-bad); font-weight: 600; }
 #stat-validation.is-clean    { color: var(--st-good); }
 
+/* Lesson workflow status — three-state indicator next to "✓ clean" */
+:root {
+  --wf-working:  #b91c1c; /* red 700 */
+  --wf-reviewed: #b45309; /* amber 700 */
+  --wf-ready:    #15803d; /* green 700 */
+}
+.lesson-workflow {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: 4px; padding-left: 10px;
+  border-left: 1px solid var(--st-line);
+}
+.lesson-workflow[hidden] { display: none; }
+.lesson-workflow-label {
+  font-size: 11px; color: var(--st-muted); text-transform: uppercase; letter-spacing: .04em;
+}
+.wf-box {
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--st-line);
+  border-radius: 4px;
+  background: var(--st-paper-2);
+  cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s, border-color .12s, transform .08s;
+}
+.wf-box:hover { transform: scale(1.08); }
+.wf-box:focus-visible { outline: 2px solid #4f6dd6; outline-offset: 2px; }
+.wf-box.wf-working[aria-pressed="true"]  { background: var(--wf-working);  border-color: var(--wf-working); }
+.wf-box.wf-reviewed[aria-pressed="true"] { background: var(--wf-reviewed); border-color: var(--wf-reviewed); }
+.wf-box.wf-ready[aria-pressed="true"]    { background: var(--wf-ready);    border-color: var(--wf-ready); }
+.wf-box[aria-pressed="true"]::after {
+  content: '✓'; color: #fff; font-size: 12px; line-height: 1; font-weight: 700;
+}
+.wf-box.wf-working:not([aria-pressed="true"]):hover  { border-color: var(--wf-working); }
+.wf-box.wf-reviewed:not([aria-pressed="true"]):hover { border-color: var(--wf-reviewed); }
+.wf-box.wf-ready:not([aria-pressed="true"]):hover    { border-color: var(--wf-ready); }
+
+/* Sidebar tinting — lesson title row reflects workflow_status */
+.outline-lesson.wf-working  > .outline-label { color: var(--wf-working);  font-weight: 600; }
+.outline-lesson.wf-reviewed > .outline-label { color: var(--wf-reviewed); font-weight: 600; }
+.outline-lesson.wf-ready    > .outline-label { color: var(--wf-ready);    font-weight: 600; }
+.outline-lesson .outline-wf-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 6px; vertical-align: middle; flex-shrink: 0;
+}
+.outline-lesson.wf-working  .outline-wf-dot { background: var(--wf-working); }
+.outline-lesson.wf-reviewed .outline-wf-dot { background: var(--wf-reviewed); }
+.outline-lesson.wf-ready    .outline-wf-dot { background: var(--wf-ready); }
+
 .studio-shortcuts-hint {
   font-size: 12px; color: var(--st-muted); margin-top: 18px;
 }

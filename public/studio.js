@@ -1373,10 +1373,12 @@ function renderOutline() {
       </span>
     </div>`);
     for (const l of m.lessons) {
-      html.push(`<div class="outline-node outline-lesson" data-kind="lesson" data-id="${l.id}" data-parent-id="${m.id}" title="Click to edit · double-click to rename">
+      const wfCls = l.workflow_status ? ` wf-${l.workflow_status}` : '';
+      const wfDot = l.workflow_status ? `<span class="outline-wf-dot" title="${l.workflow_status}"></span>` : '';
+      html.push(`<div class="outline-node outline-lesson${wfCls}" data-kind="lesson" data-id="${l.id}" data-parent-id="${m.id}" title="Click to edit · double-click to rename">
         <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder lesson" title="Drag to reorder">≡</span>
         <span class="outline-icon">L</span>
-        <span class="outline-label" data-rename="lesson">${escapeHtml(l.title)}</span>
+        <span class="outline-label" data-rename="lesson">${wfDot}${escapeHtml(l.title)}</span>
         <span class="outline-meta">${l.pages.length}p</span>
         <span class="outline-node-actions">
           <button data-act="add-page" title="Add page">+P</button>
@@ -2052,6 +2054,7 @@ function clearEditor() {
   $('#meta-title').textContent = 'Metadata';
   $('#stat-words').textContent = '0 words'; $('#stat-chars').textContent = '0 chars'; $('#stat-read').textContent = '0 min read';
   $('#stat-validation').textContent = '';
+  syncWorkflowWidget(null);
   if ($('#preview-card')) $('#preview-card').innerHTML = `<div class="studio-empty-state"><p>Edit a page to see a live preview here.</p></div>`;
 }
 
@@ -2060,6 +2063,8 @@ function renderEditorBody() {
   const toolbar = $('#editor-toolbar');
   if (!state.selection) { clearEditor(); return; }
   const { kind, id } = state.selection;
+  // Hide the workflow widget by default; page/lesson branches re-show it below.
+  syncWorkflowWidget(null);
 
   if (kind === 'page') {
     const ref = findPage(id);
@@ -2131,6 +2136,7 @@ function renderEditorBody() {
       <h2>${escapeHtml(ref.lesson.title)}</h2>
       <p>${ref.lesson.pages.length} page${ref.lesson.pages.length===1?'':'s'} in this lesson. Select one from the outline to edit.</p>
     </div>`;
+    syncWorkflowWidget(ref.lesson);
     return;
   }
 
@@ -5016,8 +5022,10 @@ function refreshStatusBar() {
     $('#stat-chars').textContent = '0 chars';
     $('#stat-read').textContent  = '0 min read';
     $('#stat-validation').textContent = '';
+    syncWorkflowWidget(null);
     return;
   }
+  syncWorkflowWidget(ref.lesson);
   const html = ref.page.body_html || '';
   const tmp = document.createElement('div'); tmp.innerHTML = html;
   const text = tmp.textContent.trim();
@@ -5036,6 +5044,83 @@ function refreshStatusBar() {
     stat.textContent = '✓ clean';
     stat.title = '';
   }
+}
+
+// =====================================================================
+// LESSON WORKFLOW STATUS — three-state indicator beside "✓ clean".
+// State lives on lessons.workflow_status (working|reviewed|ready|NULL).
+// Persisted directly (not via dirty-staging) so the indicator is a single
+// authoritative click with optimistic UI + revert-on-failure.
+// =====================================================================
+function syncWorkflowWidget(lesson) {
+  const root = document.getElementById('lesson-workflow');
+  if (!root) return;
+  if (!lesson) { root.hidden = true; return; }
+  root.hidden = false;
+  root.dataset.lessonId = lesson.id;
+  const status = lesson.workflow_status || null;
+  root.querySelectorAll('.wf-box').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.wf === status ? 'true' : 'false');
+  });
+}
+
+async function setLessonWorkflowStatus(lessonId, next) {
+  const ref = findLesson(lessonId);
+  if (!ref) return;
+  const prev = ref.lesson.workflow_status || null;
+  if (prev === next) return;
+  // Optimistic update — local state + outline tint + widget.
+  ref.lesson.workflow_status = next;
+  syncWorkflowWidget(ref.lesson);
+  applyOutlineWorkflowTint(ref.lesson);
+
+  const { error } = await sb.from('lessons')
+    .update({ workflow_status: next })
+    .eq('id', lessonId);
+
+  if (error) {
+    console.error('[studio] workflow_status update failed', error);
+    ref.lesson.workflow_status = prev;
+    syncWorkflowWidget(ref.lesson);
+    applyOutlineWorkflowTint(ref.lesson);
+    toast(`Could not update status: ${error.message || 'permission denied'}`, 'is-error');
+    return;
+  }
+  toast(next ? `Lesson marked ${next}` : 'Lesson status cleared');
+}
+
+function applyOutlineWorkflowTint(lesson) {
+  const row = document.querySelector(`.outline-lesson[data-id="${lesson.id}"]`);
+  if (!row) return;
+  row.classList.remove('wf-working', 'wf-reviewed', 'wf-ready');
+  const label = row.querySelector('.outline-label');
+  const existingDot = label && label.querySelector('.outline-wf-dot');
+  if (existingDot) existingDot.remove();
+  if (lesson.workflow_status) {
+    row.classList.add(`wf-${lesson.workflow_status}`);
+    if (label) {
+      const dot = document.createElement('span');
+      dot.className = 'outline-wf-dot';
+      dot.title = lesson.workflow_status;
+      label.prepend(dot);
+    }
+  }
+}
+
+function wireLessonWorkflowWidget() {
+  const root = document.getElementById('lesson-workflow');
+  if (!root || root.dataset.wired === '1') return;
+  root.dataset.wired = '1';
+  root.addEventListener('click', (e) => {
+    const btn = e.target.closest('.wf-box');
+    if (!btn) return;
+    const lessonId = root.dataset.lessonId;
+    if (!lessonId) return;
+    const clicked = btn.dataset.wf;
+    const current = btn.getAttribute('aria-pressed') === 'true' ? clicked : null;
+    const next = current === clicked ? null : clicked; // toggle off if already selected
+    setLessonWorkflowStatus(lessonId, next);
+  });
 }
 
 async function runValidationModal() {
@@ -5270,8 +5355,9 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.73' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.73');
+console.log('[studio] boot v0.4.74' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.74');
+wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
   _debugLog('bootstrapAuth threw: ' + (err?.message || err), 'err');
