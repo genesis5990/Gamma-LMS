@@ -2317,8 +2317,12 @@ function __liftNodeOutOfStyledAncestors(editor, node, cssProp) {
     const kids = Array.from(ancestor.childNodes);
     const idx = kids.indexOf(node);
     if (idx < 0) { ancestor = next; continue; }
-    const leftKids  = kids.slice(0, idx);
-    const rightKids = kids.slice(idx + 1);
+    // Filter out empty text nodes (leftover from extractContents) when
+    // deciding whether siblings need preserving. They produce no visible
+    // content but would otherwise spawn empty styled clones.
+    const isEmptyText = (n) => n && n.nodeType === 3 && (n.nodeValue == null || n.nodeValue === '');
+    const leftKids  = kids.slice(0, idx).filter(k => !isEmptyText(k));
+    const rightKids = kids.slice(idx + 1).filter(k => !isEmptyText(k));
 
     if (leftKids.length) {
       const leftClone = ancestor.cloneNode(false);
@@ -2330,6 +2334,9 @@ function __liftNodeOutOfStyledAncestors(editor, node, cssProp) {
       rightKids.forEach(k => rightClone.appendChild(k));
       parent.insertBefore(rightClone, ancestor.nextSibling);
     }
+    // Drop any remaining empty text nodes from ancestor before deciding
+    // whether to unwrap it.
+    Array.from(ancestor.childNodes).filter(isEmptyText).forEach(k => ancestor.removeChild(k));
     // ancestor now only contains `node`. Strip the property; unwrap if plain.
     ancestor.style.removeProperty(cssProp);
     const isPlain = ancestor.tagName === 'SPAN'
@@ -2374,22 +2381,14 @@ function applyInlineStyle(editor, cmd, value) {
     // have a stable handle on "exactly what was selected".
     const wrap = document.createElement('span');
     try {
-      console.log('[a2trace] BEFORE extract: editor=', editor.innerHTML);
-      console.log('[a2trace] range:', { sc: range.startContainer.nodeName, so: range.startOffset, ec: range.endContainer.nodeName, eo: range.endOffset, collapsed: range.collapsed });
       wrap.appendChild(range.extractContents());
-      console.log('[a2trace] AFTER extract: editor=', editor.innerHTML, ' wrap=', wrap.outerHTML);
-      console.log('[a2trace] range:', { sc: range.startContainer.nodeName, so: range.startOffset, ec: range.endContainer.nodeName, eo: range.endOffset, collapsed: range.collapsed });
       range.insertNode(wrap);
-      console.log('[a2trace] AFTER insertNode: editor=', editor.innerHTML);
-      console.log('[a2trace] range:', { sc: range.startContainer.nodeName, so: range.startOffset, ec: range.endContainer.nodeName, eo: range.endOffset });
       // Step 2: strip the property on any DESCENDANT of the wrap (the
       // selection's own styled children).
       __stripInlineStyleIn(wrap, cssProp);
-      console.log('[a2trace] AFTER stripDescendants: editor=', editor.innerHTML);
       // Step 3: lift the wrap out of any ANCESTOR span that carries the
       // property, splitting that ancestor around the wrap.
       __liftNodeOutOfStyledAncestors(editor, wrap, cssProp);
-      console.log('[a2trace] AFTER lift: editor=', editor.innerHTML);
       // Step 4: dissolve the temp wrap, leaving its contents in place.
       if (wrap.parentNode) {
         const parent = wrap.parentNode;
