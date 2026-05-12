@@ -2416,8 +2416,7 @@ function renderPageToolbar() {
     <button data-cmd="badge-panel"     type="button" title="Badge panel">Badge</button>
     <button data-cmd="compare-cards"   type="button" title="Compare cards">Compare</button>
     <span class="toolbar-divider"></span>
-    <button data-cmd="image-upload"    type="button" title="Upload + insert image">📷 Image</button>
-    <button data-cmd="image-library"   type="button" title="Insert from library">Library</button>
+    <button data-cmd="image"           type="button" title="Insert image (library, upload, or URL)">🖼 Image</button>
     <button data-cmd="audio"           type="button" title="Insert audio (library, upload, or URL)">Audio</button>
     <span class="toolbar-divider"></span>
     <button data-cmd="undo"            type="button" title="Undo (Ctrl+Z)">↶</button>
@@ -2475,8 +2474,16 @@ function wirePageToolbar() {
           if (url) exec('createLink', url);
           break;
         }
-        case 'image-upload': await onUploadImageFromToolbar(); break;
-        case 'image-library': await onPickFromLibrary(); break;
+        case 'image': {
+          openImageInsertModal({
+            mode: 'inline',
+            editor: ed(),
+            courseId: state.course?.id || null,
+            courseSlug: state.course?.slug || null,
+            onInsert: (html) => { insertHTML(html); trigger(); },
+          });
+          break;
+        }
         case 'audio': {
           const ref = state.selection?.kind === 'page' ? findPage(state.selection.id) : null;
           openAudioInsertModal({
@@ -5321,55 +5328,6 @@ async function insertUploadedFiles(files, page) {
       toast('Upload failed: ' + err.message, 'is-error');
     }
   }
-}
-
-async function onUploadImageFromToolbar() {
-  const inp = document.createElement('input');
-  inp.type = 'file';
-  inp.accept = 'image/*';
-  inp.onchange = async () => {
-    const f = inp.files?.[0];
-    if (!f) return;
-    const ref = state.selection?.kind === 'page' ? findPage(state.selection.id) : null;
-    if (!ref) return;
-    await insertUploadedFiles([f], ref.page);
-  };
-  inp.click();
-}
-
-async function onPickFromLibrary() {
-  setSaveState('saving', 'Loading library…');
-  const { data, error } = await sb.from('course_assets')
-    .select('id, public_url, filename, kind, mime_type, byte_size, alt_text, course_id, width, height, created_at')
-    .order('created_at', { ascending: false }).limit(200);
-  if (error) { setSaveState('error', 'Library load failed'); toast(error.message, 'is-error'); return; }
-  setSaveState('ready', '● Ready');
-  const images = (data || []).filter(a => (a.mime_type || '').startsWith('image/'));
-  if (!images.length) { toast('No images in library yet', 'is-error'); return; }
-  openModal({
-    title: 'Insert from Media Library',
-    bodyHtml: `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
-      ${images.map(a => `<div class="lib-pick" data-id="${a.id}" style="cursor:pointer;border:1px solid var(--st-line);border-radius:6px;overflow:hidden">
-        <div style="aspect-ratio:4/3;background:#f0f2fa;overflow:hidden"><img src="${escapeHtml(a.public_url)}" alt="" style="width:100%;height:100%;object-fit:cover"/></div>
-        <div style="font-size:11px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.filename || '')}</div>
-      </div>`).join('')}
-    </div>`,
-    footHtml: '<button class="studio-btn" id="modal-cancel">Cancel</button>',
-    onMount: (host) => {
-      host.querySelectorAll('.lib-pick').forEach(el => {
-        el.addEventListener('click', () => {
-          const a = images.find(x => x.id === el.dataset.id);
-          const alt = prompt('Alt text:', a.alt_text || '') || a.alt_text || '';
-          const html = `<figure><img src="${escapeHtml(a.public_url)}" alt="${escapeHtml(alt)}" /><figcaption></figcaption></figure>`;
-          $('#html-editor').focus();
-          document.execCommand('insertHTML', false, html);
-          $('#html-editor').dispatchEvent(new Event('input', { bubbles: true }));
-          closeModal();
-        });
-      });
-      host.querySelector('#modal-cancel').addEventListener('click', closeModal);
-    }
-  });
 }
 
 // =====================================================================
