@@ -2124,6 +2124,7 @@ function renderEditorBody() {
       wireDropAndPaste(ed, ref.page);
       wireInlineAudioControls(ed, ref.page);
       wireInlineImageControls(ed);
+      wireInlineBlockControls(ed);
       // Sync any inline [n] markers' numbers to the current citation list
       recomputeCiteMarkers(ed, ref.page.citations || []);
     }
@@ -2678,6 +2679,7 @@ function wireTitlePageBody({ kind, node }) {
     wireDropAndPasteOnTitleEditor(ed);
     wireInlineAudioControlsForTitle(ed);
     wireInlineImageControlsForTitle(ed);
+    wireInlineBlockControls(ed);
   }
 
   const heroEl = $('#title-hero');
@@ -3059,7 +3061,7 @@ function openAppendixHtmlEditor(m, it) {
   // Wire the same inline-image overlay (Move / Replace / Alt / Delete) on
   // the appendix body so authors can edit/remove images here too.
   const apxBodyEl = $('#apx-body');
-  if (apxBodyEl) wireInlineImageControls(apxBodyEl);
+  if (apxBodyEl) { wireInlineImageControls(apxBodyEl); wireInlineBlockControls(apxBodyEl); }
 
   $('#apx-back').addEventListener('click', () => {
     state.selection = { kind: 'appendix', id: m.id };
@@ -3355,13 +3357,16 @@ function renderCitationsCard(page) {
           return;
         }
         if (act === 'del') {
-          if (!confirm('Remove this citation? Any [n] markers in the body that point to it will show as [?].')) return;
+          const target = cur[idx] || {};
+          const label = String(target.title || target.source || target.authors || `[${idx + 1}]`).slice(0, 80);
+          if (!confirm(`Delete citation "${label}"?\n\nThe entry is removed from this page. Any [n] markers in the body that point to it become [?] until you remove them.\n\nThis cannot be undone in the current session.`)) return;
           cur.splice(idx, 1);
           stagePagePatch(page.id, { citations: cur });
           renderCitationsCard(page);
           const ed = $('#html-editor');
           if (ed) recomputeCiteMarkers(ed, cur);
           renderPreview();
+          try { toast(`Citation removed (${cur.length} remaining)`, 'is-ok'); } catch (_) {}
           return;
         }
         if (act === 'up' && idx > 0) {
@@ -5097,6 +5102,158 @@ function wireInlineImageControlsForTitle(editor) {
 
 // Install global image listeners at module load (matches audio pattern).
 try { __inlineImageInitOnce(); } catch (_) {}
+
+// =====================================================================
+// Inline block controls — delete affordance for callouts / badge / compare
+// blocks the author can insert from the toolbar. Mirrors the inline-image
+// pattern: a floating bar lives in document.body (contenteditable="false"),
+// so the button is never part of body_html when the editor is saved.
+// =====================================================================
+const __INLINE_BLOCK_SELECTOR = '.callout, .badge-panel, .compare-cards';
+let __inlineBlockInit = false;
+let __inlineBlockActive = null;
+
+function __inlineBlockEditorOf(node) {
+  if (!node || !node.closest) return null;
+  return node.closest('#html-editor')
+      || node.closest('#title-html-editor')
+      || node.closest('#apx-body');
+}
+
+function __inlineBlockLabel(node) {
+  if (!node) return 'block';
+  if (node.classList.contains('badge-panel'))   return 'badge';
+  if (node.classList.contains('compare-cards')) return 'compare block';
+  if (node.classList.contains('callout-warn'))    return 'warning';
+  if (node.classList.contains('callout-danger'))  return 'critical callout';
+  if (node.classList.contains('callout-success')) return 'success callout';
+  if (node.classList.contains('callout')) return 'note';
+  return 'block';
+}
+
+function __inlineBlockBar() {
+  let bar = document.getElementById('inline-block-bar');
+  if (bar) return bar;
+  bar = document.createElement('div');
+  bar.id = 'inline-block-bar';
+  bar.className = 'inline-image-bar hidden';
+  bar.setAttribute('contenteditable', 'false');
+  bar.innerHTML = `
+    <span class="inline-block-label" data-role="label">block</span>
+    <button type="button" data-act="delete" class="danger" title="Delete this block">✕ Delete</button>
+  `;
+  document.body.appendChild(bar);
+  return bar;
+}
+
+function __inlineBlockPosition() {
+  const bar = __inlineBlockBar();
+  const a = __inlineBlockActive;
+  if (!a || !document.body.contains(a)) {
+    bar.classList.add('hidden');
+    __inlineBlockActive = null;
+    return;
+  }
+  bar.classList.remove('hidden');
+  const ar = a.getBoundingClientRect();
+  // Anchor top-right of the block; flip below if it'd be off-screen.
+  let top = window.scrollY + ar.top - bar.offsetHeight - 6;
+  if (top < window.scrollY + 4) top = window.scrollY + ar.top + 6;
+  let left = window.scrollX + ar.right - bar.offsetWidth;
+  if (left < window.scrollX + 4) left = window.scrollX + 4;
+  bar.style.top  = top + 'px';
+  bar.style.left = left + 'px';
+}
+
+function __inlineBlockHide() {
+  __inlineBlockActive = null;
+  __inlineBlockBar().classList.add('hidden');
+}
+
+function __inlineBlockShow(node) {
+  __inlineBlockActive = node;
+  const bar = __inlineBlockBar();
+  const lbl = bar.querySelector('[data-role="label"]');
+  if (lbl) lbl.textContent = __inlineBlockLabel(node);
+  __inlineBlockPosition();
+}
+
+function __inlineBlockInitOnce() {
+  if (__inlineBlockInit) return;
+  __inlineBlockInit = true;
+  __inlineBlockBar();
+
+  // Click inside (or on) a callout/badge/compare block → show toolbar.
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('#inline-block-bar')) return;
+    let node = t && t.closest && t.closest(__INLINE_BLOCK_SELECTOR);
+    const editor = __inlineBlockEditorOf(node);
+    if (node && editor) { __inlineBlockShow(node); return; }
+    // Click outside a wired editor and outside the bar → hide.
+    if (t && t.closest
+        && !t.closest('#html-editor')
+        && !t.closest('#title-html-editor')
+        && !t.closest('#apx-body')
+        && !t.closest('#inline-block-bar')
+        && !t.closest('#modal-host')) {
+      __inlineBlockHide();
+    }
+  }, true);
+
+  // Toolbar button.
+  __inlineBlockBar().addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const node = __inlineBlockActive;
+    if (!node || !document.body.contains(node)) { __inlineBlockHide(); return; }
+    const editor = __inlineBlockEditorOf(node);
+    const act = btn.dataset.act;
+    if (act === 'delete') {
+      const lbl = __inlineBlockLabel(node);
+      if (!confirm(`Delete this ${lbl}? This cannot be undone in the current session.`)) return;
+      node.remove();
+      __inlineBlockHide();
+      if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+
+  // Keyboard delete: Cmd/Ctrl+Shift+Backspace when caret is inside a block.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && __inlineBlockActive) { __inlineBlockHide(); return; }
+    const isCombo = (e.metaKey || e.ctrlKey) && e.shiftKey
+                    && (e.key === 'Backspace' || e.key === 'Delete');
+    if (!isCombo) return;
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+    const editor = r.commonAncestorContainer
+                 && r.commonAncestorContainer.nodeType === 1
+                 ? r.commonAncestorContainer.closest && (r.commonAncestorContainer.closest('#html-editor') || r.commonAncestorContainer.closest('#title-html-editor') || r.commonAncestorContainer.closest('#apx-body'))
+                 : (r.commonAncestorContainer.parentElement && (r.commonAncestorContainer.parentElement.closest('#html-editor') || r.commonAncestorContainer.parentElement.closest('#title-html-editor') || r.commonAncestorContainer.parentElement.closest('#apx-body')));
+    if (!editor) return;
+    const startEl = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+    const block = startEl && startEl.closest && startEl.closest(__INLINE_BLOCK_SELECTOR);
+    if (!block || !editor.contains(block)) return;
+    e.preventDefault();
+    const lbl = __inlineBlockLabel(block);
+    if (!confirm(`Delete this ${lbl}? This cannot be undone in the current session.`)) return;
+    block.remove();
+    __inlineBlockHide();
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  window.addEventListener('scroll', __inlineBlockPosition, true);
+  window.addEventListener('resize', __inlineBlockPosition);
+}
+
+function wireInlineBlockControls(editor) {
+  if (!editor) return;
+  __inlineBlockInitOnce();
+  __inlineBlockHide();
+}
+
+try { __inlineBlockInitOnce(); } catch (_) {}
 
 function wireDropAndPaste(editor, page) {
   // drag over highlight

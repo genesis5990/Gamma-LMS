@@ -1436,6 +1436,40 @@ body {
 .inline-image-bar button.danger { color: #b42318; }
 .inline-image-bar button.danger:hover { background: #fef3f2; border-color: #fda29b; }
 
+/* Inline-block control bar (callouts / badge / compare). Uses the same
+   floating-bar styling as the inline image bar so the affordance is
+   consistent. The bar lives in <body>, contenteditable="false" — never
+   part of saved body_html. */
+#inline-block-bar .inline-block-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--st-muted, #5b6788);
+  padding: 0 6px 0 4px;
+  align-self: center;
+}
+
+/* Make callouts clearly clickable so authors discover the delete bar. */
+.studio-html-editor .callout,
+.studio-html-editor .badge-panel,
+.studio-html-editor .compare-cards { position: relative; }
+.studio-html-editor .callout:hover,
+.studio-html-editor .badge-panel:hover,
+.studio-html-editor .compare-cards:hover {
+  box-shadow: 0 0 0 2px rgba(31, 99, 214, .12);
+}
+
+/* Citation delete: make the ✕ button visually distinct so authors find it. */
+.cite-card .cite-del {
+  color: #b42318;
+}
+.cite-card .cite-del:hover {
+  background: #fef3f2;
+  border-color: #fda29b;
+  color: #b42318;
+}
+
 /* ===== Title-page editor (course + module) ============================== */
 .title-page-editor {
   padding: 22px 28px 60px;
