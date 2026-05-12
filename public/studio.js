@@ -5122,16 +5122,17 @@ function applyOutlineWorkflowTint(lesson) {
 }
 
 function wireLessonWorkflowWidget() {
-  const root = document.getElementById('lesson-workflow');
-  if (!root) {
-    console.warn('[studio] wireLessonWorkflowWidget: #lesson-workflow not in DOM');
-    return;
-  }
-  if (root.dataset.wired === '1') return;
-  root.dataset.wired = '1';
-  root.addEventListener('click', (e) => {
-    const btn = e.target.closest('.wf-box');
+  // The studio shell renders #lesson-workflow inside <template id="tpl-editor">,
+  // which is inert until renderEditor() clones it. Binding to the template's
+  // element at boot finds nothing. Delegate on document instead — works
+  // regardless of when (or how many times) the editor template is mounted.
+  if (document.__wfWired) return;
+  document.__wfWired = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('.wf-box');
     if (!btn) return;
+    const root = btn.closest('#lesson-workflow');
+    if (!root) return;
     e.preventDefault();
     e.stopPropagation();
     const lessonId = root.dataset.lessonId;
@@ -5140,11 +5141,9 @@ function wireLessonWorkflowWidget() {
       return;
     }
     const clicked = btn.dataset.wf;
-    // Source of truth is the model, NOT the DOM — avoids stale aria-pressed
-    // racing with re-renders from refreshStatusBar/renderEditorBody.
     const ref = findLesson(lessonId);
     const current = ref ? (ref.lesson.workflow_status || null) : null;
-    const next = current === clicked ? null : clicked; // toggle off if same
+    const next = current === clicked ? null : clicked;
     setLessonWorkflowStatus(lessonId, next);
   });
 }
@@ -5381,8 +5380,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.75' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.75');
+console.log('[studio] boot v0.4.76' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.76');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
