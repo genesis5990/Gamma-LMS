@@ -246,6 +246,30 @@ body {
   margin: 0 4px;
   align-self: stretch;
 }
+.studio-toolbar .toolbar-select {
+  height: 28px;
+  border: 1px solid var(--st-line);
+  background: var(--st-paper-2);
+  color: var(--st-ink-2);
+  border-radius: 5px;
+  padding: 0 22px 0 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--st-ink-2) 50%),
+                    linear-gradient(135deg, var(--st-ink-2) 50%, transparent 50%);
+  background-position: calc(100% - 11px) 12px, calc(100% - 7px) 12px;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  max-width: 160px;
+}
+.studio-toolbar .toolbar-select-size { max-width: 88px; }
+.studio-toolbar .toolbar-select:hover { background-color: var(--st-line-2); border-color: #bcc7e2; }
+.studio-toolbar .toolbar-select:focus-visible {
+  outline: 2px solid var(--st-accent);
+  outline-offset: 1px;
+}
 
 .studio-empty-state {
   text-align: center;

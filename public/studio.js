@@ -2181,9 +2181,213 @@ function renderEditorBody() {
   }
 }
 
+// ---------- inline font / size helpers (shared by page + title editors) ----
+// Maps the toolbar's data-cmd to the CSS property it applies.
+const __INLINE_STYLE_PROP = { 'font-family': 'fontFamily', 'font-size': 'fontSize' };
+const __INLINE_STYLE_CSS  = { 'font-family': 'font-family', 'font-size': 'font-size' };
+
+// Ensure the current selection is inside `editor`. Returns true if so.
+function __selectionInside(editor) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  return editor.contains(r.commonAncestorContainer);
+}
+
+// Strip a single inline style (font-family or font-size) from every element
+// inside `root` that has it set inline. If the resulting span has no style
+// attribute, unwrap it (replace with its children) to keep markup clean.
+function __stripInlineStyleIn(root, cssProp) {
+  if (!root || !root.querySelectorAll) return;
+  const candidates = root.querySelectorAll(`[style*="${cssProp}"]`);
+  candidates.forEach(el => {
+    if (el.style && el.style.getPropertyValue(cssProp)) {
+      el.style.removeProperty(cssProp);
+    }
+    // unwrap empty <span> with no other useful attrs
+    const isPlainSpan = el.tagName === 'SPAN'
+      && (!el.getAttribute('style') || el.getAttribute('style').trim() === '')
+      && !el.className
+      && !el.id;
+    if (isPlainSpan) {
+      const parent = el.parentNode;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    } else if (el.getAttribute('style') === '') {
+      el.removeAttribute('style');
+    }
+  });
+}
+
+// Wrap the current selection in <span style="prop: value"> — or clear the
+// style entirely when `value` is empty. Works on contenteditable selections.
+function applyInlineStyle(editor, cmd, value) {
+  if (!editor) return;
+  editor.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return;
+
+  const jsProp  = __INLINE_STYLE_PROP[cmd];
+  const cssProp = __INLINE_STYLE_CSS[cmd];
+  if (!jsProp || !cssProp) return;
+
+  // Collapsed selection: stash a pending format and apply it to the next typed text.
+  if (range.collapsed) {
+    editor.__pendingInlineStyle = editor.__pendingInlineStyle || {};
+    if (value) editor.__pendingInlineStyle[jsProp] = value;
+    else delete editor.__pendingInlineStyle[jsProp];
+    return;
+  }
+
+  // "Default" — unwrap any inline font-family / font-size inside the range.
+  if (!value) {
+    // Expand to a temp wrapper so we can sweep descendants safely.
+    const wrap = document.createElement('span');
+    try {
+      wrap.appendChild(range.extractContents());
+      range.insertNode(wrap);
+      __stripInlineStyleIn(wrap, cssProp);
+      // Unwrap our temp wrapper
+      const parent = wrap.parentNode;
+      const newRange = document.createRange();
+      const first = wrap.firstChild, last = wrap.lastChild;
+      while (wrap.firstChild) parent.insertBefore(wrap.firstChild, wrap);
+      parent.removeChild(wrap);
+      if (first && last) { newRange.setStartBefore(first); newRange.setEndAfter(last); }
+      sel.removeAllRanges(); sel.addRange(newRange);
+    } catch (_) { /* no-op */ }
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+
+  // Apply: wrap selection in <span style="prop: value">.
+  const span = document.createElement('span');
+  span.style[jsProp] = value;
+  try {
+    range.surroundContents(span);
+  } catch (_) {
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+  }
+  const newRange = document.createRange();
+  newRange.selectNodeContents(span);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Wire keystroke handler on `editor` so a pending inline style applies to
+// freshly typed text when the user types after picking a font with a
+// collapsed cursor.
+function wirePendingInlineStyle(editor) {
+  if (!editor || editor.__pendingWired) return;
+  editor.__pendingWired = true;
+  editor.addEventListener('keydown', (e) => {
+    const pending = editor.__pendingInlineStyle;
+    if (!pending || (!pending.fontFamily && !pending.fontSize)) return;
+    // only printable single-character keys
+    if (e.key.length !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+    const span = document.createElement('span');
+    if (pending.fontFamily) span.style.fontFamily = pending.fontFamily;
+    if (pending.fontSize)   span.style.fontSize   = pending.fontSize;
+    span.appendChild(document.createTextNode(e.key));
+    range.deleteContents();
+    range.insertNode(span);
+    // Move caret to end of inserted span
+    const after = document.createRange();
+    after.setStartAfter(span); after.setEndAfter(span);
+    sel.removeAllRanges(); sel.addRange(after);
+    // One-shot: clear pending after first applied character
+    editor.__pendingInlineStyle = null;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+// Sanitize HTML pasted from Word / Google Docs by stripping MS-Office
+// classes, <font> tags, and inline styles that are mostly noise.
+function cleanPastedHTML(html) {
+  if (!html) return '';
+  // Drop <meta>, <link>, <style>, <script>, MS conditional comments
+  let s = String(html)
+    .replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '')
+    .replace(/<\?xml[\s\S]*?\?>/gi, '')
+    .replace(/<(meta|link|style|script)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<(meta|link)[^>]*>/gi, '');
+  const tpl = document.createElement('template');
+  tpl.innerHTML = s;
+  // Drop <font> wrappers (preserve children)
+  tpl.content.querySelectorAll('font').forEach(el => {
+    const p = el.parentNode;
+    while (el.firstChild) p.insertBefore(el.firstChild, el);
+    p.removeChild(el);
+  });
+  // Strip noisy attrs from every element
+  const NOISE_STYLE = /(mso-[^:;]+:[^;]+;?|font-family\s*:\s*[^;]*(Calibri|Cambria|Times New Roman)[^;]*;?|background\s*:\s*white\s*;?|color\s*:\s*windowtext\s*;?)/gi;
+  tpl.content.querySelectorAll('*').forEach(el => {
+    // remove MS class names + lang/xml attrs
+    if (el.className && /\bMso/.test(el.className)) el.removeAttribute('class');
+    el.removeAttribute('lang');
+    el.removeAttribute('xml:lang');
+    if (el.hasAttribute('style')) {
+      const cleaned = el.getAttribute('style').replace(NOISE_STYLE, '').trim();
+      if (cleaned) el.setAttribute('style', cleaned);
+      else el.removeAttribute('style');
+    }
+  });
+  return tpl.innerHTML;
+}
+
+// True when an HTML clipboard payload looks like Word / Google Docs noise
+// we want to clean automatically.
+function __isOfficeHTML(html) {
+  if (!html) return false;
+  return /mso-|<o:p|class=("|')?Mso|font-family\s*:\s*['"]?Calibri/i.test(html);
+}
+
+// ---------- font family / size options (shared by page + title editors) ----
+const FONT_FAMILY_OPTIONS = [
+  { label: 'Default',            value: '' },
+  { label: 'Inter',              value: 'Inter, system-ui, sans-serif' },
+  { label: 'System Sans',        value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
+  { label: 'Helvetica / Arial',  value: '"Helvetica Neue", Helvetica, Arial, sans-serif' },
+  { label: 'Georgia',            value: 'Georgia, "Times New Roman", serif' },
+  { label: 'Cormorant Garamond', value: '"Cormorant Garamond", Garamond, Georgia, serif' },
+  { label: 'JetBrains Mono',     value: '"JetBrains Mono", Menlo, Consolas, monospace' },
+];
+const FONT_SIZE_OPTIONS = [
+  { label: 'Default', value: '' },
+  { label: '12px', value: '12px' },
+  { label: '14px', value: '14px' },
+  { label: '16px', value: '16px' },
+  { label: '18px', value: '18px' },
+  { label: '20px', value: '20px' },
+  { label: '24px', value: '24px' },
+  { label: '28px', value: '28px' },
+  { label: '32px', value: '32px' },
+];
+function renderFontControlsHTML() {
+  const famOpts = FONT_FAMILY_OPTIONS.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+  const sizeOpts = FONT_SIZE_OPTIONS.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+  return `
+    <select class="toolbar-select" data-cmd="font-family" aria-label="Font" title="Font family">${famOpts}</select>
+    <select class="toolbar-select toolbar-select-size" data-cmd="font-size" aria-label="Size" title="Font size">${sizeOpts}</select>
+    <span class="toolbar-divider"></span>
+    <button data-cmd="paste-plain" type="button" title="Paste from clipboard as plain text">Paste plain</button>
+    <span class="toolbar-divider"></span>
+  `;
+}
+
 // ---------- toolbar -----------------------------------------------
 function renderPageToolbar() {
   return `
+    ${renderFontControlsHTML()}
     <button data-cmd="h2"             type="button" title="Heading (Ctrl+1)">H2</button>
     <button data-cmd="h3"             type="button" title="Sub-heading (Ctrl+2)">H3</button>
     <button data-cmd="p"              type="button" title="Paragraph (Ctrl+3)">¶</button>
@@ -2212,11 +2416,33 @@ function renderPageToolbar() {
   `;
 }
 
+function wireFontControls(getEditor) {
+  const toolbar = $('#editor-toolbar');
+  if (!toolbar) return;
+  toolbar.querySelectorAll('select.toolbar-select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const cmd = sel.dataset.cmd;
+      const ed = getEditor();
+      if (!ed) return;
+      // Selection must be inside the editor; re-focus and re-apply if needed
+      if (!__selectionInside(ed)) ed.focus();
+      applyInlineStyle(ed, cmd, sel.value);
+      // Keep the dropdown reflecting the latest pick (no reset to default)
+    });
+    // Prevent the toolbar from stealing focus on mousedown so the editor's
+    // selection survives until the change event fires.
+    sel.addEventListener('mousedown', () => { /* allow native open */ });
+  });
+}
+
 function wirePageToolbar() {
   const ed = () => $('#html-editor');
   const exec = (cmd, val=null) => { const e = ed(); if (!e) return; e.focus(); document.execCommand(cmd, false, val); };
   const insertHTML = (html) => { const e = ed(); if (!e) return; e.focus(); document.execCommand('insertHTML', false, html); };
   const trigger = () => { const e = ed(); if (e) e.dispatchEvent(new Event('input', { bubbles: true })); };
+
+  wireFontControls(ed);
+  const _ed0 = ed(); if (_ed0) wirePendingInlineStyle(_ed0);
 
   $('#editor-toolbar').querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -2262,6 +2488,16 @@ function wirePageToolbar() {
 </div>`);
           break;
         case 'find': $('#find-bar').classList.remove('hidden'); $('#find-q').focus(); break;
+        case 'paste-plain': {
+          try {
+            const text = await navigator.clipboard.readText();
+            if (text) { ed()?.focus(); document.execCommand('insertText', false, text); }
+            else toast('Clipboard is empty or unreadable', 'is-error');
+          } catch (err) {
+            toast('Clipboard read denied — use Ctrl+Shift+V', 'is-error');
+          }
+          break;
+        }
         case 'html-toggle':
           state.htmlMode = !state.htmlMode;
           renderEditorBody();
@@ -2279,6 +2515,7 @@ function wirePageToolbar() {
 // can drop inline images and audio into the directions copy.
 function renderTitlePageToolbar() {
   return `
+    ${renderFontControlsHTML()}
     <button data-cmd="h2"             type="button" title="Heading (Ctrl+1)">H2</button>
     <button data-cmd="h3"             type="button" title="Sub-heading (Ctrl+2)">H3</button>
     <button data-cmd="p"              type="button" title="Paragraph (Ctrl+3)">¶</button>
@@ -2305,6 +2542,9 @@ function wireTitlePageToolbar() {
   const exec = (cmd, val=null) => { const e = ed(); if (!e) return; e.focus(); document.execCommand(cmd, false, val); };
   const insertHTML = (html) => { const e = ed(); if (!e) return; e.focus(); document.execCommand('insertHTML', false, html); };
   const trigger = () => { const e = ed(); if (e) e.dispatchEvent(new Event('input', { bubbles: true })); };
+
+  wireFontControls(ed);
+  const _ted0 = ed(); if (_ted0) wirePendingInlineStyle(_ted0);
 
   $('#editor-toolbar').querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -2348,6 +2588,16 @@ function wireTitlePageToolbar() {
         case 'callout-info':    insertHTML('<div class="callout"><p><strong>Note:</strong> </p></div>'); break;
         case 'callout-warn':    insertHTML('<div class="callout callout-warn"><p><strong>Warning:</strong> </p></div>'); break;
         case 'callout-success': insertHTML('<div class="callout callout-success"><p><strong>Success:</strong> </p></div>'); break;
+        case 'paste-plain': {
+          try {
+            const text = await navigator.clipboard.readText();
+            if (text) { ed()?.focus(); document.execCommand('insertText', false, text); }
+            else toast('Clipboard is empty or unreadable', 'is-error');
+          } catch (err) {
+            toast('Clipboard read denied — use Ctrl+Shift+V', 'is-error');
+          }
+          break;
+        }
       }
       trigger();
     });
@@ -4853,14 +5103,24 @@ function wireDropAndPaste(editor, page) {
     e.preventDefault();
     await insertUploadedFiles(files, page);
   });
-  // paste image from clipboard
+  // paste image from clipboard, or sanitize Office/Google-Docs HTML
   editor.addEventListener('paste', async (e) => {
     const items = Array.from(e.clipboardData?.items || []);
     const fileItems = items.filter(it => it.kind === 'file' && (it.type.startsWith('image/') || it.type.startsWith('audio/')));
-    if (!fileItems.length) return;
-    e.preventDefault();
-    const files = fileItems.map(it => it.getAsFile()).filter(Boolean);
-    if (files.length) await insertUploadedFiles(files, page);
+    if (fileItems.length) {
+      e.preventDefault();
+      const files = fileItems.map(it => it.getAsFile()).filter(Boolean);
+      if (files.length) await insertUploadedFiles(files, page);
+      return;
+    }
+    const html = e.clipboardData?.getData('text/html') || '';
+    if (html && __isOfficeHTML(html)) {
+      e.preventDefault();
+      const cleaned = cleanPastedHTML(html);
+      editor.focus();
+      document.execCommand('insertHTML', false, cleaned);
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   });
 }
 
@@ -5404,8 +5664,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.77' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.77');
+console.log('[studio] boot v0.4.78' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.78');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
