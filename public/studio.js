@@ -1386,6 +1386,7 @@ function renderOutline() {
     const mWfDot = moduleWf ? `<span class="outline-wf-dot" title="${moduleWf}"></span>` : '';
     html.push(`<div class="outline-children" data-module-id="${m.id}">`);
     html.push(`<div class="outline-node outline-module${mWfCls}" data-kind="module" data-id="${m.id}" title="${escapeHtml(m.title)}">
+      <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder module" title="Drag to reorder">≡</span>
       <span class="outline-icon">M</span>
       ${mWfDot}
       <span class="outline-label" data-rename="module" title="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
@@ -1588,7 +1589,7 @@ function wireOutlineReorder(root) {
     const n = handle.closest('.outline-node');
     if (!n) return;
     const kind = n.dataset.kind;
-    if (kind !== 'lesson' && kind !== 'page') return;
+    if (kind !== 'lesson' && kind !== 'page' && kind !== 'module') return;
     dragSrc = { kind, id: n.dataset.id, node: n, parentId: n.dataset.parentId };
     n.setAttribute('aria-grabbed', 'true');
     n.classList.add('is-dragging');
@@ -1613,9 +1614,11 @@ function wireOutlineReorder(root) {
 
   root.addEventListener('dragover', (e) => {
     if (!dragSrc) return;
-    // Lessons can drop onto a sibling lesson (same module) OR — stretch goal —
-    // onto another module's row (move-to-module). Pages can only drop onto a
-    // sibling page in the same lesson.
+    // Pages: drop onto a sibling page in the same lesson (BETWEEN indicator).
+    // Lessons: drop onto another lesson (BETWEEN — same module reorder OR
+    //   cross-module insert at that index) OR onto a module row (ONTO — move
+    //   to end of that module).
+    // Modules: drop onto another module (BETWEEN indicator).
     let target = e.target.closest('.outline-node[data-kind="' + dragSrc.kind + '"]');
     let intoModule = null;
     if (!target && dragSrc.kind === 'lesson') {
@@ -1659,6 +1662,24 @@ function wireOutlineReorder(root) {
     if (sameKindTarget && sameKindTarget.dataset.id !== src.id) {
       const rect = sameKindTarget.getBoundingClientRect();
       const isAfter = (e.clientY - rect.top) > rect.height / 2;
+      // Lessons dropped onto another lesson: dispatch by module.
+      // Same module → reorderSibling; different module → cross-module insert
+      // at the target's position (not just append).
+      if (src.kind === 'lesson') {
+        const dstRef = findLesson(sameKindTarget.dataset.id);
+        const srcRef = findLesson(src.id);
+        if (dstRef && srcRef) {
+          if (dstRef.module.id === srcRef.module.id) {
+            await reorderSibling('lesson', src.id, sameKindTarget.dataset.id, isAfter);
+          } else {
+            await moveLessonToModule(src.id, dstRef.module.id, {
+              beforeLessonId: sameKindTarget.dataset.id,
+              placeAfter: isAfter,
+            });
+          }
+          return;
+        }
+      }
       await reorderSibling(src.kind, src.id, sameKindTarget.dataset.id, isAfter);
       return;
     }
@@ -1678,15 +1699,22 @@ function wireOutlineReorder(root) {
 // fallback if the RPC isn't deployed yet). On failure, restore the snapshot
 // and re-render.
 async function reorderSibling(kind, srcId, targetId, placeAfter) {
-  let arr, parentId, rpcName, rpcParentArg;
+  let arr, parentId, rpcName, rpcParentArg, tableName;
   if (kind === 'lesson') {
     const ref = findLesson(srcId); if (!ref) return;
     arr = ref.module.lessons; parentId = ref.module.id;
     rpcName = 'reorder_lessons'; rpcParentArg = 'p_module_id';
+    tableName = 'lessons';
   } else if (kind === 'page') {
     const ref = findPage(srcId); if (!ref) return;
     arr = ref.lesson.pages; parentId = ref.lesson.id;
     rpcName = 'reorder_pages'; rpcParentArg = 'p_lesson_id';
+    tableName = 'pages';
+  } else if (kind === 'module') {
+    const m = findModule(srcId); if (!m) return;
+    arr = state.modules; parentId = state.version.id;
+    rpcName = 'reorder_modules'; rpcParentArg = 'p_course_version_id';
+    tableName = 'modules';
   } else {
     return;
   }
@@ -1725,7 +1753,7 @@ async function reorderSibling(kind, srcId, targetId, placeAfter) {
   let finalErr = rpcErr;
   if (rpcErr && _isMissingRpc(rpcErr)) {
     // Fallback: per-row UPDATEs (no transaction, but better than nothing).
-    finalErr = await _fallbackUpdatePositions(kind === 'lesson' ? 'lessons' : 'pages', arr);
+    finalErr = await _fallbackUpdatePositions(tableName, arr);
   }
 
   if (finalErr) {
@@ -1746,7 +1774,7 @@ async function reorderSibling(kind, srcId, targetId, placeAfter) {
 
 // Stretch goal: move a lesson to a different module (same course version).
 // Places the lesson at the end of the destination module's lesson list.
-async function moveLessonToModule(lessonId, targetModuleId) {
+async function moveLessonToModule(lessonId, targetModuleId, opts) {
   const ref = findLesson(lessonId);
   const target = findModule(targetModuleId);
   if (!ref || !target) return;
@@ -1758,11 +1786,18 @@ async function moveLessonToModule(lessonId, targetModuleId) {
   const dstSnap = target.lessons.map(x => ({ id: x.id, position: x.position }));
   const srcModuleIdBefore = ref.lesson.module_id;
 
-  // Mutate in-memory state: remove from source, append to destination.
+  // Mutate in-memory state: remove from source, insert into destination.
+  // If opts.beforeLessonId is provided, insert at that index (above or below
+  // based on opts.placeAfter); otherwise append to the end.
   const srcIdx = srcModule.lessons.findIndex(x => x.id === lessonId);
   const [moved] = srcModule.lessons.splice(srcIdx, 1);
   moved.module_id = targetModuleId;
-  target.lessons.push(moved);
+  let insertIdx = target.lessons.length;
+  if (opts && opts.beforeLessonId) {
+    const refIdx = target.lessons.findIndex(x => x.id === opts.beforeLessonId);
+    if (refIdx >= 0) insertIdx = opts.placeAfter ? refIdx + 1 : refIdx;
+  }
+  target.lessons.splice(insertIdx, 0, moved);
   srcModule.lessons.forEach((x, i) => { x.position = i; });
   target.lessons.forEach((x, i) => { x.position = i; });
 
@@ -1790,8 +1825,11 @@ async function moveLessonToModule(lessonId, targetModuleId) {
   if (rpcErr && _isMissingRpc(rpcErr)) {
     // Fallback: update the lesson's module_id + reorder both modules with
     // per-row UPDATEs. Not transactional, but the RPC is the preferred path.
+    // Use the lesson's current optimistic position (set above) so we land
+    // in the right slot, not always at the end.
+    const movedPos = (moved.position != null) ? moved.position : target.lessons.length - 1;
     const moveRes = await sb.from('lessons')
-      .update({ module_id: targetModuleId, position: target.lessons.length - 1 })
+      .update({ module_id: targetModuleId, position: movedPos })
       .eq('id', lessonId);
     if (moveRes.error) {
       finalErr = moveRes.error;
