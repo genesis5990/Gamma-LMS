@@ -869,11 +869,21 @@ body {
 #stat-validation.has-issues { color: var(--st-bad); font-weight: 600; }
 #stat-validation.is-clean    { color: var(--st-good); }
 
-/* Lesson workflow status — three-state indicator next to "✓ clean" */
+/* Lesson workflow status — three-state indicator next to "✓ clean".
+ * Each box wears its hue as a border in the empty state, so the row reads
+ * as red/amber/green at a glance even before anything is selected. Filled
+ * state inverts: solid hue background + white ✓. */
 :root {
-  --wf-working:  #b91c1c; /* red 700 */
-  --wf-reviewed: #b45309; /* amber 700 */
-  --wf-ready:    #15803d; /* green 700 */
+  --wf-working-border:  #dc2626; /* red-600 */
+  --wf-working-text:    #b91c1c; /* red-700 */
+  --wf-reviewed-border: #d97706; /* amber-600 */
+  --wf-reviewed-text:   #b45309; /* amber-700 */
+  --wf-ready-border:    #16a34a; /* green-600 */
+  --wf-ready-text:      #15803d; /* green-700 */
+  /* Back-compat alias used elsewhere (sidebar tint, outline dot). */
+  --wf-working:  #b91c1c;
+  --wf-reviewed: #b45309;
+  --wf-ready:    #15803d;
 }
 .lesson-workflow {
   display: inline-flex; align-items: center; gap: 6px;
@@ -886,24 +896,33 @@ body {
 }
 .wf-box {
   width: 18px; height: 18px;
-  border: 1.5px solid var(--st-line);
+  border: 2px solid var(--st-line);
   border-radius: 4px;
-  background: var(--st-paper-2);
+  background: transparent;
   cursor: pointer; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background .12s, border-color .12s, transform .08s;
 }
 .wf-box:hover { transform: scale(1.08); }
 .wf-box:focus-visible { outline: 2px solid #4f6dd6; outline-offset: 2px; }
-.wf-box.wf-working[aria-pressed="true"]  { background: var(--wf-working);  border-color: var(--wf-working); }
-.wf-box.wf-reviewed[aria-pressed="true"] { background: var(--wf-reviewed); border-color: var(--wf-reviewed); }
-.wf-box.wf-ready[aria-pressed="true"]    { background: var(--wf-ready);    border-color: var(--wf-ready); }
+
+/* Empty state: hue-colored 2px border + transparent fill. */
+.wf-box.wf-working  { border-color: var(--wf-working-border); }
+.wf-box.wf-reviewed { border-color: var(--wf-reviewed-border); }
+.wf-box.wf-ready    { border-color: var(--wf-ready-border); }
+
+/* Hover (only when not selected): faint 10% tint inside the hue border. */
+.wf-box.wf-working:not([aria-pressed="true"]):hover  { background: rgba(220, 38, 38, 0.10); }
+.wf-box.wf-reviewed:not([aria-pressed="true"]):hover { background: rgba(217, 119, 6, 0.10); }
+.wf-box.wf-ready:not([aria-pressed="true"]):hover    { background: rgba(22, 163, 74, 0.10); }
+
+/* Selected state: solid hue fill + white ✓ glyph. */
+.wf-box.wf-working[aria-pressed="true"]  { background: var(--wf-working-border);  border-color: var(--wf-working-border); }
+.wf-box.wf-reviewed[aria-pressed="true"] { background: var(--wf-reviewed-border); border-color: var(--wf-reviewed-border); }
+.wf-box.wf-ready[aria-pressed="true"]    { background: var(--wf-ready-border);    border-color: var(--wf-ready-border); }
 .wf-box[aria-pressed="true"]::after {
   content: '✓'; color: #fff; font-size: 12px; line-height: 1; font-weight: 700;
 }
-.wf-box.wf-working:not([aria-pressed="true"]):hover  { border-color: var(--wf-working); }
-.wf-box.wf-reviewed:not([aria-pressed="true"]):hover { border-color: var(--wf-reviewed); }
-.wf-box.wf-ready:not([aria-pressed="true"]):hover    { border-color: var(--wf-ready); }
 
 /* Sidebar tinting — lesson title row reflects workflow_status */
 .outline-lesson.wf-working  > .outline-label { color: var(--wf-working);  font-weight: 600; }

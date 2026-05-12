@@ -5066,27 +5066,41 @@ function syncWorkflowWidget(lesson) {
 
 async function setLessonWorkflowStatus(lessonId, next) {
   const ref = findLesson(lessonId);
-  if (!ref) return;
+  if (!ref) {
+    console.warn('[studio] setLessonWorkflowStatus: lesson not found', lessonId);
+    return;
+  }
   const prev = ref.lesson.workflow_status || null;
   if (prev === next) return;
+  console.log('[studio] workflow_status', lessonId, prev, '→', next);
   // Optimistic update — local state + outline tint + widget.
   ref.lesson.workflow_status = next;
   syncWorkflowWidget(ref.lesson);
   applyOutlineWorkflowTint(ref.lesson);
 
-  const { error } = await sb.from('lessons')
-    .update({ workflow_status: next })
-    .eq('id', lessonId);
+  try {
+    const { data, error } = await sb.from('lessons')
+      .update({ workflow_status: next })
+      .eq('id', lessonId)
+      .select('id, workflow_status');
 
-  if (error) {
-    console.error('[studio] workflow_status update failed', error);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error('No rows updated — RLS may be denying the write');
+    }
+    // Reconcile with what the DB actually wrote (defensive — should equal `next`).
+    ref.lesson.workflow_status = data[0].workflow_status || null;
+    syncWorkflowWidget(ref.lesson);
+    applyOutlineWorkflowTint(ref.lesson);
+    toast(next ? `Lesson marked ${next}` : 'Lesson status cleared');
+  } catch (err) {
+    console.error('[studio] workflow_status update failed', err);
     ref.lesson.workflow_status = prev;
     syncWorkflowWidget(ref.lesson);
     applyOutlineWorkflowTint(ref.lesson);
-    toast(`Could not update status: ${error.message || 'permission denied'}`, 'is-error');
-    return;
+    const msg = err && (err.message || err.hint || err.details) || 'permission denied';
+    toast(`Could not update status: ${msg}`, 'is-error');
   }
-  toast(next ? `Lesson marked ${next}` : 'Lesson status cleared');
 }
 
 function applyOutlineWorkflowTint(lesson) {
@@ -5109,16 +5123,28 @@ function applyOutlineWorkflowTint(lesson) {
 
 function wireLessonWorkflowWidget() {
   const root = document.getElementById('lesson-workflow');
-  if (!root || root.dataset.wired === '1') return;
+  if (!root) {
+    console.warn('[studio] wireLessonWorkflowWidget: #lesson-workflow not in DOM');
+    return;
+  }
+  if (root.dataset.wired === '1') return;
   root.dataset.wired = '1';
   root.addEventListener('click', (e) => {
     const btn = e.target.closest('.wf-box');
     if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
     const lessonId = root.dataset.lessonId;
-    if (!lessonId) return;
+    if (!lessonId) {
+      console.warn('[studio] wf-box clicked but no lessonId on root');
+      return;
+    }
     const clicked = btn.dataset.wf;
-    const current = btn.getAttribute('aria-pressed') === 'true' ? clicked : null;
-    const next = current === clicked ? null : clicked; // toggle off if already selected
+    // Source of truth is the model, NOT the DOM — avoids stale aria-pressed
+    // racing with re-renders from refreshStatusBar/renderEditorBody.
+    const ref = findLesson(lessonId);
+    const current = ref ? (ref.lesson.workflow_status || null) : null;
+    const next = current === clicked ? null : clicked; // toggle off if same
     setLessonWorkflowStatus(lessonId, next);
   });
 }
@@ -5355,8 +5381,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.74' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.74');
+console.log('[studio] boot v0.4.75' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.4.75');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
