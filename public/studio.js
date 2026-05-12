@@ -2295,84 +2295,54 @@ function __stripInlineStyleIn(root, cssProp) {
   });
 }
 
-// Walk ancestors of `range` (up to `editor`) and remove `cssProp` from any
-// element whose inline style contains it. If the element wraps text that
-// extends beyond the range, split it so only the in-range portion loses the
-// style. Returns the (possibly new) range that still spans the original
-// content. Used by the "Default" branch of applyInlineStyle so picking
-// Default actually undoes an enclosing styled <span>.
-function __stripInlineStyleOnAncestors(editor, range, cssProp) {
-  // Find ancestors with the style set inline, between range and editor.
-  const ancestors = [];
-  let n = range.commonAncestorContainer;
-  if (n && n.nodeType === 3) n = n.parentNode;
-  while (n && n !== editor) {
-    if (n.nodeType === 1 && n.style && n.style.getPropertyValue(cssProp)) {
-      ancestors.push(n);
+// Lift `node` out of any ancestor span (up to `editor`) whose inline style
+// has `cssProp` set, splitting the ancestor around `node` so siblings keep
+// their style. Used by the "Default" branch of applyInlineStyle so picking
+// Default actually unwraps an enclosing styled <span>.
+function __liftNodeOutOfStyledAncestors(editor, node, cssProp) {
+  if (!node || !editor || !editor.contains(node)) return;
+  // Climb until we hit `editor`; for each ancestor that has cssProp set
+  // inline, split it so `node` becomes its own group and the property is
+  // stripped from that group.
+  let ancestor = node.parentNode;
+  while (ancestor && ancestor !== editor) {
+    const next = ancestor.parentNode;
+    if (ancestor.nodeType !== 1 || !ancestor.style || !ancestor.style.getPropertyValue(cssProp)) {
+      ancestor = next; continue;
     }
-    n = n.parentNode;
+    const parent = ancestor.parentNode;
+    if (!parent) { ancestor = next; continue; }
+    // Build left clone (everything before `node` inside ancestor) and right
+    // clone (everything after), inheriting the same attrs/style.
+    const kids = Array.from(ancestor.childNodes);
+    const idx = kids.indexOf(node);
+    if (idx < 0) { ancestor = next; continue; }
+    const leftKids  = kids.slice(0, idx);
+    const rightKids = kids.slice(idx + 1);
+
+    if (leftKids.length) {
+      const leftClone = ancestor.cloneNode(false);
+      leftKids.forEach(k => leftClone.appendChild(k));
+      parent.insertBefore(leftClone, ancestor);
+    }
+    if (rightKids.length) {
+      const rightClone = ancestor.cloneNode(false);
+      rightKids.forEach(k => rightClone.appendChild(k));
+      parent.insertBefore(rightClone, ancestor.nextSibling);
+    }
+    // ancestor now only contains `node`. Strip the property; unwrap if plain.
+    ancestor.style.removeProperty(cssProp);
+    const isPlain = ancestor.tagName === 'SPAN'
+      && (!ancestor.getAttribute('style') || ancestor.getAttribute('style').trim() === '')
+      && !ancestor.className && !ancestor.id;
+    if (isPlain) {
+      parent.insertBefore(node, ancestor);
+      parent.removeChild(ancestor);
+    } else if (ancestor.getAttribute('style') === '') {
+      ancestor.removeAttribute('style');
+    }
+    ancestor = next;
   }
-  if (!ancestors.length) return range;
-
-  // For each ancestor (deepest first), split it into up to 3 siblings:
-  // before-range | in-range | after-range, then remove the style on the
-  // in-range slice. Unwrap if the slice becomes a styleless plain <span>.
-  ancestors.forEach(anc => {
-    try {
-      // The new range we want to preserve, intersected with `anc`'s bounds.
-      const ancRange = document.createRange();
-      ancRange.selectNodeContents(anc);
-      // Clip to the actual selection
-      if (range.compareBoundaryPoints(Range.START_TO_START, ancRange) > 0) {
-        ancRange.setStart(range.startContainer, range.startOffset);
-      }
-      if (range.compareBoundaryPoints(Range.END_TO_END, ancRange) < 0) {
-        ancRange.setEnd(range.endContainer, range.endOffset);
-      }
-
-      // Slice contents: extract before+after to keep them styled, leave the
-      // middle in `anc` but strip the property.
-      const before = document.createRange();
-      before.setStart(anc, 0);
-      before.setEnd(ancRange.startContainer, ancRange.startOffset);
-      const after = document.createRange();
-      after.setStart(ancRange.endContainer, ancRange.endOffset);
-      after.setEnd(anc, anc.childNodes.length);
-
-      const beforeFrag = before.extractContents();
-      const afterFrag  = after.extractContents();
-      // `anc` now contains only the in-range content.
-
-      if (beforeFrag && beforeFrag.childNodes.length) {
-        const cloneBefore = anc.cloneNode(false);
-        while (beforeFrag.firstChild) cloneBefore.appendChild(beforeFrag.firstChild);
-        anc.parentNode.insertBefore(cloneBefore, anc);
-      }
-      if (afterFrag && afterFrag.childNodes.length) {
-        const cloneAfter = anc.cloneNode(false);
-        while (afterFrag.firstChild) cloneAfter.appendChild(afterFrag.firstChild);
-        anc.parentNode.insertBefore(cloneAfter, anc.nextSibling);
-      }
-
-      // Strip the property on `anc`. Unwrap if it became a styleless plain span.
-      anc.style.removeProperty(cssProp);
-      const isPlain = anc.tagName === 'SPAN'
-        && (!anc.getAttribute('style') || anc.getAttribute('style').trim() === '')
-        && !anc.className && !anc.id;
-      if (isPlain) {
-        const parent = anc.parentNode;
-        while (anc.firstChild) parent.insertBefore(anc.firstChild, anc);
-        parent.removeChild(anc);
-      } else if (anc.getAttribute('style') === '') {
-        anc.removeAttribute('style');
-      }
-    } catch (_) { /* keep going */ }
-  });
-  // Return a range that selects the original text — best-effort via the
-  // surviving start/end containers. If they got removed by unwrap, the
-  // caller dispatches an input event; the selection will simply collapse
-  // to the editor, which is acceptable for a Default action.
-  return range;
 }
 
 // Wrap the current selection in <span style="prop: value"> — or clear the
@@ -2398,17 +2368,21 @@ function applyInlineStyle(editor, cmd, value) {
   }
 
   // "Default" — unwrap inline font-family / font-size / color / background
-  // anywhere on the range: in descendants AND in enclosing ancestors.
+  // anywhere on the range: from descendants AND from enclosing ancestors.
   if (!value) {
-    // Expand to a temp wrapper so we can sweep descendants safely.
+    // Step 1: gather selection contents into a single temp wrapper so we
+    // have a stable handle on "exactly what was selected".
     const wrap = document.createElement('span');
     try {
       wrap.appendChild(range.extractContents());
       range.insertNode(wrap);
+      // Step 2: strip the property on any DESCENDANT of the wrap (the
+      // selection's own styled children).
       __stripInlineStyleIn(wrap, cssProp);
-      // Now strip the same property on ancestors that wrap the wrap.
-      __stripInlineStyleOnAncestors(editor, range, cssProp);
-      // Unwrap our temp wrapper (if it's still in DOM).
+      // Step 3: lift the wrap out of any ANCESTOR span that carries the
+      // property, splitting that ancestor around the wrap.
+      __liftNodeOutOfStyledAncestors(editor, wrap, cssProp);
+      // Step 4: dissolve the temp wrap, leaving its contents in place.
       if (wrap.parentNode) {
         const parent = wrap.parentNode;
         const newRange = document.createRange();
