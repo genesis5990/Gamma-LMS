@@ -2231,10 +2231,20 @@ function renderEditorBody() {
   }
 }
 
-// ---------- inline font / size helpers (shared by page + title editors) ----
+// ---------- inline font / size / color helpers (shared by all editors) ----
 // Maps the toolbar's data-cmd to the CSS property it applies.
-const __INLINE_STYLE_PROP = { 'font-family': 'fontFamily', 'font-size': 'fontSize' };
-const __INLINE_STYLE_CSS  = { 'font-family': 'font-family', 'font-size': 'font-size' };
+const __INLINE_STYLE_PROP = {
+  'font-family':      'fontFamily',
+  'font-size':        'fontSize',
+  'color':            'color',
+  'background-color': 'backgroundColor',
+};
+const __INLINE_STYLE_CSS  = {
+  'font-family':      'font-family',
+  'font-size':        'font-size',
+  'color':            'color',
+  'background-color': 'background-color',
+};
 
 // Ensure the current selection is inside `editor`. Returns true if so.
 function __selectionInside(editor) {
@@ -2336,7 +2346,9 @@ function wirePendingInlineStyle(editor) {
   editor.__pendingWired = true;
   editor.addEventListener('keydown', (e) => {
     const pending = editor.__pendingInlineStyle;
-    if (!pending || (!pending.fontFamily && !pending.fontSize)) return;
+    if (!pending) return;
+    const hasAny = pending.fontFamily || pending.fontSize || pending.color || pending.backgroundColor;
+    if (!hasAny) return;
     // only printable single-character keys
     if (e.key.length !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
     e.preventDefault();
@@ -2345,8 +2357,10 @@ function wirePendingInlineStyle(editor) {
     const range = sel.getRangeAt(0);
     if (!editor.contains(range.commonAncestorContainer)) return;
     const span = document.createElement('span');
-    if (pending.fontFamily) span.style.fontFamily = pending.fontFamily;
-    if (pending.fontSize)   span.style.fontSize   = pending.fontSize;
+    if (pending.fontFamily)     span.style.fontFamily     = pending.fontFamily;
+    if (pending.fontSize)       span.style.fontSize       = pending.fontSize;
+    if (pending.color)          span.style.color          = pending.color;
+    if (pending.backgroundColor)span.style.backgroundColor= pending.backgroundColor;
     span.appendChild(document.createTextNode(e.key));
     range.deleteContents();
     range.insertNode(span);
@@ -2434,6 +2448,81 @@ function renderFontControlsHTML() {
   `;
 }
 
+// Curated palettes for the text-color and highlight popovers.
+const TEXT_COLOR_SWATCHES = [
+  { label: 'Default', value: '' },
+  { label: 'Black',   value: '#0f172a' },
+  { label: 'Slate',   value: '#475569' },
+  { label: 'Red',     value: '#dc2626' },
+  { label: 'Orange',  value: '#ea580c' },
+  { label: 'Amber',   value: '#d97706' },
+  { label: 'Green',   value: '#16a34a' },
+  { label: 'Cyan',    value: '#0891b2' },
+  { label: 'Blue',    value: '#2563eb' },
+  { label: 'Indigo',  value: '#4f46e5' },
+  { label: 'Purple',  value: '#7c3aed' },
+  { label: 'Pink',    value: '#db2777' },
+];
+const HIGHLIGHT_SWATCHES = [
+  { label: 'No highlight', value: '' },
+  { label: 'Yellow',  value: '#fef08a' },
+  { label: 'Green',   value: '#bbf7d0' },
+  { label: 'Cyan',    value: '#a5f3fc' },
+  { label: 'Blue',    value: '#bfdbfe' },
+  { label: 'Pink',    value: '#fbcfe8' },
+  { label: 'Orange',  value: '#fed7aa' },
+  { label: 'Red',     value: '#fecaca' },
+];
+
+function __renderSwatchPopover(kind, swatches) {
+  const items = swatches.map((s, i) => {
+    const isClear = !s.value;
+    const swatchStyle = isClear
+      ? 'background:#fff;border:1px dashed #94a3b8;'
+      : `background:${s.value};`;
+    return `<button type="button" class="rt-swatch ${isClear ? 'is-clear' : ''}"
+              data-value="${escapeHtml(s.value)}"
+              tabindex="${i === 0 ? '0' : '-1'}"
+              aria-label="${escapeHtml(s.label)}"
+              title="${escapeHtml(s.label)}"
+              style="${swatchStyle}">${isClear ? '×' : ''}</button>`;
+  }).join('');
+  return `<div class="rt-popover" data-popover="${kind}" role="dialog" aria-label="${kind === 'color' ? 'Text color' : 'Highlight color'}" hidden>
+    <div class="rt-swatch-grid">${items}</div>
+    <div class="rt-popover-footer">
+      <label class="rt-custom">Custom <input type="color" data-cmd="${kind}-custom" /></label>
+    </div>
+  </div>`;
+}
+
+function renderAlignAndColorHTML() {
+  const colorPop = __renderSwatchPopover('color', TEXT_COLOR_SWATCHES);
+  const hlPop    = __renderSwatchPopover('highlight', HIGHLIGHT_SWATCHES);
+  // Inline SVGs match toolbar icon weight (12px stroke set on body, 1.8 width)
+  const alignLeft   = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 3h12M2 6h8M2 9h12M2 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>`;
+  const alignCenter = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 3h12M4 6h8M2 9h12M4 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>`;
+  const alignRight  = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 3h12M6 6h8M2 9h12M6 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>`;
+  return `
+    <button data-cmd="align-left"   type="button" title="Align left"   aria-label="Align left">${alignLeft}</button>
+    <button data-cmd="align-center" type="button" title="Align center" aria-label="Align center">${alignCenter}</button>
+    <button data-cmd="align-right"  type="button" title="Align right"  aria-label="Align right">${alignRight}</button>
+    <span class="toolbar-divider"></span>
+    <span class="rt-popover-wrap">
+      <button data-cmd="color-toggle" type="button" class="rt-color-btn" title="Text color" aria-label="Text color" aria-haspopup="dialog">
+        <span class="rt-color-glyph">A</span><span class="rt-color-bar" data-color-bar="color"></span>
+      </button>
+      ${colorPop}
+    </span>
+    <span class="rt-popover-wrap">
+      <button data-cmd="highlight-toggle" type="button" class="rt-color-btn" title="Highlight" aria-label="Highlight" aria-haspopup="dialog">
+        <span class="rt-color-glyph">▮</span><span class="rt-color-bar" data-color-bar="highlight"></span>
+      </button>
+      ${hlPop}
+    </span>
+    <span class="toolbar-divider"></span>
+  `;
+}
+
 // ---------- toolbar -----------------------------------------------
 function renderPageToolbar() {
   return `
@@ -2447,6 +2536,7 @@ function renderPageToolbar() {
     <button data-cmd="ol"             type="button" title="Numbered list">1. List</button>
     <button data-cmd="link"           type="button" title="Link (Ctrl+K)">Link</button>
     <span class="toolbar-divider"></span>
+    ${renderAlignAndColorHTML()}
     <button data-cmd="callout-info"    type="button" title="Info callout">Info</button>
     <button data-cmd="callout-warn"    type="button" title="Warning callout">Warn</button>
     <button data-cmd="callout-danger"  type="button" title="Danger callout">Danger</button>
@@ -2465,23 +2555,265 @@ function renderPageToolbar() {
   `;
 }
 
-function wireFontControls(getEditor) {
-  const toolbar = $('#editor-toolbar');
-  if (!toolbar) return;
-  toolbar.querySelectorAll('select.toolbar-select').forEach(sel => {
-    sel.addEventListener('change', (e) => {
+// Wire font/size selects, alignment buttons, and color/highlight popovers
+// against `toolbarEl` so they target the editor returned by `getEditor()`.
+// CRITICAL: clicking a <select> or <button> in the toolbar blurs the editor
+// which collapses the selection. We capture the editor's range on mousedown
+// (BEFORE the dropdown opens) and restore it before applying the style, so
+// the user's actual text selection survives.
+function wireInlineFormatControls(toolbarEl, getEditor) {
+  if (!toolbarEl) return;
+  let savedRange = null;
+
+  const saveSelection = () => {
+    const ed = getEditor();
+    if (!ed) return;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      const r = sel.getRangeAt(0);
+      if (ed.contains(r.commonAncestorContainer)) {
+        savedRange = r.cloneRange();
+      }
+    }
+  };
+  const restoreSelection = () => {
+    const ed = getEditor();
+    if (!ed) return;
+    ed.focus();
+    if (savedRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      try { sel.addRange(savedRange); } catch (_) {}
+    }
+  };
+
+  // Capture the editor's selection BEFORE any toolbar interaction steals focus.
+  // The capture phase ensures we run before the browser opens the native
+  // <select> dropdown (which blurs the editor and collapses the selection).
+  toolbarEl.addEventListener('mousedown', (e) => {
+    const t = e.target;
+    if (!t) return;
+    if (t.closest('select, .rt-popover-wrap, .rt-swatch, .rt-color-btn, [data-cmd="align-left"], [data-cmd="align-center"], [data-cmd="align-right"]')) {
+      saveSelection();
+    }
+  }, true);
+
+  // Font + size dropdowns
+  toolbarEl.querySelectorAll('select.toolbar-select').forEach(sel => {
+    sel.addEventListener('change', () => {
       const cmd = sel.dataset.cmd;
       const ed = getEditor();
       if (!ed) return;
-      // Selection must be inside the editor; re-focus and re-apply if needed
-      if (!__selectionInside(ed)) ed.focus();
+      restoreSelection();
       applyInlineStyle(ed, cmd, sel.value);
-      // Keep the dropdown reflecting the latest pick (no reset to default)
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    // Prevent the toolbar from stealing focus on mousedown so the editor's
-    // selection survives until the change event fires.
-    sel.addEventListener('mousedown', () => { /* allow native open */ });
   });
+
+  // Justify buttons
+  toolbarEl.querySelectorAll('[data-cmd="align-left"], [data-cmd="align-center"], [data-cmd="align-right"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const ed = getEditor();
+      if (!ed) return;
+      restoreSelection();
+      const cmd = btn.dataset.cmd;
+      const map = { 'align-left': 'left', 'align-center': 'center', 'align-right': 'right' };
+      applyTextAlign(ed, map[cmd]);
+      refreshActiveAlign(toolbarEl, ed);
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  });
+
+  // Reflect current cursor block's alignment when focus returns to the editor.
+  const ed0 = getEditor();
+  if (ed0 && !ed0.__alignSyncWired) {
+    ed0.__alignSyncWired = true;
+    const sync = () => refreshActiveAlign(toolbarEl, ed0);
+    ed0.addEventListener('keyup', sync);
+    ed0.addEventListener('mouseup', sync);
+    ed0.addEventListener('focus', sync);
+  }
+
+  // Color & highlight popovers
+  ['color', 'highlight'].forEach(kind => {
+    const wrap = toolbarEl.querySelector(`.rt-popover-wrap [data-popover="${kind}"]`)?.parentElement;
+    if (!wrap) return;
+    const trigger = wrap.querySelector(`[data-cmd="${kind}-toggle"]`);
+    const popover = wrap.querySelector(`[data-popover="${kind}"]`);
+    if (!trigger || !popover) return;
+
+    const closeAll = () => {
+      toolbarEl.querySelectorAll('.rt-popover').forEach(p => { p.hidden = true; });
+    };
+    trigger.addEventListener('mousedown', () => { saveSelection(); });
+    trigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      const wasOpen = !popover.hidden;
+      closeAll();
+      popover.hidden = wasOpen;
+      if (!wasOpen) {
+        const first = popover.querySelector('.rt-swatch');
+        if (first) first.focus();
+      }
+    });
+
+    popover.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.rt-swatch, input[type="color"]')) {
+        saveSelection();
+      }
+    });
+
+    // Swatch click
+    popover.querySelectorAll('.rt-swatch').forEach(sw => {
+      sw.addEventListener('click', (e) => {
+        e.preventDefault();
+        const val = sw.dataset.value || '';
+        const ed = getEditor();
+        if (!ed) { popover.hidden = true; return; }
+        restoreSelection();
+        const cssCmd = kind === 'color' ? 'color' : 'background-color';
+        applyInlineStyle(ed, cssCmd, val);
+        updateColorBar(toolbarEl, kind, val);
+        popover.hidden = true;
+        ed.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
+
+    // Keyboard nav inside popover: arrows + Enter
+    popover.addEventListener('keydown', (e) => {
+      const swatches = Array.from(popover.querySelectorAll('.rt-swatch'));
+      const cur = swatches.indexOf(document.activeElement);
+      if (e.key === 'Escape') { popover.hidden = true; trigger.focus(); return; }
+      if (e.key === 'Enter' && cur >= 0) { swatches[cur].click(); return; }
+      const cols = 4;
+      let next = cur;
+      if (e.key === 'ArrowRight') next = Math.min(swatches.length - 1, cur + 1);
+      else if (e.key === 'ArrowLeft') next = Math.max(0, cur - 1);
+      else if (e.key === 'ArrowDown') next = Math.min(swatches.length - 1, cur + cols);
+      else if (e.key === 'ArrowUp') next = Math.max(0, cur - cols);
+      else return;
+      e.preventDefault();
+      swatches.forEach(s => s.setAttribute('tabindex', '-1'));
+      if (swatches[next]) { swatches[next].setAttribute('tabindex', '0'); swatches[next].focus(); }
+    });
+
+    // Custom color picker
+    const customInp = popover.querySelector('input[type="color"]');
+    if (customInp) {
+      customInp.addEventListener('mousedown', () => { saveSelection(); });
+      customInp.addEventListener('input', (e) => {
+        const val = e.target.value || '';
+        const ed = getEditor();
+        if (!ed) return;
+        restoreSelection();
+        const cssCmd = kind === 'color' ? 'color' : 'background-color';
+        applyInlineStyle(ed, cssCmd, val);
+        updateColorBar(toolbarEl, kind, val);
+        ed.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      customInp.addEventListener('change', () => { popover.hidden = true; });
+    }
+
+    // Close popover on outside click
+    document.addEventListener('mousedown', (e) => {
+      if (popover.hidden) return;
+      if (!wrap.contains(e.target)) popover.hidden = true;
+    });
+  });
+}
+
+// Apply text-align to the nearest block ancestor of each top-level node in
+// the current selection. We avoid execCommand('justifyX') because in some
+// browsers it emits deprecated <div align="..."> markup.
+function applyTextAlign(editor, align) {
+  if (!editor) return;
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return;
+
+  const BLOCK_TAGS = /^(P|H1|H2|H3|H4|H5|H6|LI|DIV|BLOCKQUOTE|FIGCAPTION|PRE|TD|TH)$/;
+  const blockOf = (node) => {
+    let n = node.nodeType === 1 ? node : node.parentNode;
+    while (n && n !== editor) {
+      if (n.nodeType === 1 && BLOCK_TAGS.test(n.tagName)) return n;
+      n = n.parentNode;
+    }
+    return null;
+  };
+
+  // Walk every element/text node in the range; collect unique blocks.
+  const blocks = new Set();
+  const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => {
+      const r = document.createRange();
+      try {
+        r.selectNode(n);
+      } catch (_) { return NodeFilter.FILTER_REJECT; }
+      // Intersection check
+      if (range.compareBoundaryPoints(Range.END_TO_START, r) <= 0 &&
+          range.compareBoundaryPoints(Range.START_TO_END, r) >= 0) {
+        return NodeFilter.FILTER_ACCEPT;
+      }
+      return NodeFilter.FILTER_REJECT;
+    }
+  });
+  let node = walker.currentNode;
+  // include the start container itself
+  const startBlock = blockOf(range.startContainer);
+  if (startBlock) blocks.add(startBlock);
+  while ((node = walker.nextNode())) {
+    const b = blockOf(node);
+    if (b) blocks.add(b);
+  }
+  if (blocks.size === 0) {
+    // Fallback: wrap-less selection in editor root — wrap in <p>
+    const b = blockOf(range.startContainer) || editor;
+    if (b !== editor) blocks.add(b);
+  }
+  blocks.forEach(b => {
+    if (align === 'left') b.style.removeProperty('text-align');
+    else b.style.textAlign = align;
+  });
+}
+
+// Highlight the active alignment button reflecting the cursor's block.
+function refreshActiveAlign(toolbarEl, editor) {
+  if (!toolbarEl || !editor) return;
+  const sel = window.getSelection();
+  let align = 'left';
+  if (sel && sel.rangeCount && editor.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+    let n = sel.getRangeAt(0).startContainer;
+    if (n.nodeType === 3) n = n.parentNode;
+    while (n && n !== editor) {
+      if (n.nodeType === 1) {
+        const ta = n.style && n.style.textAlign;
+        if (ta) { align = ta; break; }
+        const css = window.getComputedStyle(n).textAlign;
+        if (css && /center|right/.test(css)) { align = css.startsWith('right') ? 'right' : 'center'; break; }
+      }
+      n = n.parentNode;
+    }
+  }
+  toolbarEl.querySelectorAll('[data-cmd^="align-"]').forEach(b => {
+    const want = b.dataset.cmd.replace('align-', '');
+    b.classList.toggle('is-active', want === align);
+  });
+}
+
+// Reflect the most-recently-picked color on the trigger button's color bar.
+function updateColorBar(toolbarEl, kind, value) {
+  const bar = toolbarEl.querySelector(`[data-color-bar="${kind}"]`);
+  if (!bar) return;
+  if (value) bar.style.backgroundColor = value;
+  else bar.style.backgroundColor = '';
+}
+
+// Back-compat shim — legacy callers (older flows) used wireFontControls;
+// keep the same name working but route through the new wiring.
+function wireFontControls(getEditor) {
+  wireInlineFormatControls($('#editor-toolbar'), getEditor);
 }
 
 function wirePageToolbar() {
@@ -2490,10 +2822,13 @@ function wirePageToolbar() {
   const insertHTML = (html) => { const e = ed(); if (!e) return; e.focus(); document.execCommand('insertHTML', false, html); };
   const trigger = () => { const e = ed(); if (e) e.dispatchEvent(new Event('input', { bubbles: true })); };
 
-  wireFontControls(ed);
+  wireInlineFormatControls($('#editor-toolbar'), ed);
   const _ed0 = ed(); if (_ed0) wirePendingInlineStyle(_ed0);
 
-  $('#editor-toolbar').querySelectorAll('button').forEach(btn => {
+  $('#editor-toolbar').querySelectorAll('button[data-cmd]').forEach(btn => {
+    const cmdName = btn.dataset.cmd;
+    // Skip controls already owned by wireInlineFormatControls.
+    if (/^(align-|color-toggle$|highlight-toggle$|color-custom$|highlight-custom$)/.test(cmdName)) return;
     btn.addEventListener('click', async (e) => {
       e.preventDefault();
       const cmd = btn.dataset.cmd;
@@ -2582,6 +2917,7 @@ function renderTitlePageToolbar() {
     <button data-cmd="ol"             type="button" title="Numbered list">1. List</button>
     <button data-cmd="link"           type="button" title="Link (Ctrl+K)">Link</button>
     <span class="toolbar-divider"></span>
+    ${renderAlignAndColorHTML()}
     <button data-cmd="callout-info"    type="button" title="Info callout">Info</button>
     <button data-cmd="callout-warn"    type="button" title="Warning callout">Warn</button>
     <button data-cmd="callout-success" type="button" title="Success callout">Success</button>
@@ -2600,10 +2936,12 @@ function wireTitlePageToolbar() {
   const insertHTML = (html) => { const e = ed(); if (!e) return; e.focus(); document.execCommand('insertHTML', false, html); };
   const trigger = () => { const e = ed(); if (e) e.dispatchEvent(new Event('input', { bubbles: true })); };
 
-  wireFontControls(ed);
+  wireInlineFormatControls($('#editor-toolbar'), ed);
   const _ted0 = ed(); if (_ted0) wirePendingInlineStyle(_ted0);
 
-  $('#editor-toolbar').querySelectorAll('button').forEach(btn => {
+  $('#editor-toolbar').querySelectorAll('button[data-cmd]').forEach(btn => {
+    const cmdName = btn.dataset.cmd;
+    if (/^(align-|color-toggle$|highlight-toggle$|color-custom$|highlight-custom$)/.test(cmdName)) return;
     btn.addEventListener('click', async (e) => {
       e.preventDefault();
       const cmd = btn.dataset.cmd;
@@ -3083,6 +3421,65 @@ async function onAppendixEdit(m, it) {
   await updateAppendixItem(m, it.id, patch);
 }
 
+// Toolbar for the appendix HTML editor (#apx-body). Same control palette as
+// the page / title-page toolbars: font/size, alignment, color, highlight,
+// plus core formatting buttons. Wired against #apx-toolbar so the saved-
+// selection pattern targets the appendix editor specifically.
+function renderAppendixToolbar() {
+  return `
+    ${renderFontControlsHTML()}
+    <button data-cmd="h2"     type="button" title="Heading">H2</button>
+    <button data-cmd="h3"     type="button" title="Sub-heading">H3</button>
+    <button data-cmd="p"      type="button" title="Paragraph">¶</button>
+    <button data-cmd="bold"   type="button" title="Bold"><b>B</b></button>
+    <button data-cmd="italic" type="button" title="Italic"><i>I</i></button>
+    <button data-cmd="ul"     type="button" title="Bulleted list">• List</button>
+    <button data-cmd="ol"     type="button" title="Numbered list">1. List</button>
+    <button data-cmd="link"   type="button" title="Link">Link</button>
+    <span class="toolbar-divider"></span>
+    ${renderAlignAndColorHTML()}
+    <button data-cmd="undo" type="button" title="Undo">↶</button>
+    <button data-cmd="redo" type="button" title="Redo">↷</button>
+  `;
+}
+function wireAppendixToolbar() {
+  const tb = $('#apx-toolbar');
+  if (!tb) return;
+  const ed = () => $('#apx-body');
+  const exec = (cmd, val = null) => { const e = ed(); if (!e) return; e.focus(); document.execCommand(cmd, false, val); };
+  wireInlineFormatControls(tb, ed);
+  tb.querySelectorAll('button[data-cmd]').forEach(btn => {
+    const cmd = btn.dataset.cmd;
+    if (/^(align-|color-toggle$|highlight-toggle$|color-custom$|highlight-custom$)/.test(cmd)) return;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switch (cmd) {
+        case 'h2': exec('formatBlock', '<h2>'); break;
+        case 'h3': exec('formatBlock', '<h3>'); break;
+        case 'p':  exec('formatBlock', '<p>');  break;
+        case 'bold':   exec('bold');   break;
+        case 'italic': exec('italic'); break;
+        case 'ul': exec('insertUnorderedList'); break;
+        case 'ol': exec('insertOrderedList');   break;
+        case 'undo': exec('undo'); break;
+        case 'redo': exec('redo'); break;
+        case 'link': {
+          const url = prompt('Link URL:', 'https://');
+          if (url) exec('createLink', url);
+          break;
+        }
+        case 'paste-plain': (async () => {
+          try {
+            const text = await navigator.clipboard.readText();
+            if (text) { ed()?.focus(); document.execCommand('insertText', false, text); }
+          } catch (_) {}
+        })();
+        break;
+      }
+    });
+  });
+}
+
 function openAppendixHtmlEditor(m, it) {
   const host = $('#editor-host');
   host.innerHTML = `
@@ -3099,14 +3496,20 @@ function openAppendixHtmlEditor(m, it) {
       <input id="apx-desc" type="text" value="${escapeHtml(it.description || '')}" placeholder="Short note shown under the title"
              style="width:100%; padding:8px 10px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; margin-bottom:10px; font-size:14px;">
       <label style="display:block; font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--studio-muted, #5b6788); margin-bottom:4px;">Body</label>
+      <div class="studio-pane-head studio-toolbar" id="apx-toolbar" style="border:1px solid var(--studio-line, #d9dfee); border-bottom:0; border-radius:6px 6px 0 0;">${renderAppendixToolbar()}</div>
       <div id="apx-body" class="studio-html-editor" contenteditable="true" spellcheck="true"
-           style="min-height:200px; max-height:480px; overflow:auto; padding:14px; border:1px solid var(--studio-line, #d9dfee); border-radius:6px; background:#fff;">${it.body_html || ''}</div>
+           style="min-height:200px; max-height:480px; overflow:auto; padding:14px; border:1px solid var(--studio-line, #d9dfee); border-radius:0 0 6px 6px; background:#fff;">${it.body_html || ''}</div>
     </div>
   `;
   // Wire the same inline-image overlay (Move / Replace / Alt / Delete) on
   // the appendix body so authors can edit/remove images here too.
   const apxBodyEl = $('#apx-body');
-  if (apxBodyEl) { wireInlineImageControls(apxBodyEl); wireInlineBlockControls(apxBodyEl); }
+  if (apxBodyEl) {
+    wireInlineImageControls(apxBodyEl);
+    wireInlineBlockControls(apxBodyEl);
+    wireAppendixToolbar();
+    wirePendingInlineStyle(apxBodyEl);
+  }
 
   $('#apx-back').addEventListener('click', () => {
     state.selection = { kind: 'appendix', id: m.id };

@@ -1894,3 +1894,108 @@ sup.cite-marker.cite-missing {
   max-width: 100%;
   text-overflow: ellipsis;
 }
+
+/* ===== Rich-text toolbar: alignment + color/highlight popovers ===== */
+.studio-toolbar button[data-cmd^="align-"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+}
+.studio-toolbar button[data-cmd^="align-"].is-active {
+  background: var(--st-accent, #1f63d6);
+  border-color: var(--st-accent, #1f63d6);
+  color: #fff;
+}
+.studio-toolbar button[data-cmd^="align-"].is-active svg path { stroke: #fff; }
+
+.studio-toolbar .rt-popover-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.studio-toolbar .rt-color-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 2px 0;
+  line-height: 1;
+}
+.studio-toolbar .rt-color-btn .rt-color-glyph {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+.studio-toolbar .rt-color-btn .rt-color-bar {
+  display: block;
+  width: 16px;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: 1px;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,.08);
+}
+
+.studio-toolbar .rt-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  background: #fff;
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(15,23,42,.12);
+  padding: 8px;
+  min-width: 160px;
+}
+.studio-toolbar .rt-popover[hidden] { display: none; }
+.studio-toolbar .rt-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.studio-toolbar .rt-swatch {
+  width: 28px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(15,23,42,.18);
+  cursor: pointer;
+  padding: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.studio-toolbar .rt-swatch:hover { transform: scale(1.06); }
+.studio-toolbar .rt-swatch:focus-visible {
+  outline: 2px solid var(--st-accent, #1f63d6);
+  outline-offset: 1px;
+}
+.studio-toolbar .rt-popover-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--st-line, #d9dfee);
+  font-size: 12px;
+}
+.studio-toolbar .rt-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--st-muted, #5b6788);
+  cursor: pointer;
+}
+.studio-toolbar .rt-custom input[type="color"] {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
