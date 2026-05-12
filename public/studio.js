@@ -1381,9 +1381,13 @@ function renderOutline() {
     <span class="outline-label" data-rename="course" title="${escapeHtml(state.course.title)}">${escapeHtml(state.course.title)}</span>
   </div>`);
   for (const m of state.modules) {
+    const moduleWf = moduleRollupStatus(m);
+    const mWfCls = moduleWf ? ` wf-${moduleWf}` : '';
+    const mWfDot = moduleWf ? `<span class="outline-wf-dot" title="${moduleWf}"></span>` : '';
     html.push(`<div class="outline-children" data-module-id="${m.id}">`);
-    html.push(`<div class="outline-node outline-module" data-kind="module" data-id="${m.id}" title="${escapeHtml(m.title)}">
+    html.push(`<div class="outline-node outline-module${mWfCls}" data-kind="module" data-id="${m.id}" title="${escapeHtml(m.title)}">
       <span class="outline-icon">M</span>
+      ${mWfDot}
       <span class="outline-label" data-rename="module" title="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
       <span class="outline-meta">${m.lessons.length}L</span>
       <span class="outline-node-actions">
@@ -1394,8 +1398,9 @@ function renderOutline() {
       </span>
     </div>`);
     for (const l of m.lessons) {
-      const wfCls = l.workflow_status ? ` wf-${l.workflow_status}` : '';
-      const wfDot = l.workflow_status ? `<span class="outline-wf-dot" title="${l.workflow_status}"></span>` : '';
+      const lessonWf = lessonRollupStatus(l);
+      const wfCls = lessonWf ? ` wf-${lessonWf}` : '';
+      const wfDot = lessonWf ? `<span class="outline-wf-dot" title="${lessonWf}"></span>` : '';
       html.push(`<div class="outline-node outline-lesson${wfCls}" data-kind="lesson" data-id="${l.id}" data-parent-id="${m.id}" title="${escapeHtml(l.title)}">
         <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder lesson" title="Drag to reorder">≡</span>
         <span class="outline-icon">L</span>
@@ -1412,9 +1417,13 @@ function renderOutline() {
         const p = l.pages[i];
         const pageLabel = derivePageTitle(p);
         const isDerived = !(p.title && p.title.trim());
-        html.push(`<div class="outline-node outline-page" data-kind="page" data-id="${p.id}" data-parent-id="${l.id}" title="${escapeHtml(pageLabel)}">
+        const pWf = p.workflow_status || null;
+        const pWfCls = pWf ? ` wf-${pWf}` : '';
+        const pWfDot = pWf ? `<span class="outline-wf-dot" title="${pWf}"></span>` : '';
+        html.push(`<div class="outline-node outline-page${pWfCls}" data-kind="page" data-id="${p.id}" data-parent-id="${l.id}" title="${escapeHtml(pageLabel)}">
           <span class="outline-handle" draggable="true" role="button" tabindex="0" aria-label="Drag to reorder page" title="Drag to reorder">≡</span>
           <span class="outline-icon">${i+1}</span>
+          ${pWfDot}
           <span class="outline-label${isDerived ? ' is-derived' : ''}" data-rename="page" title="${escapeHtml(pageLabel)}">${escapeHtml(pageLabel)}</span>
           <span class="outline-node-actions">
             <button data-act="dup" title="Duplicate">⎘</button>
@@ -2093,6 +2102,7 @@ function renderEditorBody() {
     if (!ref) return clearEditor();
     toolbar.innerHTML = renderPageToolbar();
     wirePageToolbar();
+    syncWorkflowWidget(ref.page);
     if (state.htmlMode) {
       host.innerHTML = `<textarea id="html-source" class="studio-html-editor" spellcheck="false"
         style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;width:100%;height:100%;border:0;padding:18px 24px;resize:none;outline:none;">${escapeHtml(ref.page.body_html || '')}</textarea>`;
@@ -2158,7 +2168,8 @@ function renderEditorBody() {
       <h2>${escapeHtml(ref.lesson.title)}</h2>
       <p>${ref.lesson.pages.length} page${ref.lesson.pages.length===1?'':'s'} in this lesson. Select one from the outline to edit.</p>
     </div>`;
-    syncWorkflowWidget(ref.lesson);
+    // Workflow widget is per-page now — hide on lesson selection.
+    syncWorkflowWidget(null);
     return;
   }
 
@@ -5307,7 +5318,7 @@ function refreshStatusBar() {
     syncWorkflowWidget(null);
     return;
   }
-  syncWorkflowWidget(ref.lesson);
+  syncWorkflowWidget(ref.page);
   const html = ref.page.body_html || '';
   const tmp = document.createElement('div'); tmp.innerHTML = html;
   const text = tmp.textContent.trim();
@@ -5329,41 +5340,71 @@ function refreshStatusBar() {
 }
 
 // =====================================================================
-// LESSON WORKFLOW STATUS — three-state indicator beside "✓ clean".
-// State lives on lessons.workflow_status (working|reviewed|ready|NULL).
-// Persisted directly (not via dirty-staging) so the indicator is a single
-// authoritative click with optimistic UI + revert-on-failure.
+// PAGE WORKFLOW STATUS — three-state indicator beside "✓ clean".
+// State lives on pages.workflow_status (working|reviewed|ready|NULL).
+// The lesson row's tint in the outline is computed via lessonRollupStatus,
+// and the module row's tint via moduleRollupStatus. Persisted directly
+// (not via dirty-staging) — optimistic UI + revert-on-failure.
 // =====================================================================
-function syncWorkflowWidget(lesson) {
+
+// Rollup: lesson is green only if every page is ready; amber if every page
+// is ready/reviewed (with at least one reviewed); red if any page is
+// working; null otherwise (no pages, or mixed null + ready/reviewed).
+// A page with NULL status counts as "not ready" — one unset page is enough
+// to prevent the lesson from going green.
+function lessonRollupStatus(lesson) {
+  const pages = lesson.pages || [];
+  if (pages.length === 0) return lesson.workflow_status || null;
+  const statuses = pages.map(p => p.workflow_status || null);
+  if (statuses.some(s => s === 'working')) return 'working';
+  if (statuses.every(s => s === 'ready')) return 'ready';
+  if (statuses.every(s => s === 'ready' || s === 'reviewed') && statuses.some(s => s === 'reviewed')) return 'reviewed';
+  return null;
+}
+
+// Same logic, one level up — module rolls up from its child lessons.
+function moduleRollupStatus(mod) {
+  const lessons = mod.lessons || [];
+  if (lessons.length === 0) return null;
+  const statuses = lessons.map(l => lessonRollupStatus(l));
+  if (statuses.some(s => s === 'working')) return 'working';
+  if (statuses.every(s => s === 'ready')) return 'ready';
+  if (statuses.every(s => s === 'ready' || s === 'reviewed') && statuses.some(s => s === 'reviewed')) return 'reviewed';
+  return null;
+}
+
+function syncWorkflowWidget(page) {
   const root = document.getElementById('lesson-workflow');
   if (!root) return;
-  if (!lesson) { root.hidden = true; return; }
+  if (!page) { root.hidden = true; return; }
   root.hidden = false;
-  root.dataset.lessonId = lesson.id;
-  const status = lesson.workflow_status || null;
+  root.dataset.pageId = page.id;
+  const status = page.workflow_status || null;
   root.querySelectorAll('.wf-box').forEach(btn => {
     btn.setAttribute('aria-pressed', btn.dataset.wf === status ? 'true' : 'false');
   });
 }
 
-async function setLessonWorkflowStatus(lessonId, next) {
-  const ref = findLesson(lessonId);
+async function setPageWorkflowStatus(pageId, next) {
+  const ref = findPage(pageId);
   if (!ref) {
-    console.warn('[studio] setLessonWorkflowStatus: lesson not found', lessonId);
+    console.warn('[studio] setPageWorkflowStatus: page not found', pageId);
     return;
   }
-  const prev = ref.lesson.workflow_status || null;
+  const prev = ref.page.workflow_status || null;
   if (prev === next) return;
-  console.log('[studio] workflow_status', lessonId, prev, '→', next);
-  // Optimistic update — local state + outline tint + widget.
-  ref.lesson.workflow_status = next;
-  syncWorkflowWidget(ref.lesson);
-  applyOutlineWorkflowTint(ref.lesson);
+  console.log('[studio] page workflow_status', pageId, prev, '→', next);
+  // Optimistic update — local state + outline tints (page, lesson, module) + widget.
+  ref.page.workflow_status = next;
+  syncWorkflowWidget(ref.page);
+  applyOutlinePageTint(ref.page);
+  applyOutlineLessonTint(ref.lesson);
+  applyOutlineModuleTint(ref.module);
 
   try {
-    const { data, error } = await sb.from('lessons')
+    const { data, error } = await sb.from('pages')
       .update({ workflow_status: next })
-      .eq('id', lessonId)
+      .eq('id', pageId)
       .select('id, workflow_status');
 
     if (error) throw error;
@@ -5371,45 +5412,58 @@ async function setLessonWorkflowStatus(lessonId, next) {
       throw new Error('No rows updated — RLS may be denying the write');
     }
     // Reconcile with what the DB actually wrote (defensive — should equal `next`).
-    ref.lesson.workflow_status = data[0].workflow_status || null;
-    syncWorkflowWidget(ref.lesson);
-    applyOutlineWorkflowTint(ref.lesson);
-    toast(next ? `Lesson marked ${next}` : 'Lesson status cleared');
+    ref.page.workflow_status = data[0].workflow_status || null;
+    syncWorkflowWidget(ref.page);
+    applyOutlinePageTint(ref.page);
+    applyOutlineLessonTint(ref.lesson);
+    applyOutlineModuleTint(ref.module);
+    toast(next ? `Page marked ${next}` : 'Page status cleared');
   } catch (err) {
-    console.error('[studio] workflow_status update failed', err);
-    ref.lesson.workflow_status = prev;
-    syncWorkflowWidget(ref.lesson);
-    applyOutlineWorkflowTint(ref.lesson);
+    console.error('[studio] page workflow_status update failed', err);
+    ref.page.workflow_status = prev;
+    syncWorkflowWidget(ref.page);
+    applyOutlinePageTint(ref.page);
+    applyOutlineLessonTint(ref.lesson);
+    applyOutlineModuleTint(ref.module);
     const msg = err && (err.message || err.hint || err.details) || 'permission denied';
     toast(`Could not update status: ${msg}`, 'is-error');
   }
 }
 
-function applyOutlineWorkflowTint(lesson) {
-  const row = document.querySelector(`.outline-lesson[data-id="${lesson.id}"]`);
+// Shared DOM helper: re-apply wf-* class + dot on one outline row, given
+// the kind selector and a status string (or null to clear).
+function _applyRowWf(selector, status) {
+  const row = document.querySelector(selector);
   if (!row) return;
   row.classList.remove('wf-working', 'wf-reviewed', 'wf-ready');
-  // Remove any dot — could be a direct child (new layout) or inside .outline-label (legacy).
-  row.querySelectorAll('.outline-wf-dot').forEach(d => d.remove());
-  if (lesson.workflow_status) {
-    row.classList.add(`wf-${lesson.workflow_status}`);
-    const label = row.querySelector('.outline-label');
+  row.querySelectorAll(':scope > .outline-wf-dot').forEach(d => d.remove());
+  if (status) {
+    row.classList.add(`wf-${status}`);
+    const label = row.querySelector(':scope > .outline-label');
     if (label) {
       const dot = document.createElement('span');
       dot.className = 'outline-wf-dot';
-      dot.title = lesson.workflow_status;
-      // Insert as a sibling immediately before the label so the dot gets its
-      // own column in the flex row and doesn't crowd the title text.
+      dot.title = status;
       label.parentNode.insertBefore(dot, label);
     }
   }
 }
 
+function applyOutlinePageTint(page) {
+  _applyRowWf(`.outline-page[data-id="${page.id}"]`, page.workflow_status || null);
+}
+
+function applyOutlineLessonTint(lesson) {
+  _applyRowWf(`.outline-lesson[data-id="${lesson.id}"]`, lessonRollupStatus(lesson));
+}
+
+function applyOutlineModuleTint(mod) {
+  _applyRowWf(`.outline-module[data-id="${mod.id}"]`, moduleRollupStatus(mod));
+}
+
 function wireLessonWorkflowWidget() {
-  // The studio shell renders #lesson-workflow inside <template id="tpl-editor">,
-  // which is inert until renderEditor() clones it. Binding to the template's
-  // element at boot finds nothing. Delegate on document instead — works
-  // regardless of when (or how many times) the editor template is mounted.
+  // Delegate on document — #lesson-workflow lives inside <template id="tpl-editor">,
+  // so it isn't in the DOM until renderEditor() clones it. Works across re-mounts.
   if (document.__wfWired) return;
   document.__wfWired = true;
   document.addEventListener('click', (e) => {
@@ -5419,16 +5473,16 @@ function wireLessonWorkflowWidget() {
     if (!root) return;
     e.preventDefault();
     e.stopPropagation();
-    const lessonId = root.dataset.lessonId;
-    if (!lessonId) {
-      console.warn('[studio] wf-box clicked but no lessonId on root');
+    const pageId = root.dataset.pageId;
+    if (!pageId) {
+      console.warn('[studio] wf-box clicked but no pageId on root');
       return;
     }
     const clicked = btn.dataset.wf;
-    const ref = findLesson(lessonId);
-    const current = ref ? (ref.lesson.workflow_status || null) : null;
+    const ref = findPage(pageId);
+    const current = ref ? (ref.page.workflow_status || null) : null;
     const next = current === clicked ? null : clicked;
-    setLessonWorkflowStatus(lessonId, next);
+    setPageWorkflowStatus(pageId, next);
   });
 }
 
