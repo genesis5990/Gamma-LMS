@@ -163,27 +163,24 @@
       return window.tenant;
     }
 
-    // Fetch tenant branding. Post-migration 0015, tenants_public is the
-    // public-safe view (id, slug, name, logo_url, logo_url_white, primary_color,
-    // secondary_color, enrollment_mode). Until the migration lands we fall
-    // back to the legacy tenants table, which still has anon SELECT.
-    const VIEW = 'tenants_public';
-    const TABLE = 'tenants';
-    const cols = 'id,slug,name,logo_url,logo_url_white,primary_color,secondary_color,enrollment_mode';
-    const buildUrl = (resource) =>
-      `${window.SUPABASE_URL}/rest/v1/${resource}`
-        + `?slug=eq.${encodeURIComponent(slugFromUrl)}`
-        + `&select=${cols}`;
+    // Fetch tenant branding via the get_tenant_branding RPC. Migration 0017
+    // replaced the public.tenants_public view with a SECURITY DEFINER function
+    // so anon callers can read branding fields (id, slug, name, logo_url,
+    // logo_url_white, primary_color, secondary_color, enrollment_mode) without
+    // an RLS SELECT policy on public.tenants, which would otherwise expose
+    // sensitive columns (billing_status, contact_email, email_domains, etc).
+    // The RPC returns a JSON array of rows, same shape as the old view.
     const headers = {
+      'Content-Type': 'application/json',
       apikey: window.SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${window.SUPABASE_PUBLISHABLE_KEY}`
     };
     try {
-      let resp = await fetch(buildUrl(VIEW), { headers });
-      if (!resp.ok && resp.status === 404) {
-        // tenants_public not deployed yet — fall back to direct tenants read.
-        resp = await fetch(buildUrl(TABLE), { headers });
-      }
+      const resp = await fetch(`${window.SUPABASE_URL}/rest/v1/rpc/get_tenant_branding`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ p_slug: slugFromUrl })
+      });
       if (!resp.ok) throw new Error(`tenant fetch ${resp.status}`);
       const rows = await resp.json();
       if (!rows.length) {
