@@ -1,4 +1,4 @@
-// supabase/functions/issue-certificate/index.ts  — v0.4.89
+// supabase/functions/issue-certificate/index.ts  — v0.4.90
 //
 // Issues a completion certificate for the calling user.
 //
@@ -24,7 +24,7 @@ import qrcode from "npm:qrcode-generator@1.4.4";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY     = Deno.env.get("SUPABASE_ANON_KEY")!;
-const PUBLIC_SITE  = Deno.env.get("PUBLIC_SITE_URL") ?? "https://deconflict.com";
+const PUBLIC_SITE  = Deno.env.get("PUBLIC_SITE_URL") ?? "https://mygenesis-training.com";
 const SIGNED_TTL   = 60 * 60 * 24 * 30; // 30 days
 
 const cors = {
@@ -447,7 +447,7 @@ async function renderCertificatePdf(opts: {
   // short URL (host + first 12 of hash)
   const shortHash = opts.certHash.slice(0, 12);
   centerTextAtCenter(page,
-    "deconflict.com/verify/" + shortHash,
+    "mygenesis-training.com/verify/" + shortHash,
     verifyCx, qrY - 24, fontMono, 6.5, ink, 0);
   // full hash split in two lines
   const half = Math.ceil(opts.certHash.length / 2);
