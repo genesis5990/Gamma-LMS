@@ -661,11 +661,20 @@ async function loadCourseFromSupabase(slug) {
   let course = null;
   let cErr = null;
   {
+    // v0.4.93: also request tos_version (migration 0018). If the column has
+    // not been applied yet, retry without it so the page still loads on
+    // environments where the migration is pending.
     const r = await sb.from('courses')
-      .select('id, slug, title, description, hero_image_url, hero_image_alt, welcome_message, current_version_id, visibility, tenant_id, pass_threshold')
+      .select('id, slug, title, description, hero_image_url, hero_image_alt, welcome_message, current_version_id, visibility, tenant_id, pass_threshold, tos_version')
       .eq('slug', slug)
       .maybeSingle();
-    if (r.error && /welcome_message/i.test(r.error.message || '')) {
+    if (r.error && /tos_version/i.test(r.error.message || '')) {
+      const r2 = await sb.from('courses')
+        .select('id, slug, title, description, hero_image_url, hero_image_alt, welcome_message, current_version_id, visibility, tenant_id, pass_threshold')
+        .eq('slug', slug)
+        .maybeSingle();
+      course = r2.data; cErr = r2.error;
+    } else if (r.error && /welcome_message/i.test(r.error.message || '')) {
       const r2 = await sb.from('courses')
         .select('id, slug, title, description, hero_image_url, hero_image_alt, current_version_id, visibility, tenant_id, pass_threshold')
         .eq('slug', slug)
@@ -829,7 +838,8 @@ async function loadCourseFromSupabase(slug) {
       hero_image_url: course.hero_image_url,
       hero_image_alt: course.hero_image_alt,
       welcome_message: course.welcome_message || null,
-      current_version_id: course.current_version_id || null
+      current_version_id: course.current_version_id || null,
+      tos_version: course.tos_version || null
     },
     pass_threshold: typeof course.pass_threshold === 'number' ? (course.pass_threshold / 100) : 0.7
   };
@@ -1443,19 +1453,47 @@ async function hasAcceptedTos(courseId) {
     console.log('[tos] hasAcceptedTos short-circuit', { hasSb: !!sb, hasUser: !!user, courseId });
     return false;
   }
+  // v0.4.93: also request accepted_tos_version (migration 0018). If the
+  // column is not present yet, fall back to the original projection so the
+  // gate still works on environments where the migration is pending.
   try {
-    const { data, error } = await sb
-      .from('course_tos_acceptances')
-      .select('id, accepted_at')
-      .eq('user_id', user.id)
-      .eq('course_id', courseId)
-      .maybeSingle();
-    if (error) {
-      console.error('[tos] read failed:', error.code, error.message, error.details);
+    let row = null;
+    let err = null;
+    {
+      const r = await sb
+        .from('course_tos_acceptances')
+        .select('id, accepted_at, accepted_tos_version')
+        .eq('user_id', user.id)
+        .eq('course_id', courseId)
+        .maybeSingle();
+      if (r.error && /accepted_tos_version/i.test(r.error.message || '')) {
+        const r2 = await sb
+          .from('course_tos_acceptances')
+          .select('id, accepted_at')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .maybeSingle();
+        row = r2.data; err = r2.error;
+      } else {
+        row = r.data; err = r.error;
+      }
+    }
+    if (err) {
+      console.error('[tos] read failed:', err.code, err.message, err.details);
       return false;
     }
-    console.log('[tos] read ok', { courseId, accepted: !!data, accepted_at: data?.accepted_at });
-    return !!data;
+    if (!row) {
+      console.log('[tos] read ok', { courseId, accepted: false });
+      return false;
+    }
+    // Version comparison. If the course has no published tos_version, any
+    // existing acceptance counts (NULL == NULL contract). Otherwise the
+    // accepted version must match the current course version.
+    const courseVersion = (COURSE && COURSE.course_meta && COURSE.course_meta.tos_version) || null;
+    const acceptedVersion = row.accepted_tos_version || null;
+    const versionsMatch = (courseVersion === acceptedVersion) || (courseVersion == null);
+    console.log('[tos] read ok', { courseId, accepted: versionsMatch, accepted_at: row.accepted_at, courseVersion, acceptedVersion });
+    return versionsMatch;
   } catch (e) {
     console.error('[tos] read threw:', e);
     return false;
@@ -1476,18 +1514,32 @@ async function recordTosAcceptance(courseId, courseVersionId) {
     console.warn('[tos] cannot record — missing prerequisite', { hasSb: !!sb, hasUser: !!user, courseId });
     return;
   }
+  // v0.4.93: also write accepted_tos_version when the courses row carries
+  // a tos_version (migration 0018). If the column is not present on this
+  // environment, retry without it so the write still succeeds.
+  const ua = (navigator && navigator.userAgent) ? String(navigator.userAgent).slice(0, 500) : null;
+  const tosVersion = (COURSE && COURSE.course_meta && COURSE.course_meta.tos_version) || null;
+  const baseRow = {
+    user_id: user.id,
+    course_id: courseId,
+    course_version_id: courseVersionId || null,
+    user_agent: ua
+  };
   try {
-    const ua = (navigator && navigator.userAgent) ? String(navigator.userAgent).slice(0, 500) : null;
-    const { data, error } = await sb
+    let { data, error } = await sb
       .from('course_tos_acceptances')
-      .upsert({
-        user_id: user.id,
-        course_id: courseId,
-        course_version_id: courseVersionId || null,
-        user_agent: ua
-      }, { onConflict: 'user_id,course_id', ignoreDuplicates: false })
+      .upsert({ ...baseRow, accepted_tos_version: tosVersion },
+              { onConflict: 'user_id,course_id', ignoreDuplicates: false })
       .select('id, accepted_at')
       .maybeSingle();
+    if (error && /accepted_tos_version/i.test(error.message || '')) {
+      const r = await sb
+        .from('course_tos_acceptances')
+        .upsert(baseRow, { onConflict: 'user_id,course_id', ignoreDuplicates: false })
+        .select('id, accepted_at')
+        .maybeSingle();
+      data = r.data; error = r.error;
+    }
     if (error) {
       console.error('[tos] write failed:', error.code, error.message, error.details, error.hint);
       return;
@@ -1498,7 +1550,17 @@ async function recordTosAcceptance(courseId, courseVersionId) {
   }
 }
 
-function renderTitlePage() {
+// v0.4.93: renderTitlePage now supports a "post-acceptance" mode. If the
+// signed-in user has already accepted the ToS for this course, the page
+// renders the same welcome + disclosures but WITHOUT the checkbox gate
+// (no re-prompt). The user contract: agree once per course, that's it,
+// unless the ToS itself changes (see tos_version on courses / accepted_tos_version
+// on course_tos_acceptances, added in migration 0018).
+//
+// Pass { accepted: true } when the caller already knows the acceptance
+// state (avoids a redundant Supabase round-trip). Otherwise the function
+// reads it on its own.
+async function renderTitlePage(opts) {
   window.__activeId = TITLE_PAGE_ID;
   const meta = (COURSE && COURSE.course_meta) || {};
   const title = meta.title || 'Welcome';
@@ -1506,7 +1568,8 @@ function renderTitlePage() {
   const heroAlt = (meta.hero_image_alt == null ? title : meta.hero_image_alt);
   const welcomeRaw = (meta.welcome_message && String(meta.welcome_message).trim())
     || ('Welcome to ' + title + ". We're glad you're here.");
-  const previewBanner = isStudioPreview()
+  const previewMode = isStudioPreview();
+  const previewBanner = previewMode
     ? `<div class="title-page-preview-banner">Studio author preview — ToS acceptance is not recorded.</div>`
     : '';
 
@@ -1514,13 +1577,21 @@ function renderTitlePage() {
     ? `<figure class="title-hero-img"><img src="${escapeAttr(heroUrl)}" alt="${escapeAttr(heroAlt)}" loading="eager" /></figure>`
     : '';
 
-  document.getElementById('content').innerHTML = `
-    <div class="title-page">
-      ${previewBanner}
-      ${heroHtml}
-      <h1 class="title-page-title">${escapeText(title)}</h1>
-      <p class="title-page-welcome">${escapeText(welcomeRaw)}</p>
+  // Resolve acceptance. Studio preview is never treated as accepted (authors
+  // can verify the gating UI). Otherwise, prefer the caller-supplied flag.
+  let accepted = false;
+  if (!previewMode) {
+    if (opts && typeof opts.accepted === 'boolean') {
+      accepted = opts.accepted;
+    } else {
+      const u = (typeof window.currentUser === 'function') ? window.currentUser() : null;
+      if (u && meta.id) {
+        try { accepted = await hasAcceptedTos(meta.id); } catch (_e) { accepted = false; }
+      }
+    }
+  }
 
+  const disclosuresHtml = `
       <div class="title-page-disclosures">
         <h3>Before you begin</h3>
         <dl>
@@ -1534,10 +1605,16 @@ function renderTitlePage() {
           <dd>This course is provided for educational purposes only. Nothing here constitutes legal, financial, investment, or tax advice. Consult qualified professionals for guidance on your specific situation.</dd>
 
           <dt>Training-only · law-enforcement context</dt>
-          <dd>Material is for training and educational use only. Case examples are illustrative, not operational. Nothing in this course authorizes any specific investigative action — follow your agency's policies and applicable law.</dd>
+          <dd>Material is for training and educational use only. Case examples are illustrative, not operational. Nothing in this course authorizes any specific investigative action, follow your agency's policies and applicable law.</dd>
         </dl>
-      </div>
+      </div>`;
 
+  const gateHtml = accepted
+    ? `
+      <div class="title-page-actions">
+        <button class="btn btn-primary" id="titleContinueBtn">Continue →</button>
+      </div>`
+    : `
       <div class="title-page-tos">
         <label>
           <input type="checkbox" id="titleTosAck" />
@@ -1549,25 +1626,38 @@ function renderTitlePage() {
 
       <div class="title-page-actions">
         <button class="btn btn-primary" id="titleContinueBtn" disabled>Begin course →</button>
-      </div>
+      </div>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="title-page">
+      ${previewBanner}
+      ${heroHtml}
+      <h1 class="title-page-title">${escapeText(title)}</h1>
+      <p class="title-page-welcome">${escapeText(welcomeRaw)}</p>
+      ${disclosuresHtml}
+      ${gateHtml}
     </div>
   `;
 
-  const cb  = document.getElementById('titleTosAck');
   const btn = document.getElementById('titleContinueBtn');
-  cb.addEventListener('change', () => { btn.disabled = !cb.checked; });
-  btn.addEventListener('click', async () => {
-    if (!cb.checked) return;
-    btn.disabled = true;
-    try {
-      await recordTosAcceptance(meta.id, meta.current_version_id);
-    } catch (_e) { /* non-fatal */ }
-    // Advance to the first non-quiz lesson (resuming if learner already
-    // started one in a previous session).
-    const firstIncomplete = COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz' && !progress[l.id]?.complete);
-    const first = firstIncomplete || COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz');
-    if (first) renderLesson(first.id, { resume: true });
-  });
+  const cb  = document.getElementById('titleTosAck');
+  if (cb) cb.addEventListener('change', () => { btn.disabled = !cb.checked; });
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (cb && !cb.checked) return;
+      btn.disabled = true;
+      if (!accepted) {
+        try {
+          await recordTosAcceptance(meta.id, meta.current_version_id);
+        } catch (_e) { /* non-fatal */ }
+      }
+      // Advance to the first non-quiz lesson (resuming if learner already
+      // started one in a previous session).
+      const firstIncomplete = COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz' && !progress[l.id]?.complete);
+      const first = firstIncomplete || COURSE.lesson_map.find(l => l.id !== TITLE_PAGE_ID && l.type !== 'quiz');
+      if (first) renderLesson(first.id, { resume: true });
+    });
+  }
 
   buildSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1876,11 +1966,16 @@ async function boot() {
 
   try {
     if (!accepted) {
-      renderTitlePage();
+      // Not yet accepted (or anonymous preview): show the gated title page.
+      await renderTitlePage({ accepted: false });
     } else if (firstLesson) {
+      // Accepted and at least one non-quiz lesson exists: resume / start there.
       renderLesson(firstLesson.id, { resume: true });
     } else {
-      renderTitlePage();
+      // Accepted but the course has no non-quiz lessons (degenerate).
+      // Render the title page in post-acceptance mode so the user is never
+      // re-prompted to agree.
+      await renderTitlePage({ accepted: true });
     }
     console.log('[boot] initial render complete');
   } catch (renderErr) {
