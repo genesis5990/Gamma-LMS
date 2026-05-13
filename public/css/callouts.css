@@ -1,0 +1,35 @@
+/* Shared callout / highlight styles.
+ *
+ * Included by the studio editor, the studio preview pane, and the live
+ * course page so that authored callouts render identically in all three
+ * places. Selectors are intentionally unscoped (bare `.callout`) so the
+ * rules apply wherever the editor's output is rendered.
+ *
+ * Color tokens fall back to literal hex when the host page hasn't
+ * declared the CSS variables we expect.
+ */
+
+.callout {
+  background: #f5f8ff;
+  border: 1px solid #d9dfee;
+  border-left: 4px solid #1f63d6;
+  border-radius: 5px;
+  padding: 10px 14px;
+  margin: 12px 0;
+}
+.callout p:last-child  { margin-bottom: 0; }
+.callout ul:last-child,
+.callout ol:last-child { margin-bottom: 0; }
+
+.callout.callout-warn {
+  background: #fef9ed;
+  border-left-color: #b97a09;
+}
+.callout.callout-danger {
+  background: #fdecec;
+  border-left-color: #c94545;
+}
+.callout.callout-success {
+  background: #ebf6ef;
+  border-left-color: #2a9355;
+}
