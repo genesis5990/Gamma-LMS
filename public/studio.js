@@ -641,7 +641,10 @@ async function _renderDashboardInner(view, coursesOnly) {
   const [coursesR, modulesR, lessonsR, pagesR, profilesR, enrollR,
          requestsR, attemptsR, assetsR, recentPagesR, recentKcR, recentFinalR]
     = await Promise.all([
-      _q('courses',         () => sb.from('courses').select('id, slug, title, current_version_id, visibility, pass_threshold, updated_at, created_at, archived_at, deleted_at').is('deleted_at', null)),
+      // Studio dashboard is super_admin / instructor / tenant_admin only. Pull
+      // archived + deleted rows too; client-side toggles (Show archived /
+      // Show deleted) control visibility. Filtering is handled in renderCourseGrid.
+      _q('courses',         () => sb.from('courses').select('id, slug, title, current_version_id, visibility, pass_threshold, updated_at, created_at, archived_at, deleted_at')),
       _q('modules.count',   () => sb.from('modules').select('id, course_version_id', { count: 'exact', head: true })),
       _q('lessons.count',   () => sb.from('lessons').select('id', { count: 'exact', head: true })),
       _q('pages.count',     () => sb.from('pages').select('id', { count: 'exact', head: true })),
@@ -786,6 +789,39 @@ async function _renderDashboardInner(view, coursesOnly) {
 
   // Course grid -----------------------------------------------------
   const coursesErr = _errMsg(coursesRes, 'courses');
+  const isSuperAdmin = state.profile?.role === 'super_admin';
+
+  // Persisted toggles for super_admin (default off — hide archived/deleted).
+  const LS_ARCH = 'studio:show-archived';
+  const LS_DEL  = 'studio:show-deleted';
+  let showArchived = (localStorage.getItem(LS_ARCH) === '1');
+  let showDeleted  = (localStorage.getItem(LS_DEL)  === '1');
+
+  // Wire the toggles in the dashboard header — only added by HTML if
+  // present. We inject them dynamically here for super_admin.
+  if (isSuperAdmin) {
+    const actions = $('#dash-course-filter')?.parentElement;
+    if (actions && !$('#dash-show-archived')) {
+      actions.insertAdjacentHTML('afterbegin',
+        `<label class="studio-toggle" style="margin-right:10px;font-size:12.5px;color:var(--st-muted)">
+           <input type="checkbox" id="dash-show-archived" ${showArchived ? 'checked' : ''}/> Show archived
+         </label>
+         <label class="studio-toggle" style="margin-right:10px;font-size:12.5px;color:var(--st-muted)">
+           <input type="checkbox" id="dash-show-deleted"  ${showDeleted  ? 'checked' : ''}/> Show deleted
+         </label>`);
+      $('#dash-show-archived').addEventListener('change', e => {
+        showArchived = !!e.target.checked;
+        localStorage.setItem(LS_ARCH, showArchived ? '1' : '0');
+        renderCourseGrid($('#dash-course-filter').value);
+      });
+      $('#dash-show-deleted').addEventListener('change', e => {
+        showDeleted = !!e.target.checked;
+        localStorage.setItem(LS_DEL, showDeleted ? '1' : '0');
+        renderCourseGrid($('#dash-course-filter').value);
+      });
+    }
+  }
+
   function renderCourseGrid(filter) {
     if (coursesErr) {
       console.warn('[studio] dashboard courses panel error:', coursesErr);
@@ -799,18 +835,54 @@ async function _renderDashboardInner(view, coursesOnly) {
       return;
     }
     const f = (filter || '').toLowerCase();
-    const items = courses.filter(c =>
-      !f || c.slug.toLowerCase().includes(f) || (c.title || '').toLowerCase().includes(f)
-    );
+    const items = courses.filter(c => {
+      if (!f && false) return false;
+      if (f && !c.slug.toLowerCase().includes(f) && !(c.title || '').toLowerCase().includes(f)) return false;
+      // Non-super admins never see archived/deleted (they can't act on them either).
+      if (!isSuperAdmin && (c.archived_at || c.deleted_at)) return false;
+      if (c.deleted_at  && !showDeleted)  return false;
+      if (c.archived_at && !c.deleted_at && !showArchived) return false;
+      return true;
+    });
     $('#dash-courses').innerHTML = items.length ? items.map(c => {
       const stats = statsByVersion[c.current_version_id] || { modules: 0, lessons: 0, pages: 0 };
       const status = c.visibility || 'private';
       const statusLabel = status === 'restricted' ? 'LE only' : status;
       const archived = !!c.archived_at;
-      const archBadge = archived ? `<span class="dash-status is-archived" style="margin-left:6px">Archived</span>` : '';
-      return `<div class="dash-course-card${archived ? ' is-archived' : ''}">
+      const deleted  = !!c.deleted_at;
+      const archBadge = archived && !deleted
+        ? `<span class="dash-status is-archived" style="margin-left:6px">Archived</span>` : '';
+      const delBadge = deleted
+        ? `<span class="dash-status is-deleted" style="margin-left:6px;background:#fde2e2;color:#b42318">Deleted</span>` : '';
+      const cardClasses = [
+        'dash-course-card',
+        archived ? 'is-archived' : '',
+        deleted  ? 'is-deleted'  : '',
+      ].filter(Boolean).join(' ');
+      // Manage menu — super_admin only.
+      let manageHtml = '';
+      if (isSuperAdmin) {
+        const opts = [];
+        if (!archived && !deleted) {
+          opts.push(`<button type="button" class="cc-menu-item" data-act="archive" data-id="${escapeHtml(c.id)}" data-slug="${escapeHtml(c.slug)}" data-title="${escapeHtml(c.title)}">Archive</button>`);
+        } else if (archived && !deleted) {
+          opts.push(`<button type="button" class="cc-menu-item" data-act="unarchive"   data-id="${escapeHtml(c.id)}" data-slug="${escapeHtml(c.slug)}" data-title="${escapeHtml(c.title)}">Restore</button>`);
+          opts.push(`<button type="button" class="cc-menu-item" data-act="soft-delete" data-id="${escapeHtml(c.id)}" data-slug="${escapeHtml(c.slug)}" data-title="${escapeHtml(c.title)}">Soft delete</button>`);
+        } else if (deleted) {
+          opts.push(`<button type="button" class="cc-menu-item cc-menu-danger" data-act="hard-delete" data-id="${escapeHtml(c.id)}" data-slug="${escapeHtml(c.slug)}" data-title="${escapeHtml(c.title)}">Permanently delete</button>`);
+        }
+        manageHtml = `
+          <div class="cc-menu-wrap">
+            <button type="button" class="studio-btn cc-menu-btn" title="Manage" aria-haspopup="true" aria-expanded="false" data-cc-menu>•••</button>
+            <div class="cc-menu" hidden>${opts.join('')}</div>
+          </div>`;
+      }
+      const cardStyle = deleted
+        ? 'opacity:.55;'
+        : (archived ? 'opacity:.78;' : '');
+      return `<div class="${cardClasses}" style="${cardStyle}position:relative">
         <div>
-          <span class="dash-status is-${status}">${statusLabel}</span>${archBadge}
+          <span class="dash-status is-${status}">${statusLabel}</span>${archBadge}${delBadge}
           <h3 style="margin-top:6px">${escapeHtml(c.title)}</h3>
           <div class="dash-cc-meta">slug: <code>${escapeHtml(c.slug)}</code> · pass ${c.pass_threshold ?? 80}% · updated ${fmtRelTime(c.updated_at)}</div>
         </div>
@@ -822,9 +894,13 @@ async function _renderDashboardInner(view, coursesOnly) {
         <div class="dash-cc-actions">
           <a href="/studio/edit/${escapeHtml(c.slug)}" class="studio-btn primary">Edit</a>
           <a href="/courses/${escapeHtml(c.slug)}?preview=1" class="studio-btn" target="_blank" rel="noopener">Preview</a>
+          ${manageHtml}
         </div>
       </div>`;
     }).join('') : '<div class="studio-empty-state"><p>No courses match.</p></div>';
+
+    // Wire the per-card kebab menus and lifecycle actions.
+    if (isSuperAdmin) wireCourseCardMenus(() => renderCourseGrid($('#dash-course-filter').value));
   }
   renderCourseGrid('');
   if (!coursesErr) console.log('[studio] dashboard: courses rendered (n=' + courses.length + ')');
@@ -4370,6 +4446,128 @@ function hardDeleteSecondConfirm(c) {
         closeModal();
         toast('Course permanently deleted');
         navigate('/studio/courses');
+      });
+      input.focus();
+    }
+  });
+}
+
+// ---------- course-card kebab menu (dashboard grid) ---------------
+// Wires the ••• "Manage" buttons on each course card to the archive /
+// unarchive / soft-delete / hard-delete RPCs. Super_admin only — the
+// caller is expected to gate visibility before calling this.
+function wireCourseCardMenus(onChange) {
+  // Toggle visibility of each card's menu when its ••• button is clicked.
+  document.querySelectorAll('[data-cc-menu]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = btn.parentElement.querySelector('.cc-menu');
+      const isOpen = !menu.hidden;
+      // Close any other open menus
+      document.querySelectorAll('.cc-menu').forEach(m => { m.hidden = true; });
+      menu.hidden = isOpen;
+      btn.setAttribute('aria-expanded', String(!isOpen));
+    });
+  });
+  // Click outside closes all menus.
+  if (!wireCourseCardMenus._docHandler) {
+    wireCourseCardMenus._docHandler = (e) => {
+      if (!e.target.closest('.cc-menu-wrap')) {
+        document.querySelectorAll('.cc-menu').forEach(m => { m.hidden = true; });
+        document.querySelectorAll('[data-cc-menu]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+      }
+    };
+    document.addEventListener('click', wireCourseCardMenus._docHandler);
+  }
+
+  // Wire each lifecycle action.
+  document.querySelectorAll('.cc-menu-item').forEach(item => {
+    item.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const act   = item.dataset.act;
+      const id    = item.dataset.id;
+      const slug  = item.dataset.slug;
+      const title = item.dataset.title;
+      // Hide the menu
+      const menu = item.closest('.cc-menu');
+      if (menu) menu.hidden = true;
+
+      const c = { id, slug, title };
+      if (act === 'archive')      return runArchive(c).then(onChange);
+      if (act === 'unarchive')    return runUnarchive(c).then(onChange);
+      if (act === 'soft-delete')  return runSoftDeleteFromGrid(c, onChange);
+      if (act === 'hard-delete')  return runHardDeleteFromGrid(c, onChange);
+    });
+  });
+}
+
+// Soft-delete from the dashboard grid: opens the same slug-confirm modal as
+// the in-editor flow, but on success refreshes the grid instead of navigating.
+function runSoftDeleteFromGrid(c, onChange) {
+  openModal({
+    title: 'Soft-delete course',
+    bodyHtml: `
+      <p>Soft-delete <strong>${escapeHtml(c.title)}</strong>?</p>
+      <p>It will be hidden from all views but can be restored by an admin.</p>
+      <p style="margin-top:12px">Type the course slug <code>${escapeHtml(c.slug)}</code> to confirm:</p>
+      <input id="dz-slug-input" type="text" autocomplete="off" spellcheck="false"
+             style="width:100%;padding:8px;border:1px solid #d0d7de;border-radius:6px;margin-top:6px"/>`,
+    footHtml: `
+      <button type="button" class="studio-btn" id="dz-cancel">Cancel</button>
+      <button type="button" class="studio-btn dz-btn dz-soft" id="dz-confirm" disabled>Soft-delete</button>`,
+    onMount: (root) => {
+      const input = root.querySelector('#dz-slug-input');
+      const btn = root.querySelector('#dz-confirm');
+      input.addEventListener('input', () => { btn.disabled = input.value !== c.slug; });
+      root.querySelector('#dz-cancel').addEventListener('click', closeModal);
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const { error } = await sb.rpc('soft_delete_course', { p_course_id: c.id });
+        if (error) { toast('Soft-delete failed: ' + error.message, 'is-error'); btn.disabled = false; return; }
+        closeModal();
+        toast('Course soft-deleted');
+        // Refresh the dashboard so the soft-deleted course updates.
+        const view = document.querySelector('#studio-view');
+        if (view) renderDashboard(view, true);
+        else if (onChange) onChange();
+      });
+      input.focus();
+    }
+  });
+}
+
+function runHardDeleteFromGrid(c, onChange) {
+  openModal({
+    title: 'Permanently delete course',
+    bodyHtml: `
+      <p style="color:#b42318"><strong>This action cannot be undone.</strong></p>
+      <p>Permanently deleting <strong>${escapeHtml(c.title)}</strong> will remove the course and ALL associated data:</p>
+      <ul style="margin:8px 0 12px 22px">
+        <li>Versions, modules, lessons, pages</li>
+        <li>Knowledge-check and final-exam questions</li>
+        <li>Course assets (images, audio)</li>
+        <li>Enrollments, quiz attempts, ToS acceptances, certificates</li>
+      </ul>
+      <p style="margin-top:8px">Type the course slug <code>${escapeHtml(c.slug)}</code> to confirm:</p>
+      <input id="dz-slug-input-hard" type="text" autocomplete="off" spellcheck="false"
+             style="width:100%;padding:8px;border:1px solid #d0d7de;border-radius:6px;margin-top:6px"/>`,
+    footHtml: `
+      <button type="button" class="studio-btn" id="dz-cancel">Cancel</button>
+      <button type="button" class="studio-btn dz-btn dz-hard" id="dz-confirm-hard" disabled>Permanently delete</button>`,
+    onMount: (root) => {
+      const input = root.querySelector('#dz-slug-input-hard');
+      const btn = root.querySelector('#dz-confirm-hard');
+      input.addEventListener('input', () => { btn.disabled = input.value !== c.slug; });
+      root.querySelector('#dz-cancel').addEventListener('click', closeModal);
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const { error } = await sb.rpc('hard_delete_course', { p_course_id: c.id });
+        if (error) { toast('Permanent delete failed: ' + error.message, 'is-error'); btn.disabled = false; return; }
+        closeModal();
+        toast('Course permanently deleted');
+        const view = document.querySelector('#studio-view');
+        if (view) renderDashboard(view, true);
+        else if (onChange) onChange();
       });
       input.focus();
     }

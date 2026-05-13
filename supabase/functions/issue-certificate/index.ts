@@ -1,4 +1,4 @@
-// supabase/functions/issue-certificate/index.ts  — v0.4.87
+// supabase/functions/issue-certificate/index.ts  — v0.4.89
 //
 // Issues a completion certificate for the calling user.
 //
@@ -24,7 +24,7 @@ import qrcode from "npm:qrcode-generator@1.4.4";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY     = Deno.env.get("SUPABASE_ANON_KEY")!;
-const PUBLIC_SITE  = Deno.env.get("PUBLIC_SITE_URL") ?? "https://mygenesis-training.fly.dev";
+const PUBLIC_SITE  = Deno.env.get("PUBLIC_SITE_URL") ?? "https://deconflict.com";
 const SIGNED_TTL   = 60 * 60 * 24 * 30; // 30 days
 
 const cors = {
@@ -112,7 +112,7 @@ Deno.serve(async (req: Request) => {
   if (rpcErr) return bad(500, "rpc failed: " + rpcErr.message);
 
   const tenantSlug = cert.tenant_slug ?? "";
-  const tenantName = cert.tenant_name ?? "Genesis Digital Assets Academy";
+  const tenantName = (cert.tenant_name ?? "").trim() || "Deconflict";
   const certHash   = cert.cert_hash as string;
   const issuedAt   = cert.issued_at as string;
   const verifyUrl  = `${PUBLIC_SITE}/verify/${certHash}`;
@@ -185,6 +185,23 @@ const CG_URLS = {
 };
 
 let fontBytesCache: { sb?: Uint8Array; bold?: Uint8Array; italic?: Uint8Array } | null = null;
+
+// Deconflict brand artwork — baked at build-time, read once at cold start.
+let logoBytesCache: { mark?: Uint8Array; wordmark?: Uint8Array } | null = null;
+async function loadLogoBytes() {
+  if (logoBytesCache) return logoBytesCache;
+  const read = async (name: string): Promise<Uint8Array | undefined> => {
+    try {
+      return await Deno.readFile(new URL(`./assets/${name}`, import.meta.url));
+    } catch { return undefined; }
+  };
+  const [mark, wordmark] = await Promise.all([
+    read("deconflict-mark.png"),
+    read("deconflict-wordmark.png"),
+  ]);
+  logoBytesCache = { mark, wordmark };
+  return logoBytesCache;
+}
 
 async function loadFontBytes() {
   if (fontBytesCache) return fontBytesCache;
@@ -278,24 +295,32 @@ async function renderCertificatePdf(opts: {
   page.drawLine({ start: { x: W - cb, y: cb }, end: { x: W - cb - cbSz, y: cb }, color: gold, thickness: cbW, opacity: 0.6 });
   page.drawLine({ start: { x: W - cb, y: cb }, end: { x: W - cb, y: cb + cbSz }, color: gold, thickness: cbW, opacity: 0.6 });
 
-  // 4. Header — brand row (mark + DECONFLICT wordmark)
-  // Brand mark: a small ink square with a gold "D" outline glyph
-  const brandY = H - 80;
-  const markSize = 24;
-  const markX = W / 2 - 80;
-  page.drawRectangle({
-    x: markX, y: brandY - 4, width: markSize, height: markSize,
-    color: ink, borderColor: ink,
-  });
-  // simple stylized D inside (italic D char in gold)
-  page.drawText("D", {
-    x: markX + 6, y: brandY + 1, size: 18, font: fontItalic, color: gold,
-  });
-  // wordmark
-  centerTextAt(page, "DECONFLICT", markX + markSize + 12, brandY + 4, fontSansBold, 12, goldDk, 6, "left");
+  // 4. Header — Deconflict wordmark (logo + DECONFLICT lockup), centered
+  const logos = await loadLogoBytes();
+  let wordmarkImg: any = null;
+  let markImg: any = null;
+  try { wordmarkImg = logos.wordmark ? await pdf.embedPng(logos.wordmark) : null; } catch { /* noop */ }
+  try { markImg     = logos.mark     ? await pdf.embedPng(logos.mark)     : null; } catch { /* noop */ }
+
+  if (wordmarkImg) {
+    // Target ~28pt tall, centered around y = H - 78
+    const targetH = 30;
+    const scale = targetH / wordmarkImg.height;
+    const drawW = wordmarkImg.width * scale;
+    const drawH = targetH;
+    page.drawImage(wordmarkImg, {
+      x: (W - drawW) / 2,
+      y: H - 90,
+      width: drawW,
+      height: drawH,
+    });
+  } else {
+    // Fallback: textual wordmark
+    centerText(page, "DECONFLICT", H - 78, fontSansBold, 14, ink, 6);
+  }
 
   // Tenant line (small caps muted, letter-spaced)
-  centerText(page, `${opts.tenantName.toUpperCase()} · CRYPTOCURRENCY INVESTIGATION PROGRAM`,
+  centerText(page, "CRYPTOCURRENCY INVESTIGATION PROGRAM",
     H - 110, fontSans, 8, muted, 4);
 
   // Gold rule with center diamond
@@ -371,7 +396,7 @@ async function renderCertificatePdf(opts: {
     end:   { x: sigCx + 90, y: sigCy + 12 },
     color: ink, thickness: 0.7,
   });
-  centerTextAtCenter(page, "PROGRAM DIRECTOR · MYGENESIS TRAINING", sigCx, sigCy - 4,
+  centerTextAtCenter(page, "PROGRAM DIRECTOR · DECONFLICT", sigCx, sigCy - 4,
     fontSans, 7, muted, 2);
 
   // CENTER: gold seal — 110pt diameter
@@ -391,9 +416,22 @@ async function renderCertificatePdf(opts: {
     borderColor: goldDk, borderWidth: 0.6,
   });
 
-  // Seal text
+  // Seal text (top + bottom) with embedded Deconflict mark in the middle
   centerTextAtCenter(page, "CERTIFIED", sealCx, sealCy + 22, fontSerifBold, 9, ink, 1.2);
-  centerTextAtCenter(page, "D", sealCx, sealCy - 8, fontItalic, 32, ink2, 0);
+  if (markImg) {
+    const sealMarkH = 36;
+    const sealMarkScale = sealMarkH / markImg.height;
+    const sealMarkW = markImg.width * sealMarkScale;
+    page.drawImage(markImg, {
+      x: sealCx - sealMarkW / 2,
+      y: sealCy - sealMarkH / 2 - 4,
+      width: sealMarkW,
+      height: sealMarkH,
+    });
+  } else {
+    // Fallback: small "D" if the asset is missing
+    centerTextAtCenter(page, "D", sealCx, sealCy - 8, fontItalic, 32, ink2, 0);
+  }
   centerTextAtCenter(page, "MMXXVI", sealCx, sealCy - 32, fontSansBold, 7, ink2, 3);
 
   // RIGHT: QR code + verify text
@@ -409,7 +447,7 @@ async function renderCertificatePdf(opts: {
   // short URL (host + first 12 of hash)
   const shortHash = opts.certHash.slice(0, 12);
   centerTextAtCenter(page,
-    "mygenesis-training.com/verify/" + shortHash,
+    "deconflict.com/verify/" + shortHash,
     verifyCx, qrY - 24, fontMono, 6.5, ink, 0);
   // full hash split in two lines
   const half = Math.ceil(opts.certHash.length / 2);

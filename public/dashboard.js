@@ -210,7 +210,9 @@
     if (slugs.length) {
       const { data: courses } = await sb.from('courses')
         .select('id, slug, title, description, hero_image_url, tenant_id, current_version_id')
-        .in('slug', slugs);
+        .in('slug', slugs)
+        .is('archived_at', null)
+        .is('deleted_at', null);
       for (const c of (courses || [])) coursesBySlug.set(c.slug, c);
     }
     _state.coursesBySlug = coursesBySlug;
@@ -353,7 +355,9 @@
 
     let q = sb.from('courses')
       .select('id, slug, title, description, hero_image_url, tenant_id, visibility')
-      .in('visibility', ['preview', 'public', 'restricted']);
+      .in('visibility', ['preview', 'public', 'restricted'])
+      .is('archived_at', null)
+      .is('deleted_at', null);
     if (tenantId === null) {
       q = q.is('tenant_id', null);
     } else {
