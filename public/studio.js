@@ -2480,14 +2480,37 @@ function applyInlineStyle(editor, cmd, value) {
     return;
   }
 
-  // Apply: wrap selection in <span style="prop: value">.
+  // Apply: REPLACE existing same-property declarations before wrapping.
+  // Without this step, picking a font over polluted content (e.g. spans with
+  // `font-family: inherit` from Google Docs paste) leaves the inner declaration
+  // intact and the toolbar pick has no visible effect. v0.4.95 fix.
+  const wrap = document.createElement('span');
+  try {
+    wrap.appendChild(range.extractContents());
+    range.insertNode(wrap);
+    // Strip the property from any DESCENDANT inside the selection.
+    __stripInlineStyleIn(wrap, cssProp);
+    // Lift out of any ANCESTOR span carrying the same property.
+    __liftNodeOutOfStyledAncestors(editor, wrap, cssProp);
+  } catch (_) { /* keep going; final wrap below still applies */ }
+
+  // Now wrap in <span style="prop: value">.
   const span = document.createElement('span');
   span.style[jsProp] = value;
-  try {
-    range.surroundContents(span);
-  } catch (_) {
-    span.appendChild(range.extractContents());
-    range.insertNode(span);
+  // If wrap was successfully inserted, surround it; otherwise fall back.
+  if (wrap.parentNode) {
+    wrap.parentNode.insertBefore(span, wrap);
+    span.appendChild(wrap);
+    // Dissolve the temp wrap so we don't leave an extra empty span layer.
+    while (wrap.firstChild) span.insertBefore(wrap.firstChild, wrap);
+    span.removeChild(wrap);
+  } else {
+    try {
+      range.surroundContents(span);
+    } catch (_) {
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+    }
   }
   const newRange = document.createRange();
   newRange.selectNodeContents(span);
@@ -2583,8 +2606,24 @@ function cleanPastedHTML(html) {
     while (el.firstChild) p.insertBefore(el.firstChild, el);
     p.removeChild(el);
   });
-  // Strip noisy attrs from every element
-  const NOISE_STYLE = /(mso-[^:;]+:[^;]+;?|font-family\s*:\s*[^;]*(Calibri|Cambria|Times New Roman)[^;]*;?|background\s*:\s*white\s*;?|color\s*:\s*windowtext\s*;?)/gi;
+  // Strip noisy attrs from every element.
+  // v0.4.95: broadened to catch Google Docs / Notion / Outlook web inherit
+  // spans and font-variant declarations that previously polluted body_html.
+  const NOISE_STYLE = new RegExp(
+    '(' +
+    'mso-[^:;]+:[^;]+;?' +
+    '|font-family\\s*:\\s*[^;]*(Calibri|Cambria|Times New Roman)[^;]*;?' +
+    '|font-family\\s*:\\s*inherit\\s*;?' +
+    '|font-size\\s*:\\s*inherit\\s*;?' +
+    '|font-weight\\s*:\\s*inherit\\s*;?' +
+    '|font-style\\s*:\\s*inherit\\s*;?' +
+    '|font-variant-[a-z-]+\\s*:\\s*[^;]+;?' +
+    '|line-height\\s*:\\s*[^;]+;?' +
+    '|background\\s*:\\s*white\\s*;?' +
+    '|color\\s*:\\s*windowtext\\s*;?' +
+    ')',
+    'gi'
+  );
   tpl.content.querySelectorAll('*').forEach(el => {
     // remove MS class names + lang/xml attrs
     if (el.className && /\bMso/.test(el.className)) el.removeAttribute('class');
@@ -2596,14 +2635,33 @@ function cleanPastedHTML(html) {
       else el.removeAttribute('style');
     }
   });
+  // After style cleanup, unwrap any <span> that now has no remaining attrs.
+  // These are the husks left behind by Google Docs / Notion / Outlook paste.
+  tpl.content.querySelectorAll('span').forEach(el => {
+    if (el.attributes.length === 0) {
+      const parent = el.parentNode;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    }
+  });
   return tpl.innerHTML;
 }
 
-// True when an HTML clipboard payload looks like Word / Google Docs noise
-// we want to clean automatically.
+// True when an HTML clipboard payload looks like rich-editor noise we want to
+// clean automatically. v0.4.95: broadened beyond Microsoft Office to also
+// catch Google Docs, Notion, Outlook web, Confluence, etc.
 function __isOfficeHTML(html) {
   if (!html) return false;
-  return /mso-|<o:p|class=("|')?Mso|font-family\s*:\s*['"]?Calibri/i.test(html);
+  // Microsoft Office
+  if (/mso-|<o:p|class=("|')?Mso|font-family\s*:\s*['"]?Calibri/i.test(html)) return true;
+  // Google Docs / Outlook web / Notion: inherit spans + font-variant-ligatures
+  if (/font-(family|size|weight|style)\s*:\s*inherit/i.test(html)) return true;
+  if (/font-variant-(ligatures|caps|numeric)\s*:/i.test(html)) return true;
+  // Generic heuristic: more than 5 inline <span style=...> declarations is
+  // almost never legitimate human authoring, always rich-editor export noise.
+  const spanStyleCount = (html.match(/<span\s[^>]*style=/gi) || []).length;
+  if (spanStyleCount > 5) return true;
+  return false;
 }
 
 // ---------- font family / size options (shared by page + title editors) ----
@@ -2959,9 +3017,42 @@ function applyTextAlign(editor, align) {
     if (b) blocks.add(b);
   }
   if (blocks.size === 0) {
-    // Fallback: wrap-less selection in editor root — wrap in <p>
-    const b = blockOf(range.startContainer) || editor;
-    if (b !== editor) blocks.add(b);
+    // Fallback: selection sits directly inside the editor root with no block
+    // ancestor (happens after Enter inside auto-generated structures like
+    // badge panels and callouts). v0.4.95: wrap the current line in a fresh
+    // <p> so alignment has a real target instead of silently failing.
+    const b = blockOf(range.startContainer);
+    if (b) {
+      blocks.add(b);
+    } else {
+      // Find the run of nodes that belong to this line (text nodes + inline
+      // elements between two BRs or between editor edges). Wrap them in <p>.
+      const startNode = range.startContainer.nodeType === 3
+        ? range.startContainer
+        : (range.startContainer.childNodes[range.startOffset] || range.startContainer);
+      // Walk backwards to find line start (prev BR or editor child boundary)
+      let lineStart = startNode;
+      while (lineStart.previousSibling
+             && lineStart.previousSibling.nodeName !== 'BR'
+             && lineStart.parentNode === editor) {
+        lineStart = lineStart.previousSibling;
+      }
+      // Collect contiguous nodes until next BR or end
+      const lineNodes = [];
+      let cur = lineStart;
+      while (cur && cur.nodeName !== 'BR' && cur.parentNode === editor) {
+        lineNodes.push(cur);
+        cur = cur.nextSibling;
+      }
+      if (lineNodes.length) {
+        const p = document.createElement('p');
+        editor.insertBefore(p, lineNodes[0]);
+        lineNodes.forEach(n => p.appendChild(n));
+        // Remove the trailing BR that used to terminate this line, if present
+        if (cur && cur.nodeName === 'BR') cur.remove();
+        blocks.add(p);
+      }
+    }
   }
   blocks.forEach(b => {
     if (align === 'left') b.style.removeProperty('text-align');
