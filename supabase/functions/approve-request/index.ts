@@ -108,9 +108,10 @@ function approveEmailHtml(args: {
   const name  = escapeHtml(args.full_name);
   const tname = escapeHtml(args.tenant_name);
   const link  = args.magic_link; // already a URL — don't double-escape
-  const logo  = args.logo_url
-    ? `<img src="${escapeHtml(args.logo_url)}" alt="${tname}" style="max-height:48px;margin-bottom:16px" />`
-    : "";
+  const logoSrc = args.logo_url
+    ? args.logo_url
+    : "https://mygenesis-training.com/brand/logo-horizontal-dark-320.png";
+  const logo = `<img src="${escapeHtml(logoSrc)}" alt="${tname}" width="240" style="display:block;margin:0 0 16px;" />`;
 
   return `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0d1424;background:#f7f8fc;margin:0;padding:24px;">
     <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #d9dfee;padding:32px;">
@@ -204,15 +205,9 @@ Deno.serve(async (req: Request) => {
     const magicLink  = await generateMagicLink(info.email, redirectTo);
     if (!magicLink) return bad(500, "failed to generate magic link");
 
-    // Tenant logo for branded email
-    const { data: tenant } = await adminClient
-      .from("tenants")
-      .select("logo_url, logo_url_white")
-      .eq("id", info.tenant_id)
-      .single();
-    const logo = tenant?.logo_url
-      ? (tenant.logo_url.startsWith("http") ? tenant.logo_url : `${PUBLIC_SITE}${tenant.logo_url}`)
-      : null;
+    // Email logo: always use the canonical PNG for email-client compatibility.
+    // SVG in tenant.logo_url renders poorly in many email clients.
+    const logo = `${PUBLIC_SITE}/brand/logo-horizontal-dark-320.png`;
 
     const subject = `[${info.tenant_name}] Your training access has been approved`;
     const html    = approveEmailHtml({

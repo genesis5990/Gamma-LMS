@@ -1,4 +1,4 @@
-// supabase/functions/issue-certificate/index.ts  — v0.4.90
+// supabase/functions/issue-certificate/index.ts  — v8 (v0.4.94)
 //
 // Issues a completion certificate for the calling user.
 //

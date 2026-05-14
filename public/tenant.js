@@ -42,8 +42,8 @@
   // chrome where the surface color is set by CSS, not the SVG background).
   const TENANT_LOGO_OVERRIDES = {
     deconflict: {
-      light: '/assets/tenants/deconflict/transparent/Logo-With-Text.svg',
-      dark:  '/assets/tenants/deconflict/transparent/Logo-With-Text.svg'
+      light: '/assets/tenants/deconflict/Logo-With-Text-White.svg',
+      dark:  '/assets/tenants/deconflict/Logo-With-Text.svg'
     }
   };
 
@@ -90,7 +90,7 @@
   // Per-tenant icon-only logo for the sign-in modal (icon mark only, no
   // wordmark — keeps the "Sign in to <Tenant>" heading from being redundant).
   const TENANT_MODAL_ICON = {
-    deconflict: '/assets/tenants/deconflict/transparent/Logo-Only.svg'
+    deconflict: '/assets/tenants/deconflict/Logo-Without-Text.svg'
   };
 
   // Rebrand the sign-in overlay headline/body for tenant pages.

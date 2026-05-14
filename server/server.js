@@ -984,6 +984,7 @@ function purchaseEmailHtml({ courseName, amountCents, currency, sessionId, magic
 
   return `<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0d1424;background:#f7f8fc;margin:0;padding:24px;">
     <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #d9dfee;padding:32px;">
+      <img src="https://mygenesis-training.com/brand/logo-horizontal-dark-320.png" alt="Deconflict" width="240" style="display:block;margin:0 0 20px;" />
       <h2 style="margin:0 0 12px;font-size:20px;">Your ${cname} access is ready.</h2>
       <p style="margin:0 0 16px;color:#3a4666;">Thank you for purchasing <strong>${cname}</strong> ($${escapeHtml(amount)} ${escapeHtml(cur)}).</p>
       <p style="margin:0 0 16px;color:#3a4666;">Click the button below to sign in and start the course. You're already enrolled — the link will sign you in automatically.</p>
