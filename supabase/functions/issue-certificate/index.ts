@@ -1,4 +1,4 @@
-  'const WORDMARK_B64 = ' value spans chars 37693..74305 (old length 36612)   'const MARK_B64 = ' value spans chars 8236..22036 (old length 13800) // supabase/functions/issue-certificate/index.ts  — v8 (v0.4.94)
+// supabase/functions/issue-certificate/index.ts  — v8 (v0.4.94)
 //
 // Issues a completion certificate for the calling user.
 //
