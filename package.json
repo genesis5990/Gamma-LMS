@@ -1,6 +1,6 @@
 {
   "name": "mygenesis-training",
-  "version": "0.4.95",
+  "version": "0.5.0",
   "description": "Deconflict — Crypto Intelligence Sharing for investigators and agencies (mygenesis-training.com)",
   "private": true,
   "main": "server/server.js",

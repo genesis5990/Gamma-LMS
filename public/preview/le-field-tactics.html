@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PREVIEW — LE Field Tactics</title>
+<title>PREVIEW · LE Field Tactics</title>
 <link rel="stylesheet" href="/tenant-themes.css" />
 <link rel="stylesheet" href="/preview/le-preview.css" />
 <link rel="stylesheet" href="/brand-header.css" />
@@ -135,16 +135,17 @@
   .btn:disabled { opacity: .4; cursor: not-allowed; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body data-tenant="deconflict">
 
-<div class="preview-banner">PREVIEW MODE — content review only · no auth · no progress saved</div>
+<div class="preview-banner">PREVIEW MODE · content review · no auth · no progress saved</div>
 
 <header class="app-header">
   <a class="brand" href="/" aria-label="Deconflict home">
@@ -193,7 +194,7 @@ let cursor = 0;
     return;
   }
   document.getElementById('courseTitle').textContent = COURSE.title || 'Preview';
-  document.title = 'PREVIEW — ' + (COURSE.title || 'Course');
+  document.title = 'PREVIEW · ' + (COURSE.title || 'Course');
 
   buildItems();
   buildSidebar();
@@ -467,7 +468,7 @@ function gradeQuiz(form) {
   const result = form.querySelector('.kc-result');
   result.style.display = 'block';
   result.classList.remove('pass', 'fail');
-  result.textContent = 'Preview mode — grading disabled. ' + total +
+  result.textContent = 'Preview mode, grading disabled. ' + total +
     ' questions reviewed. Sign in to the live course to take the graded quiz.';
   result.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }

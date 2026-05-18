@@ -51,7 +51,7 @@
     const root = document.documentElement;
     root.style.setProperty('--brand-ink', t.primary_color || DEFAULT_THEME.primary_color);
     root.style.setProperty('--brand-bg',  t.secondary_color || DEFAULT_THEME.secondary_color);
-    document.title = t.name ? `${t.name} — Crypto Intelligence Sharing` : document.title;
+    document.title = t.name ? `${t.name} · Crypto Intelligence Sharing` : document.title;
 
     // Phase 4A: tag <body> with the tenant slug so per-tenant CSS can scope.
     if (document.body) {

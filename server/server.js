@@ -987,7 +987,7 @@ function purchaseEmailHtml({ courseName, amountCents, currency, sessionId, magic
       <img src="https://mygenesis-training.com/brand/logo-horizontal-dark-320.png" alt="Deconflict" width="240" style="display:block;margin:0 0 20px;" />
       <h2 style="margin:0 0 12px;font-size:20px;">Your ${cname} access is ready.</h2>
       <p style="margin:0 0 16px;color:#3a4666;">Thank you for purchasing <strong>${cname}</strong> ($${escapeHtml(amount)} ${escapeHtml(cur)}).</p>
-      <p style="margin:0 0 16px;color:#3a4666;">Click the button below to sign in and start the course. You're already enrolled — the link will sign you in automatically.</p>
+      <p style="margin:0 0 16px;color:#3a4666;">Click the button below to sign in and start the course. You're already enrolled. The link will sign you in automatically.</p>
       <p style="margin:0 0 24px;text-align:center;">
         <a href="${link}" style="display:inline-block;background:#1f63d6;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">Sign in to start the course</a>
       </p>
@@ -1074,7 +1074,7 @@ app.get(/^\/verify(?:\/([0-9a-f]{64}))?\/?$/, (_req, res) => {
 function _disclosurePage(title, body) {
   return `<!doctype html><html lang="en"><head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>${title} — Deconflict</title>
+    <title>${title} · Deconflict</title>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <style>
       :root { --ink:#0d1424; --paper:#f7f8fc; --line:#d9dfee; --accent:#0a3d91; }
@@ -1095,7 +1095,7 @@ app.get('/terms', (_req, res) => {
     <h2>Acceptable use</h2>
     <p>Do not share your account, attempt to circumvent security or access controls, scrape platform content for resale, or use the platform to train derivative AI systems without written permission.</p>
     <h2>No warranties</h2>
-    <p>Course content is provided without warranty of any kind. Nothing on this platform is legal, financial, investment, tax, or operational advice — see the per-course disclosures and consult qualified professionals for your specific situation.</p>
+    <p>Course content is provided without warranty of any kind. Nothing on this platform is legal, financial, investment, tax, or operational advice. See the per-course disclosures and consult qualified professionals for your specific situation.</p>
     <h2>Account termination</h2>
     <p>We reserve the right to suspend or terminate accounts that violate these terms or applicable law.</p>
     <h2>Contact</h2>

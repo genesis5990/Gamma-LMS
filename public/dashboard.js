@@ -63,8 +63,8 @@
     await window.authReady;
     const u = window.currentUser ? window.currentUser() : null;
     const tenant = await tenantInfo();
-    // Update header title with tenant name + dashboard
-    $('dashTitle').textContent = (tenant.name ? tenant.name + ' · ' : '') + 'Dashboard';
+    // Header title is just the page name; brand identity lives in the wordmark.
+    $('dashTitle').textContent = 'Dashboard';
 
     if (!u) {
       $('signInGate').hidden = false;
@@ -87,8 +87,8 @@
         const fb = $('freeBanner');
         if (fb) {
           fb.textContent = slug
-            ? `Coupon applied — you're now enrolled in "${slug}" at no cost.`
-            : 'Coupon applied — your enrollment is active.';
+            ? `Coupon applied. You're now enrolled in "${slug}" at no cost.`
+            : 'Coupon applied. Your enrollment is active.';
           fb.style.display = 'block';
         }
       }
@@ -228,7 +228,7 @@
     });
 
     if (!inScope.length) {
-      emptyBox(host, 'My courses', 'You haven\'t enrolled in any courses yet — see Available below.');
+      emptyBox(host, 'My courses', 'You haven\'t enrolled in any courses yet. See Available below.');
       $('continueCard').hidden = true;
       return;
     }
@@ -464,7 +464,7 @@
       examRows = exams.map(e => {
         const best = bestByLesson.get(e.lesson_id);
         return `<tr>
-          <td>${escapeHtml(e.course_slug || '—')}</td>
+          <td>${escapeHtml(e.course_slug || '')}</td>
           <td>${escapeHtml(e.title || e.lesson_id)} ${e.kind === 'final' ? '<span class="pill muted">Final</span>' : ''}</td>
           <td>${best
             ? `<span class="pill ${best.passed ? 'ok' : 'bad'}">${best.score}%</span> · attempt ${best.attempt_no}`
@@ -685,7 +685,7 @@
         ${certs.map(c => `
           <article class="cert">
             <div class="cert-name">${escapeHtml(c.course_id)}</div>
-            <div class="cert-when">Issued ${escapeHtml(fmtDate(c.issued_at))} · for ${escapeHtml(c.recipient_full_name || '—')}</div>
+            <div class="cert-when">Issued ${escapeHtml(fmtDate(c.issued_at))} · for ${escapeHtml(c.recipient_full_name || '')}</div>
             <div class="cert-id">ID ${escapeHtml(c.cert_hash || c.id)}</div>
             <div class="cert-actions">
               <a class="btn primary" href="/verify/${encodeURIComponent(c.cert_hash || '')}" target="_blank" rel="noopener">Verify</a>

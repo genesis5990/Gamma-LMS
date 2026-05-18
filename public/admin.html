@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/tenant.js"></script>
@@ -15,26 +18,40 @@
 <title>Admin Dashboard</title>
 <style>
   :root {
-    --ink:        #0d1424;
-    --ink-2:      #1d2a47;
-    --paper:      #f7f8fc;
-    --paper-2:    #ffffff;
-    --line:       #d9dfee;
-    --line-2:     #e8ecf6;
-    --accent:     #1f63d6;
-    --accent-2:   #0a3d91;
-    --gold:       #c8a64a;
+    --ink:        #071727;
+    --ink-2:      #051729;
+    --paper:      #F8F5EF;
+    --paper-2:    #FCFAF6;
+    --line:       rgba(7,23,39,0.14);
+    --line-2:     #F1EEE7;
+    --accent:     #071727;
+    --accent-2:   #051729;
+    --gold:       #071727;
     --good:       #2a9355;
     --bad:        #c94545;
     --warn:       #b97a09;
-    --muted:      #5b6788;
+    --muted:      #434E5B;
     --shadow:     0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+    --teal:       #62B995;
+    --red:        #B32322;
+    --signal:     #0055A9;
+    --surface-1:  #F1EEE7;
+    --surface-2:  #E8E4DC;
+    --bone-soft:  #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font: 15px/1.55 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink); background: var(--paper);
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
   a { color: var(--accent-2); }
 
@@ -48,9 +65,9 @@
   .app-header .admin-nav { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   .app-header .admin-nav .btn-ghost.is-current,
   .app-header .admin-nav .btn-ghost[aria-current="page"] {
-    background: rgba(200,166,74,.18);
-    border-color: var(--gold);
-    color: #f5e7bf;
+    background: transparent;
+    border-color: rgba(248,245,239,.4);
+    color: #F8F5EF;
     font-weight: 600;
   }
   @media (max-width: 760px) {
@@ -242,12 +259,13 @@
     color: var(--bad); font-size: 13px; margin-top: 10px; min-height: 1em;
   }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body>
 
@@ -293,22 +311,22 @@
   <div class="stat-row">
     <div class="stat">
       <div class="label">Total users</div>
-      <div class="value" id="kTotal">—</div>
+      <div class="value" id="kTotal"></div>
       <div class="sub" id="kTotalSub">&nbsp;</div>
     </div>
     <div class="stat">
       <div class="label">Active learners</div>
-      <div class="value" id="kActive">—</div>
+      <div class="value" id="kActive"></div>
       <div class="sub">In progress</div>
     </div>
     <div class="stat">
       <div class="label">Completed</div>
-      <div class="value" id="kDone">—</div>
+      <div class="value" id="kDone"></div>
       <div class="sub" id="kDoneSub">&nbsp;</div>
     </div>
     <div class="stat">
       <div class="label">Quiz attempts</div>
-      <div class="value" id="kQuiz">—</div>
+      <div class="value" id="kQuiz"></div>
       <div class="sub" id="kQuizSub">&nbsp;</div>
     </div>
   </div>
@@ -457,7 +475,7 @@ function showGate() {
     try {
       await window.signInWithEmail(email);
       msg.className = 'msg ok';
-      msg.textContent = 'Check your inbox for a sign-in link. You can close this tab — the link will bring you back.';
+      msg.textContent = 'Check your inbox for a sign-in link. You can close this tab; the link will bring you back.';
     } catch (e) {
       msg.className = 'msg err';
       msg.textContent = 'Could not send link: ' + (e.message || e);
@@ -552,7 +570,7 @@ function wireAddUser() {
     try {
       const { data: { session } } = await sbAdmin.auth.getSession();
       const token = session && session.access_token;
-      if (!token) { errEl.textContent = 'You are signed out — please sign back in.'; submit.disabled = false; submit.textContent = 'Create user'; return; }
+      if (!token) { errEl.textContent = 'You are signed out. Please sign back in.'; submit.disabled = false; submit.textContent = 'Create user'; return; }
 
       const resp = await fetch('/api/admin/users', {
         method: 'POST',
@@ -658,10 +676,10 @@ function renderTable() {
     const main =
       '<tr class="user-row ' + (isOpen ? 'open' : '') + '" data-uid="' + escapeHtml(r.user_id) + '">' +
         '<td class="email">' +
-          escapeHtml(r.email || '—') +
+          escapeHtml(r.email || '') +
           (r.full_name ? '<span class="name">' + escapeHtml(r.full_name) + (r.badge_number ? ' • #' + escapeHtml(r.badge_number) : '') + '</span>' : '') +
         '</td>' +
-        '<td>' + escapeHtml(r.agency_name || '—') + '</td>' +
+        '<td>' + escapeHtml(r.agency_name || '') + '</td>' +
         '<td><span class="pill ' + status + '">' + status.replace('_',' ') + '</span></td>' +
         '<td>' +
           '<div class="progress-bar"><span style="width:' + pct + '%"></span></div>' +
@@ -769,9 +787,9 @@ function escapeHtml(s) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function fmtDate(s) {
-  if (!s) return '—';
+  if (!s) return '';
   const d = new Date(s);
-  if (isNaN(d)) return '—';
+  if (isNaN(d)) return '';
   const now = Date.now();
   const diff = (now - d.getTime()) / 1000;
   if (diff < 60)        return Math.floor(diff) + 's ago';

@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="/config.js"></script>
@@ -13,29 +16,43 @@
 <link rel="stylesheet" href="/tenant-themes.css" />
 <link rel="stylesheet" href="/brand-header.css" />
 <link rel="stylesheet" href="/css/callouts.css" />
-<title>Course — Deconflict</title>
+<title>Course · Deconflict</title>
 <style>
   :root {
-    --ink:        #0d1424;
-    --ink-2:      #1d2a47;
-    --paper:      #f7f8fc;
-    --paper-2:    #ffffff;
-    --line:       #d9dfee;
-    --line-2:     #e8ecf6;
-    --accent:     #1f63d6;
-    --accent-2:   #0a3d91;
-    --gold:       #c8a64a;
+    --ink:        #071727;
+    --ink-2:      #051729;
+    --paper:      #F8F5EF;
+    --paper-2:    #FCFAF6;
+    --line:       rgba(7,23,39,0.14);
+    --line-2:     #F1EEE7;
+    --accent:     #071727;
+    --accent-2:   #051729;
+    --gold:       #071727;
     --good:       #2a9355;
     --bad:        #c94545;
     --warn:       #b97a09;
-    --muted:      #5b6788;
+    --muted:      #434E5B;
     --shadow:     0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+    --teal:       #62B995;
+    --red:        #B32322;
+    --signal:     #0055A9;
+    --surface-1:  #F1EEE7;
+    --surface-2:  #E8E4DC;
+    --bone-soft:  #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font: 16px/1.6 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink); background: var(--paper);
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
   a { color: var(--accent-2); }
 
@@ -525,12 +542,13 @@
     margin: 0 0 14px;
   }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body>
 
@@ -538,7 +556,7 @@
 <div id="authOverlay" style="display:none; position:fixed; inset:0; background:rgba(13,20,36,.94); z-index:9999; align-items:center; justify-content:center; padding:20px;">
   <div style="background:#fff; color:#0d1424; padding:36px 32px; border-radius:14px; max-width:440px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.4);">
     <h2 style="margin:0 0 8px; font-size:22px;">Sign in to Deconflict</h2>
-    <p style="margin:0 0 20px; color:#475569; font-size:14px;">Enter your work email. We'll send you a one-click sign-in link — no password to remember.</p>
+    <p style="margin:0 0 20px; color:#475569; font-size:14px;">Enter your work email. We'll send you a one-click sign-in link, no password to remember.</p>
     <input id="authEmail" type="email" autocomplete="email" placeholder="officer@youragency.gov"
            style="width:100%; padding:12px 14px; font-size:15px; border:1px solid #cbd5e1; border-radius:8px; box-sizing:border-box; margin-bottom:12px;">
     <button id="authSend" style="width:100%; padding:12px; font-size:15px; background:#0d1424; color:#fff; border:0; border-radius:8px; cursor:pointer; font-weight:600;">Send sign-in link</button>
@@ -571,7 +589,7 @@
 </div>
 
 <div class="demo-banner" id="banner" style="display:none;">
-  <b>Beta</b> — your progress is saved to the cloud and syncs across devices.
+  <b>Beta.</b> Your progress is saved to the cloud and syncs across devices.
 </div>
 
 <header class="app-header">
@@ -1035,7 +1053,7 @@ function buildSidebar() {
   </div>`;
 
   // Module 1
-  html += `<div class="module-block"><div class="module-head">Module 1 — Foundations</div>`;
+  html += `<div class="module-block"><div class="module-head">Module 1 · Foundations</div>`;
   for (const l of COURSE.lesson_map) {
     if (l.module !== 1) continue;
     if (l.type === 'quiz') continue;
@@ -1060,7 +1078,7 @@ function buildSidebar() {
   html += `</div>`;
 
   // Module 2
-  html += `<div class="module-block"><div class="module-head">Module 2 — The Genesis of Bitcoin</div>`;
+  html += `<div class="module-block"><div class="module-head">Module 2 · The Genesis of Bitcoin</div>`;
   for (const l of COURSE.lesson_map) {
     if (l.module !== 2) continue;
     if (l.type === 'quiz') continue;
@@ -1085,7 +1103,7 @@ function buildSidebar() {
   html += `</div>`;
 
   // Module 3
-  html += `<div class="module-block"><div class="module-head">Module 3 — Bitcoin as National Standard</div>`;
+  html += `<div class="module-block"><div class="module-head">Module 3 · Bitcoin as National Standard</div>`;
   for (const l of COURSE.lesson_map) {
     if (l.module !== 3) continue;
     const p = progress[l.id] || {};
@@ -1169,9 +1187,9 @@ function renderLesson(lid, opts) {
       inner += sanitizeHtml(renderReferencesHTML(page.citations));
     }
 
-    const moduleLabel = meta.module === 1 ? 'Module 1 — Foundations'
-                      : meta.module === 2 ? 'Module 2 — The Genesis of Bitcoin'
-                      : meta.module === 3 ? 'Module 3 — Bitcoin as National Standard'
+    const moduleLabel = meta.module === 1 ? 'Module 1 · Foundations'
+                      : meta.module === 2 ? 'Module 2 · The Genesis of Bitcoin'
+                      : meta.module === 3 ? 'Module 3 · Bitcoin as National Standard'
                       : 'Course';
 
     const isLastPage = (pageIdx === pages.length - 1);
@@ -1297,7 +1315,7 @@ function renderQuiz(lid) {
         }).join('')}
       </ul>
       <div class="feedback ok">✓ Correct.</div>
-      <div class="feedback no">✗ Not quite — review the lesson and try again.</div>
+      <div class="feedback no">✗ Not quite. Review the lesson and try again.</div>
     </div>`;
   });
   html += `<div class="quiz-result" id="quizResult"></div>
@@ -1366,7 +1384,7 @@ function wireQuiz(lid) {
     const pickedAnswers = qs.map((_q, i) => ({ q: i, picked: picked[String(i)] }));
     if (window.saveQuizAttempt) window.saveQuizAttempt(lid, pct, passed, pickedAnswers);
     result.className = 'quiz-result ' + (passed ? 'passed' : 'failed');
-    let resultMsg = `Score: ${resp.correct}/${resp.total} (${resp.score}%) — ${passed ? 'Passed ✓' : 'Did not pass — review and retry.'}`;
+    let resultMsg = `Score: ${resp.correct}/${resp.total} (${resp.score}%). ${passed ? 'Passed ✓' : 'Did not pass. Review and retry.'}`;
     if (unanswered > 0) resultMsg += ` (${unanswered} unanswered)`;
     result.textContent = resultMsg;
     submit.style.display = 'none';
@@ -1414,8 +1432,8 @@ function goNextLesson(currentId) {
         <p>You've worked through all currently-available lessons in Modules 2 and 3. In the production course this is where the final exam and certificate would unlock.</p>
         <p><b>Still to come:</b></p>
         <ul>
-          <li>Module 1 — 9 foundational lessons (drawn from the book)</li>
-          <li>Module 4+ — Investigations, exchanges, smart contracts, expert witness, etc.</li>
+          <li>Module 1 · 9 foundational lessons (drawn from the book)</li>
+          <li>Module 4+ · Investigations, exchanges, smart contracts, expert witness, etc.</li>
           <li>Final comprehensive exam (drawn from the book's test bank)</li>
           <li>Backend: student accounts, progress sync, certificates, department reporting</li>
         </ul>
@@ -1572,7 +1590,7 @@ async function renderTitlePage(opts) {
     || ('Welcome to ' + title + ". We're glad you're here.");
   const previewMode = isStudioPreview();
   const previewBanner = previewMode
-    ? `<div class="title-page-preview-banner">Studio author preview — ToS acceptance is not recorded.</div>`
+    ? `<div class="title-page-preview-banner">Studio author preview. ToS acceptance is not recorded.</div>`
     : '';
 
   const heroHtml = heroUrl
@@ -1670,7 +1688,7 @@ function renderFinalStub() {
   document.getElementById('content').innerHTML = `
     <div class="crumb">Course Completion</div>
     <h2 class="lesson-title">Final Exam &amp; Certificate</h2>
-    <div class="lesson-meta">Beta — final comprehensive exam still in production</div>
+    <div class="lesson-meta">Beta. Final comprehensive exam still in production.</div>
     <div class="stub">
       <h3>Issue your certificate of completion</h3>
       <p style="margin-top:8px;">During the beta you can generate your completion certificate directly. Once the final comprehensive exam is in production, this button will move behind a passing score (80%+).</p>
@@ -1815,7 +1833,7 @@ function wireCitationInteractions(container, citations) {
     if (c.title)   parts.push(String(c.title));
     if (c.authors) parts.push(String(c.authors));
     if (c.source)  parts.push(String(c.source));
-    const tip = parts.join(' — ').slice(0, 240);
+    const tip = parts.join(' · ').slice(0, 240);
     if (tip) node.setAttribute('data-tooltip', tip);
 
     if (a) {
@@ -1837,12 +1855,12 @@ function wireCitationInteractions(container, citations) {
 function renderModule1Stub() {
   window.__activeId = 'm1stub';
   document.getElementById('content').innerHTML = `
-    <div class="crumb">Module 1 — Foundations</div>
+    <div class="crumb">Module 1 · Foundations</div>
     <h2 class="lesson-title">Coming Soon</h2>
     <div class="lesson-meta">Pending build from the book content</div>
     <div class="stub">
       <h3>9 foundational lessons proposed</h3>
-      <p style="margin-top:8px;">Pulled from the early chapters of the textbook — covers terminology, the role of money, public-key crypto basics, what a wallet is, and how transactions actually move on a public ledger. This module gives recruits the conceptual scaffolding they need before Modules 2 &amp; 3.</p>
+      <p style="margin-top:8px;">Pulled from the early chapters of the textbook. Covers terminology, the role of money, public-key crypto basics, what a wallet is, and how transactions actually move on a public ledger. This module gives recruits the conceptual scaffolding they need before Modules 2 &amp; 3.</p>
       <p style="margin-top:14px; font-size:13px;">Awaiting your sign-off to build.</p>
     </div>
   `;
@@ -1992,7 +2010,7 @@ boot()
     const slug = window.COURSE_SLUG || 'unknown';
     const isRlsLike = e && /(row-level security|permission|denied|not found)/i.test(e.message || '');
     const hint = isRlsLike
-      ? `<p style="margin:8px 0 0;font-size:13px;color:var(--muted);">If you're a course author, sign in with the studio account that owns this course. Anonymous preview reads on this course's tables may be blocked by RLS — open the link in a browser signed in as the author.</p>`
+      ? `<p style="margin:8px 0 0;font-size:13px;color:var(--muted);">If you're a course author, sign in with the studio account that owns this course. Anonymous preview reads on this course's tables may be blocked by RLS. Open the link in a browser signed in as the author.</p>`
       : '';
     document.getElementById('content').innerHTML =
       `<div class="lesson-card" style="color:var(--bad);">Couldn't load course "${slug}": ${e.message || e}${hint}</div>`;
@@ -2007,7 +2025,7 @@ document.getElementById('authSend').addEventListener('click', async () => {
   try {
     await window.signInWithEmail(email);
     msg.style.color = '#15803d';
-    msg.textContent = 'Check your inbox — click the link to finish signing in.';
+    msg.textContent = 'Check your inbox and click the link to finish signing in.';
     document.getElementById('authSend').disabled = true;
   } catch (e) {
     msg.style.color = '#b91c1c';

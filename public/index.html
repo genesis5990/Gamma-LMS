@@ -3,29 +3,47 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Deconflict — Crypto Intelligence Sharing for investigators and agencies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Deconflict · Crypto Intelligence Sharing for investigators and agencies</title>
 <meta name="description" content="Tamper-evident training for blockchain investigators and law-enforcement agencies. Browse courses, earn verifiable certificates, or stand up your own white-label academy." />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/request-access.js" defer></script>
 <style>
   :root {
-    --ink: #060A16;
-    --ink-2: #0d1424;
-    --gold: #c8a64a;
-    --gold-soft: #e6c87a;
-    --muted: #5b6788;
-    --line: #e1e6f3;
-    --surface: #f7f7fb;
-    --paper: #ffffff;
+    --ink: #071727;
+    --ink-2: #051729;
+    --gold: #071727;
+    --gold-soft: #071727;
+    --muted: #434E5B;
+    --line: rgba(7,23,39,0.14);
+    --surface: #F1EEE7;
+    --paper: #F8F5EF;
+    --paper-2: #FCFAF6;
+    --teal: #62B995;
+    --red: #B32322;
+    --signal: #0055A9;
+    --surface-1: #F1EEE7;
+    --surface-2: #E8E4DC;
+    --bone-soft: #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font: 16px/1.55 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink);
     background: var(--paper);
     -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
   a { color: var(--ink-2); text-decoration: none; }
   a:hover { text-decoration: underline; }
@@ -35,34 +53,34 @@
   /* ---- Header ---- */
   .site-header {
     position: sticky; top: 0; z-index: 50;
-    backdrop-filter: blur(8px);
-    background: rgba(255,255,255,0);
-    border-bottom: 1px solid transparent;
-    transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
-  }
-  .site-header.is-scrolled {
-    background: rgba(255,255,255,.92);
-    border-bottom-color: var(--line);
-    box-shadow: 0 1px 0 rgba(13,20,36,.04);
+    background: #051729;
+    color: #F8F5EF;
+    border-bottom: 0;
   }
   .nav {
     max-width: 1200px; margin: 0 auto;
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 24px; gap: 16px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+  .brand { display: flex; align-items: center; gap: 12px; color: #F8F5EF; text-decoration: none; }
   .brand:hover { text-decoration: none; }
   .brand svg { display: block; }
-  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--gold); }
+  .brand-name { font-family: 'Source Serif 4', Georgia, serif; font-size: 19px; font-weight: 600; letter-spacing: 0.04em; color: #F8F5EF; line-height: 1; }
   .brand-name b { color: var(--gold); font-weight: 800; }
   .brand-mark { width: 36px; height: 36px; object-fit: contain; }
   .brand-sub { font-size: 11px; color: var(--muted); margin-top: -2px; letter-spacing: .8px; text-transform: uppercase; }
   .nav-links { display: flex; align-items: center; gap: 16px; }
-  .nav-links a { font-size: 14px; color: var(--ink-2); padding: 6px 2px; border-bottom: 2px solid transparent; }
+  .nav-links a { font-size: 14px; color: rgba(248,245,239,.85); padding: 6px 2px; border-bottom: 2px solid transparent; text-decoration: none; }
+  .nav-links a:hover { color: #F8F5EF; text-decoration: none; }
   .nav-links a.is-active, .nav-links a[aria-current="page"] {
-    color: var(--gold); border-bottom-color: var(--gold); font-weight: 600;
+    color: #F8F5EF; border-bottom-color: #F8F5EF; font-weight: 600;
   }
   .nav-links .btn { font-size: 14px; padding: 8px 16px; border-radius: 8px; }
+  .site-header .btn-primary {
+    background: var(--ink); color: #F8F5EF;
+    border: 1px solid rgba(248,245,239,.25);
+  }
+  .site-header .btn-primary:hover { background: #0E2438; border-color: rgba(248,245,239,.4); }
 
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -73,8 +91,17 @@
   }
   .btn-primary { background: var(--ink); color: #fff; }
   .btn-primary:hover { background: #1a2444; text-decoration: none; }
-  .btn-gold { background: var(--gold); color: var(--ink); }
-  .btn-gold:hover { background: var(--gold-soft); text-decoration: none; }
+  .btn-gold {
+    background: var(--gold);
+    color: #F8F5EF;
+    font-weight: 500;
+    border: 1px solid rgba(248,245,239,.25);
+  }
+  .btn-gold:hover {
+    background: #0E2438;
+    border-color: rgba(248,245,239,.4);
+    text-decoration: none;
+  }
   .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
   .btn-ghost:hover { background: var(--surface); text-decoration: none; }
   .btn:active { transform: translateY(1px); }
@@ -305,12 +332,13 @@
     .site-header, .btn, .course-card { transition: none; }
   }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body data-page="landing">
 
@@ -319,10 +347,7 @@
   <div class="nav">
     <a class="brand" href="/" aria-label="Deconflict home">
       <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="36" height="36" />
-      <span>
-        <span class="brand-name">DECONFLICT</span>
-        <div class="brand-sub">Crypto Intelligence Sharing</div>
-      </span>
+      <span class="brand-name">DECONFLICT</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#catalog">Browse courses</a>
@@ -338,7 +363,7 @@
     <div>
       <span class="hero-eyebrow">For investigators · agencies · the public</span>
       <h1>Train investigators. Trace blockchains. Build the next generation.</h1>
-      <p class="lede">Deconflict delivers practical, evidence-grade training in cryptocurrency investigation — from on-chain tracing to courtroom-ready expert testimony.</p>
+      <p class="lede">Deconflict delivers practical, evidence-grade training in cryptocurrency investigation, from on-chain tracing to courtroom-ready expert testimony.</p>
       <div class="hero-actions">
         <a href="#catalog" class="btn btn-gold">Browse public catalog</a>
         <button type="button" class="btn btn-ghost" id="ctaRequestAccess" style="color:#fff; border-color:rgba(255,255,255,.45);">Request Access</button>
@@ -376,7 +401,7 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L20 6 L20 14 L12 22 L4 14 L4 6 Z"/><circle cx="12" cy="11" r="3"/></svg>
         </span>
         <h3>For Investigators</h3>
-        <p>Case-driven modules, knowledge checks, and a verifiable certificate path for cryptocurrency tracing — from your first UTXO to expert testimony.</p>
+        <p>Case-driven modules, knowledge checks, and a verifiable certificate path for cryptocurrency tracing, from your first UTXO to expert testimony.</p>
       </article>
       <article class="feat">
         <span class="feat-icon" aria-hidden="true">
@@ -403,7 +428,7 @@
     <p class="lede">Sign in, work through the lessons at your pace, take the knowledge checks, and pick up your certificate.</p>
     <ol class="steps" aria-label="How it works">
       <li class="step"><div class="step-num">1</div><h3>Browse</h3><p>Pick a course from the public catalog or enter your organization's portal.</p></li>
-      <li class="step"><div class="step-num">2</div><h3>Sign in</h3><p>Magic-link email — no password to remember. Agency invites are honoured.</p></li>
+      <li class="step"><div class="step-num">2</div><h3>Sign in</h3><p>Magic-link email, no password to remember. Agency invites are honoured.</p></li>
       <li class="step"><div class="step-num">3</div><h3>Learn</h3><p>Read, listen, and take knowledge checks at your own pace. Progress syncs across devices.</p></li>
       <li class="step"><div class="step-num">4</div><h3>Earn</h3><p>Complete the course to receive a hash-verified certificate of completion.</p></li>
     </ol>
@@ -416,7 +441,7 @@
     <div class="cert-block">
       <div>
         <h2>Every certificate is verifiable.</h2>
-        <p class="lede">Each Deconflict certificate includes a tamper-evident SHA-256 hash. Anyone — a hiring agency, a court, a partner — can verify a graduate's credential by entering the hash at the public verifier. No login required.</p>
+        <p class="lede">Each Deconflict certificate includes a tamper-evident SHA-256 hash. Anyone (a hiring agency, a court, a partner) can verify a graduate's credential by entering the hash at the public verifier. No login required.</p>
         <a href="/verify" class="btn btn-primary">Verify a certificate</a>
       </div>
       <aside class="cert-mock" aria-hidden="true">
@@ -439,7 +464,7 @@
 <section class="section alt" id="catalog">
   <div class="section-narrow">
     <h2>Public course catalog</h2>
-    <p class="lede">Open enrollment — sign in to start.</p>
+    <p class="lede">Open enrollment. Sign in to start.</p>
     <div class="catalog" id="catalogGrid"></div>
     <p id="catalogEmpty" style="display:none; color:var(--muted); margin-top:20px;">More public courses are launching soon.</p>
   </div>
@@ -478,7 +503,7 @@
 <div class="overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="signInTitle">
   <div class="overlay-card">
     <h2 id="signInTitle">Sign in to Deconflict</h2>
-    <p>Enter your work email — we'll send a one-click sign-in link.</p>
+    <p>Enter your work email and we'll send a one-click sign-in link.</p>
     <form id="signInForm">
       <input id="signInEmail" type="email" autocomplete="email" required placeholder="officer@youragency.gov" />
       <div class="actions">
@@ -627,7 +652,7 @@
     const v = (raw || '').trim().toLowerCase();
     if (!SLUG_RE.test(v)) {
       orgMsg.className = 'overlay-msg is-err';
-      orgMsg.textContent = 'Use lowercase letters, numbers, hyphens (3–40 chars).';
+      orgMsg.textContent = 'Use lowercase letters, numbers, hyphens (3 to 40 chars).';
       return false;
     }
     window.location.href = '/' + v + '/';
@@ -645,7 +670,7 @@
       document.getElementById('orgModalSlug').value = v;
       openOrg();
       orgMsg.className = 'overlay-msg is-err';
-      orgMsg.textContent = 'Use lowercase letters, numbers, hyphens (3–40 chars).';
+      orgMsg.textContent = 'Use lowercase letters, numbers, hyphens (3 to 40 chars).';
       return;
     }
     window.location.href = '/' + v + '/';

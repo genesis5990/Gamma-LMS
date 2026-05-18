@@ -116,7 +116,7 @@
       mode = 'tenant';
       currentTenantId = opts.tenantId;
       const name = opts.tenantName || 'training portal';
-      titleEl.textContent = `Request access — ${name}`;
+      titleEl.textContent = `Request access · ${name}`;
       ledeEl.textContent = `This portal is invitation-only. Submit your details and your program administrator will review your request and email you a sign-in link if approved.`;
       agencyLabel.firstChild.nodeValue = 'Agency ';
       agencyInput.placeholder = '';

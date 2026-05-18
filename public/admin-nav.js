@@ -82,9 +82,9 @@
       #admin-nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
       #admin-nav a.is-current,
       #admin-nav a[aria-current="page"] {
-        background: rgba(200,166,74,.18);
-        border-color: rgba(200,166,74,.55);
-        color: #f5e7bf;
+        background: transparent;
+        border-color: rgba(248,245,239,.4);
+        color: #F8F5EF;
         font-weight: 600;
       }
       #admin-nav .who { opacity: .7; font-size: 12px; margin-right: 8px; white-space: nowrap; }

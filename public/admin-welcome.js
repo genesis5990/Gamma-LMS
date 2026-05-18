@@ -97,7 +97,7 @@
       <div class="aw-card">
         <h2 id="awTitle">Welcome to your admin area</h2>
         <p>You're signed in as an administrator. From here you can review pending access requests, approve or deny new officers, and keep an eye on your roster's progress.</p>
-        <p>Approving a request mints a 30-day magic-link invitation that the requester receives by email. You can come back any time — this welcome only shows once.</p>
+        <p>Approving a request mints a 30-day magic-link invitation that the requester receives by email. You can come back any time. This welcome only shows once.</p>
         <div class="aw-actions">
           <button type="button" class="aw-btn aw-btn-secondary" id="awDismiss">Got it, dismiss</button>
           <a class="aw-btn aw-btn-primary" id="awGo" href="${requestsHref()}">Review pending requests</a>

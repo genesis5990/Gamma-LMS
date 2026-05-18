@@ -3,25 +3,38 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Courses — Deconflict</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Courses · Deconflict</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/admin-nav.js" defer></script>
-<meta name="description" content="Deconflict — Crypto Intelligence Sharing. Pay-per-course training in cryptocurrency, blockchain forensics, and digital asset compliance for investigators." />
+<meta name="description" content="Deconflict · Crypto Intelligence Sharing. Pay-per-course training in cryptocurrency, blockchain forensics, and digital asset compliance for investigators." />
 <link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
-    --ink: #0d1424; --ink-2: #1d2a47;
-    --paper: #f7f8fc; --paper-2: #ffffff;
-    --line: #d9dfee; --accent: #1f63d6; --accent-2: #0a3d91;
-    --gold: #c8a64a; --muted: #5b6788; --good: #2a9355; --bad: #c94545;
+    --ink: #071727; --ink-2: #051729;
+    --paper: #F8F5EF; --paper-2: #FCFAF6;
+    --line: rgba(7,23,39,0.14); --accent: #071727; --accent-2: #051729;
+    --gold: #071727; --muted: #434E5B; --good: #2a9355; --bad: #c94545;
+    --teal: #62B995; --red: #B32322; --signal: #0055A9;
+    --surface-1: #F1EEE7; --surface-2: #E8E4DC; --bone-soft: #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; }
   body {
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.6 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink); background: var(--paper);
     min-height: 100vh; display:flex; flex-direction:column;
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
   a { color: var(--accent-2); }
   main { flex:1; max-width: 980px; margin: 0 auto; padding: 56px clamp(20px, 4vw, 40px); width: 100%; }
@@ -82,12 +95,13 @@
   .banner.info { background: #e6efff; color: var(--accent-2); }
   footer.site { border-top: 1px solid var(--line); padding: 22px; color: var(--muted); font-size: 13px; text-align:center; }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body>
 
@@ -143,9 +157,9 @@ const params = new URLSearchParams(window.location.search);
 if (params.get('status') === 'success') {
   showBanner('Payment received. Check your inbox for a sign-in link to start the course.', 'ok');
 } else if (params.get('status') === 'cancelled') {
-  showBanner('Checkout cancelled — no charge was made.', 'info');
+  showBanner('Checkout cancelled. No charge was made.', 'info');
 } else if (params.get('free') === '1') {
-  showBanner('Coupon applied — you are now enrolled at no cost. Visit your dashboard to start.', 'ok');
+  showBanner('Coupon applied. You are now enrolled at no cost. Visit your dashboard to start.', 'ok');
 }
 
 function formatPrice(cents, currency) {
@@ -298,8 +312,8 @@ async function applyCoupon(applyBtn) {
     fin.textContent = data.is_free ? 'FREE' : formatPrice(data.final_cents, 'usd');
     msg.className = 'coupon-msg is-ok';
     msg.textContent = data.is_free
-      ? `Coupon ${code} applied — 100% off (free).`
-      : `Coupon ${code} applied — ${data.percent_off}% off.`;
+      ? `Coupon ${code} applied. 100% off (free).`
+      : `Coupon ${code} applied. ${data.percent_off}% off.`;
     if (buy) buy.textContent = data.is_free ? 'Enroll for free' : 'Buy now';
   } catch (err) {
     msg.className = 'coupon-msg is-err';

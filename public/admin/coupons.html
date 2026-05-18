@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Coupons — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Coupons · Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/tenant.js"></script>
@@ -13,19 +16,29 @@
 <link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
-    --ink: #0d1424; --ink-2: #1d2a47;
-    --paper: #f7f8fc; --paper-2: #ffffff;
-    --line: #d9dfee; --line-2: #e8ecf6;
-    --accent: #1f63d6; --accent-2: #0a3d91;
-    --gold: #c8a64a; --muted: #5b6788;
+    --ink: #071727; --ink-2: #051729;
+    --paper: #F8F5EF; --paper-2: #FCFAF6;
+    --line: rgba(7,23,39,0.14); --line-2: #F1EEE7;
+    --accent: #071727; --accent-2: #051729;
+    --gold: #071727; --muted: #434E5B;
     --good: #2a9355; --bad: #c94545; --warn: #b97a09;
     --shadow: 0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
+    --teal: #62B995; --red: #B32322; --signal: #0055A9;
+    --surface-1: #F1EEE7; --surface-2: #E8E4DC; --bone-soft: #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 15px/1.55 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink); background: var(--paper);
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
   a { color: var(--accent-2); }
 
@@ -130,12 +143,13 @@
     .form-grid { grid-template-columns: 1fr; }
   }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body>
 
@@ -179,9 +193,9 @@
     }[c]));
   }
   function fmtDate(iso) {
-    if (!iso) return '—';
+    if (!iso) return '';
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
+    if (isNaN(d.getTime())) return '';
     return d.toLocaleString();
   }
   function fmtMoney(cents, currency) {
@@ -336,7 +350,7 @@
       return;
     }
     if (!data || !data.length) {
-      host.innerHTML = '<div class="empty">No coupons yet — use the form below to create one.</div>';
+      host.innerHTML = '<div class="empty">No coupons yet. Use the form below to create one.</div>';
       return;
     }
     const courseTitle = (id) => {
@@ -402,9 +416,9 @@
     }
     const rows = data.map(r => `<tr>
       <td>${escapeHtml(fmtDate(r.redeemed_at))}</td>
-      <td><code>${escapeHtml((r.coupons && r.coupons.code) || '—')}</code></td>
-      <td>${escapeHtml(r.email || '—')}</td>
-      <td>${escapeHtml(r.course_id || '—')}</td>
+      <td><code>${escapeHtml((r.coupons && r.coupons.code) || '')}</code></td>
+      <td>${escapeHtml(r.email || '')}</td>
+      <td>${escapeHtml(r.course_id || '')}</td>
       <td>${escapeHtml(fmtMoney(r.original_cents))}</td>
       <td>−${escapeHtml(fmtMoney(r.discount_cents))}</td>
       <td><strong>${escapeHtml(fmtMoney(r.final_cents))}</strong></td>
@@ -457,7 +471,7 @@
 
     if (!code)    { document.getElementById('formMsg').textContent = 'Code required.'; return; }
     if (!(percent >= 1 && percent <= 100)) {
-      document.getElementById('formMsg').textContent = 'Percent off must be 1–100.';
+      document.getElementById('formMsg').textContent = 'Percent off must be between 1 and 100.';
       return;
     }
     const payload = {

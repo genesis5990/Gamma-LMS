@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Verify certificate — Deconflict</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Verify certificate · Deconflict</title>
 <meta name="description" content="Verify the authenticity of a Deconflict completion certificate." />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
@@ -11,26 +14,40 @@
 <link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
-    --ink:    #060A16;
-    --ink-2:  #1d2a47;
-    --paper:  #f7f8fc;
-    --paper-2:#ffffff;
-    --line:   #d9dfee;
+    --ink:    #071727;
+    --ink-2:  #051729;
+    --paper:  #F8F5EF;
+    --paper-2:#FCFAF6;
+    --line:   rgba(7,23,39,0.14);
     --good:   #1b6b3d;
     --good-bg:#d8f0e2;
     --bad:    #8a1a1a;
     --bad-bg: #fbe0e0;
     --warn:   #b97a09;
     --warn-bg:#fff2cc;
-    --muted:  #5b6788;
-    --gold:   #c8a64a;
+    --muted:  #434E5B;
+    --gold:   #071727;
+    --teal:   #62B995;
+    --red:    #B32322;
+    --signal: #0055A9;
+    --surface-1: #F1EEE7;
+    --surface-2: #E8E4DC;
+    --bone-soft: #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; }
   body {
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font: 16px/1.6 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink); background: var(--paper);
     min-height: 100vh; display:flex; flex-direction:column;
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
 
   .app-header .home-link { color:#fff; opacity:.7; text-decoration:none; margin-left:auto; font-size:13px; }
@@ -83,12 +100,13 @@
   }
   footer a { color: var(--ink); }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body>
 
@@ -171,7 +189,7 @@ function renderResult(hash, data) {
   }
   const issued = data.issued_at ? new Date(data.issued_at).toLocaleString(undefined, {
     year:'numeric', month:'long', day:'numeric'
-  }) : '—';
+  }) : '';
   const revoked = data.revoked_at ? new Date(data.revoked_at).toLocaleString(undefined, {
     year:'numeric', month:'long', day:'numeric'
   }) : null;
@@ -182,8 +200,8 @@ function renderResult(hash, data) {
       <h2>This certificate has been revoked.</h2>
       <p class="lede">It was issued by ${escapeHtml(data.tenant || 'a partner program')} and later revoked. It is no longer valid.</p>
       <dl>
-        <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '—')}</dd></div>
-        <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '—')}</dd></div>
+        <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '')}</dd></div>
+        <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '')}</dd></div>
         <div><dt>Issued</dt><dd>${escapeHtml(issued)}</dd></div>
         <div><dt>Revoked</dt><dd>${escapeHtml(revoked)}</dd></div>
         <div><dt>Certificate ID</dt><dd class="mono">${escapeHtml(data.cert_hash)}</dd></div>
@@ -197,11 +215,11 @@ function renderResult(hash, data) {
     <h2>This certificate is authentic.</h2>
     <p class="lede">Issued by ${escapeHtml(data.tenant || 'Deconflict')}.</p>
     <dl>
-      <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '—')}</dd></div>
-      <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '—')}</dd></div>
+      <div><dt>Recipient</dt><dd>${escapeHtml(data.name || '')}</dd></div>
+      <div><dt>Course</dt><dd>${escapeHtml(data.course_id || '')}</dd></div>
       ${typeof data.score === 'number' ? `<div><dt>Final score</dt><dd>${escapeHtml(data.score)}%</dd></div>` : ''}
       <div><dt>Issued</dt><dd>${escapeHtml(issued)}</dd></div>
-      <div><dt>Issuing program</dt><dd>${escapeHtml(data.tenant || '—')}</dd></div>
+      <div><dt>Issuing program</dt><dd>${escapeHtml(data.tenant || '')}</dd></div>
       <div><dt>Certificate ID</dt><dd class="mono">${escapeHtml(data.cert_hash)}</dd></div>
     </dl>
   `;

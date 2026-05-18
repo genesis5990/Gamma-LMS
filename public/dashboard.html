@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dashboard — Deconflict</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Dashboard · Deconflict</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="/config.js"></script>
@@ -14,25 +17,39 @@
 <link rel="stylesheet" href="/brand-header.css" />
 <style>
   :root {
-    --ink: #060A16;
-    --ink-2: #0d1424;
-    --gold: #c8a64a;
-    --gold-soft: #e6c87a;
-    --muted: #5b6788;
-    --line: #e1e6f3;
-    --surface: #f7f7fb;
-    --paper: #ffffff;
+    --ink: #071727;
+    --ink-2: #051729;
+    --gold: #071727;
+    --gold-soft: #071727;
+    --muted: #434E5B;
+    --line: rgba(7,23,39,0.14);
+    --surface: #F8F5EF;
+    --paper: #FCFAF6;
     --good: #1b6b3d;
     --bad: #8a1a1a;
     --brand-ink: var(--ink);
     --brand-bg: var(--gold);
+    --teal: #62B995;
+    --red: #B32322;
+    --signal: #0055A9;
+    --surface-1: #F1EEE7;
+    --surface-2: #E8E4DC;
+    --bone-soft: #DEE6EC;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font: 15px/1.5 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--ink); background: var(--surface);
     -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, .page-title, .hero-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
   a { color: var(--ink-2); text-decoration: none; }
   a:hover { text-decoration: underline; }
@@ -137,8 +154,8 @@
   }
   .btn.primary { background: var(--ink); color: #fff; }
   .btn.primary:hover { background: #1a2444; }
-  .btn.gold { background: var(--gold); color: var(--ink); }
-  .btn.gold:hover { background: var(--gold-soft); }
+  .btn.gold { background: var(--gold); color: #F8F5EF; font-weight: 500; }
+  .btn.gold:hover { background: #0E2438; }
   .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
   .btn.ghost:hover { background: var(--surface); }
 
@@ -239,12 +256,13 @@
   #printArea .course { font-size: 22px; margin: 6px 0 28px; font-weight: 700; }
   #printArea .pa-meta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
 </style>
-<link rel="icon" href="/brand/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png">
-<link rel="manifest" href="/brand/site.webmanifest">
-<meta name="theme-color" content="#060A16" />
+<link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+<link rel="shortcut icon" href="/brand/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Deconflict Academy" />
+<link rel="manifest" href="/brand/site.webmanifest" />
+<meta name="theme-color" content="#071727" />
 </head>
 <body>
 
@@ -265,7 +283,7 @@
 <!-- Sign-in gate when not authed -->
 <div class="gate" id="signInGate" hidden>
   <h2>Sign in to your dashboard</h2>
-  <p>Enter your email — we'll send a one-click sign-in link.</p>
+  <p>Enter your email and we'll send a one-click sign-in link.</p>
   <form id="gateForm">
     <input id="gateEmail" type="email" autocomplete="email" required placeholder="you@youragency.gov" />
     <button type="submit" class="btn primary" style="width:100%;">Send sign-in link</button>
@@ -334,12 +352,12 @@
     <h3 data-tenant-name>Deconflict</h3>
     <h1>Certificate of Completion</h1>
     <p class="for">This certifies that</p>
-    <div class="name" id="paName">—</div>
+    <div class="name" id="paName"></div>
     <p class="for">has successfully completed</p>
-    <div class="course" id="paCourse">—</div>
+    <div class="course" id="paCourse"></div>
     <div class="pa-meta">
-      <span id="paId">ID —</span>
-      <span id="paDate">—</span>
+      <span id="paId">ID </span>
+      <span id="paDate"></span>
     </div>
   </div>
 </div>

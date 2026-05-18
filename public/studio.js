@@ -339,7 +339,7 @@ $('#studio-gate-form').addEventListener('submit', async (e) => {
       email, options: { emailRedirectTo: redirect },
     });
     if (error) throw error;
-    $('#studio-gate-msg').textContent = 'Magic link sent — check your email.';
+    $('#studio-gate-msg').textContent = 'Magic link sent. Check your email.';
     $('#studio-gate-form').classList.add('hidden');
   } catch (err) {
     errEl.textContent = err.message;
@@ -488,7 +488,7 @@ async function renderDashboard(view, coursesOnly) {
 }
 
 async function _renderDashboardInner(view, coursesOnly) {
-  renderCrumbs({ label: 'Studio', href: '/studio' }, { label: coursesOnly ? 'Courses' : 'Dashboard' });
+  renderCrumbs({ label: coursesOnly ? 'Courses' : 'Dashboard' });
   const tpl = document.getElementById('tpl-dashboard');
   view.appendChild(tpl.content.cloneNode(true));
   $('#dash-greeting').textContent = `signed in as ${state.profile.full_name || state.profile.email}`;
@@ -575,7 +575,7 @@ async function _renderDashboardInner(view, coursesOnly) {
             clearTimeout(_watchdog);
             const errHtml =
               `<div class="studio-empty-state">
-                 <p><strong>Session expired — please sign in again.</strong></p>
+                 <p><strong>Session expired. Please sign in again.</strong></p>
                  <p>
                    <button class="studio-btn" id="dash-signin-btn" type="button">Sign in</button>
                    <button class="studio-btn" id="dash-reload-btn" type="button">Reload</button>
@@ -990,7 +990,7 @@ function assetTypeCategory(asset) {
 }
 
 async function renderMedia(view) {
-  renderCrumbs({ label: 'Studio', href: '/studio' }, { label: 'Media Library' });
+  renderCrumbs({ label: 'Media Library' });
   const tpl = document.getElementById('tpl-media');
   view.appendChild(tpl.content.cloneNode(true));
 
@@ -1066,7 +1066,7 @@ async function renderMedia(view) {
         ? `<img src="${escapeHtml(a.public_url)}" alt="${escapeHtml(a.alt_text || '')}" loading="lazy" />`
         : `<span>${escapeHtml((a.mime_type || 'file').split('/')[0])}</span>`;
       const courseLabel = a.course_id
-        ? (courseById[a.course_id]?.title || courseById[a.course_id]?.slug || '—')
+        ? (courseById[a.course_id]?.title || courseById[a.course_id]?.slug || '')
         : 'Shared';
       return `<div class="media-card" data-id="${a.id}">
         <div class="media-thumb">${thumb}</div>
@@ -1164,7 +1164,7 @@ async function renderMedia(view) {
 // USERS (admin)
 // =====================================================================
 async function renderUsers(view) {
-  renderCrumbs({ label: 'Studio', href: '/studio' }, { label: 'Users' });
+  renderCrumbs({ label: 'Users' });
   const tpl = document.getElementById('tpl-users');
   view.appendChild(tpl.content.cloneNode(true));
 
@@ -1194,10 +1194,10 @@ async function renderUsers(view) {
         <th>Name</th><th>Email</th><th>Agency</th><th>Badge</th><th>Role</th><th>Joined</th>
       </tr></thead>
       <tbody>${items.map(r => `<tr data-id="${r.id}">
-        <td>${escapeHtml(r.full_name || '—')}</td>
+        <td>${escapeHtml(r.full_name || '')}</td>
         <td>${escapeHtml(r.email || '')}</td>
-        <td>${escapeHtml(r.agency_name || '—')}</td>
-        <td>${escapeHtml(r.badge_number || '—')}</td>
+        <td>${escapeHtml(r.agency_name || '')}</td>
+        <td>${escapeHtml(r.badge_number || '')}</td>
         <td>${isSuper
           ? `<select data-role>
               <option value="student"      ${r.role==='student'?'selected':''}>Student</option>
@@ -1325,7 +1325,7 @@ async function loadCourses() {
   state.courses = data || [];
   const sel = $('#course-picker');
   sel.innerHTML = state.courses.map(c => {
-    const label = `${c.slug} — ${c.title}`;
+    const label = `${c.slug} · ${c.title}`;
     return `<option value="${c.id}" title="${escapeHtml(label)}">${escapeHtml(label)}</option>`;
   }).join('');
   // Reflect the full current selection in a tooltip on the select itself,
@@ -1352,7 +1352,7 @@ async function loadCourse(courseId) {
     return;
   }
   $('#course-picker').value = courseId;
-  renderCrumbs({ label: 'Studio', href: '/studio' }, { label: 'Editor', href: '/studio/courses' }, { label: state.course.title });
+  renderCrumbs({ label: 'Editor', href: '/studio/courses' }, { label: state.course.title });
 
   const versionId = state.course.current_version_id;
 
@@ -1526,7 +1526,7 @@ function renderOutline() {
       }
     }
     const apxCount = (m.appendix || []).length;
-    html.push(`<div class="outline-node outline-appendix" data-kind="appendix" data-id="${m.id}" title="Module appendix — reference material">
+    html.push(`<div class="outline-node outline-appendix" data-kind="appendix" data-id="${m.id}" title="Module appendix · reference material">
       <span class="outline-icon">A</span>
       <span class="outline-label">Appendix (${apxCount})</span>
     </div>`);
@@ -3168,7 +3168,7 @@ function wirePageToolbar() {
             if (text) { ed()?.focus(); document.execCommand('insertText', false, text); }
             else toast('Clipboard is empty or unreadable', 'is-error');
           } catch (err) {
-            toast('Clipboard read denied — use Ctrl+Shift+V', 'is-error');
+            toast('Clipboard read denied. Use Ctrl+Shift+V.', 'is-error');
           }
           break;
         }
@@ -3271,7 +3271,7 @@ function wireTitlePageToolbar() {
             if (text) { ed()?.focus(); document.execCommand('insertText', false, text); }
             else toast('Clipboard is empty or unreadable', 'is-error');
           } catch (err) {
-            toast('Clipboard read denied — use Ctrl+Shift+V', 'is-error');
+            toast('Clipboard read denied. Use Ctrl+Shift+V.', 'is-error');
           }
           break;
         }
@@ -3995,7 +3995,7 @@ function recomputeCiteMarkers(editor, citations) {
       if (a.getAttribute('href') !== href) a.setAttribute('href', href);
     } else {
       if (!node.classList.contains('cite-missing')) node.classList.add('cite-missing');
-      const titleWant = 'Citation deleted — remove or re-add';
+      const titleWant = 'Citation deleted. Remove or re-add.';
       if (node.getAttribute('title') !== titleWant) node.setAttribute('title', titleWant);
       if (a.textContent !== '[?]') a.textContent = '[?]';
       if (a.hasAttribute('href')) a.removeAttribute('href');
@@ -4506,7 +4506,7 @@ function runHardDelete(c) {
       </ul>`,
     footHtml: `
       <button type="button" class="studio-btn" id="dz-cancel">Cancel</button>
-      <button type="button" class="studio-btn dz-btn dz-hard" id="dz-next">I understand — continue</button>`,
+      <button type="button" class="studio-btn dz-btn dz-hard" id="dz-next">I understand</button>`,
     onMount: (root) => {
       root.querySelector('#dz-cancel').addEventListener('click', closeModal);
       root.querySelector('#dz-next').addEventListener('click', () => hardDeleteSecondConfirm(c));
@@ -4984,7 +4984,7 @@ function __audioInsertRenderLibraryList() {
   }
   listEl.innerHTML = filtered.map(r => {
     const courseLabel = r.course_id
-      ? (courseById[r.course_id]?.title || courseById[r.course_id]?.slug || '—')
+      ? (courseById[r.course_id]?.title || courseById[r.course_id]?.slug || '')
       : 'Shared';
     const dur = (r.duration_seconds != null && !Number.isNaN(Number(r.duration_seconds)))
       ? ` · ${Math.round(Number(r.duration_seconds))}s` : '';
@@ -5057,7 +5057,7 @@ function __audioInsertCommit(url) {
 }
 
 function formatBytes(n) {
-  if (!n && n !== 0) return '—';
+  if (!n && n !== 0) return '';
   if (n < 1024) return n + ' B';
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
   return (n / 1024 / 1024).toFixed(2) + ' MB';
@@ -5277,7 +5277,7 @@ function __imageInsertRenderLibraryList() {
   }
   listEl.innerHTML = filtered.map(r => {
     const courseLabel = r.course_id
-      ? (courseById[r.course_id]?.title || courseById[r.course_id]?.slug || '—')
+      ? (courseById[r.course_id]?.title || courseById[r.course_id]?.slug || '')
       : 'Shared';
     const isChosen = __imageInsertChosen && __imageInsertChosen.url === r.public_url;
     const dim = (r.width && r.height) ? `${r.width}×${r.height}` : '';
@@ -6382,7 +6382,7 @@ async function setPageWorkflowStatus(pageId, next) {
 
     if (error) throw error;
     if (!data || data.length === 0) {
-      throw new Error('No rows updated — RLS may be denying the write');
+      throw new Error('No rows updated. RLS may be denying the write.');
     }
     // Reconcile with what the DB actually wrote (defensive — should equal `next`).
     ref.page.workflow_status = data[0].workflow_status || null;
@@ -6482,7 +6482,7 @@ async function runValidationModal() {
   });
 
   openModal({
-    title: `Validation — ${findings.length} finding${findings.length === 1 ? '' : 's'}`,
+    title: `Validation · ${findings.length} finding${findings.length === 1 ? '' : 's'}`,
     bodyHtml: findings.length
       ? `<div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto">
           ${findings.map(f => `<div style="border-left:3px solid var(--st-warn);padding:6px 10px;background:#fdf6e3;border-radius:4px;font-size:13px">
@@ -6621,7 +6621,7 @@ async function saveDirty() {
       setSaveState('error', `Save failed: ${errs.length}`);
       const msg = errs[0].error && errs[0].error.message
         ? errs[0].error.message
-        : 'no rows updated — check RLS';
+        : 'no rows updated. Check RLS.';
       toast(`Save failed for ${errs.length}/${results.length}: ${msg}`, 'is-error');
       return;
     }
