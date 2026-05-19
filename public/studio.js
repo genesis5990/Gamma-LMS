@@ -949,16 +949,16 @@ async function router() {
   setSaveState('ready', '● Ready');
 
   // active nav highlight. v0.6.1: /studio is the single canonical dashboard
-  // route. The legacy /studio/courses entry stays in the map only so any
-  // remaining external links highlight correctly during the deprecation tail.
+  // route. The duplicate Courses nav link is gone, so dashboard and editor
+  // both highlight the same /studio entry.
   const navMap = { dashboard:'/studio', media:'/studio/media', users:'/studio/users', editor:'/studio/edit/' };
   $$('.studio-nav-link').forEach(a => {
     const href = a.getAttribute('href');
     a.classList.toggle('is-active', !a.dataset.external && (
-      (route.name === 'dashboard' && (href === '/studio' || href === '/studio/courses')) ||
+      (route.name === 'dashboard' && href === '/studio') ||
       (route.name === 'media' && href === '/studio/media') ||
       (route.name === 'users' && href === '/studio/users') ||
-      (route.name === 'editor' && (href === '/studio' || href === '/studio/courses'))
+      (route.name === 'editor' && href === '/studio')
     ));
   });
 
