@@ -247,19 +247,31 @@ $('#modal-host').addEventListener('click', (e) => { if (e.target.id === 'modal-h
 // from any course in the same tenant. Used by both the outline "+M"
 // dropdown (add-to-version) and the courses index "New course from
 // modules" wizard (new-course).
-const _mp = { rows: [], selected: [], filters: { q: '', course: '', status: '' } };
+const _mp = { rows: [], selected: [], filters: { q: '', course: '', status: '', includeArchived: false, showOldVersions: {} } };
 
 function _mpStatusOf(row) {
   return (row.course_version_status || '').toLowerCase();
+}
+
+// v0.6.1: stable expander key per course. Use course_id when present so two
+// courses with the same title across tenants don't collide; fall back to
+// title alone if the column is missing.
+function _mpCourseKey(row) {
+  return (row.course_title || '(untitled course)') + '@' + (row.course_id || '');
 }
 
 function _mpFilteredRows() {
   const q = _mp.filters.q.trim().toLowerCase();
   const cf = _mp.filters.course;
   const sf = _mp.filters.status;
+  const includeArchived = !!_mp.filters.includeArchived;
+  const showOldVersions = _mp.filters.showOldVersions || {};
   return _mp.rows.filter(r => {
     if (cf && r.course_title !== cf) return false;
     if (sf && _mpStatusOf(r) !== sf) return false;
+    if (!includeArchived && r.course_archived_at) return false;
+    // Hide non-current versions unless the per-course expander is open.
+    if (r.is_current_version === false && !showOldVersions[_mpCourseKey(r)]) return false;
     if (!q) return true;
     return (r.module_title || '').toLowerCase().includes(q)
         || (r.course_title || '').toLowerCase().includes(q)
@@ -267,28 +279,94 @@ function _mpFilteredRows() {
   });
 }
 
+// Return count of non-current-version rows hidden under a given course key,
+// given the current text/course/status/archived filters. Used to label the
+// per-course expander.
+function _mpHiddenOldCount(courseKey) {
+  const q = _mp.filters.q.trim().toLowerCase();
+  const cf = _mp.filters.course;
+  const sf = _mp.filters.status;
+  const includeArchived = !!_mp.filters.includeArchived;
+  return _mp.rows.filter(r => {
+    if (_mpCourseKey(r) !== courseKey) return false;
+    if (r.is_current_version !== false) return false;
+    if (cf && r.course_title !== cf) return false;
+    if (sf && _mpStatusOf(r) !== sf) return false;
+    if (!includeArchived && r.course_archived_at) return false;
+    if (!q) return true;
+    return (r.module_title || '').toLowerCase().includes(q)
+        || (r.course_title || '').toLowerCase().includes(q)
+        || (r.module_slug  || '').toLowerCase().includes(q);
+  }).length;
+}
+
 function _mpRenderRows(host, excludeCourseVersionId) {
   const rows = _mpFilteredRows();
-  if (!rows.length) {
+  // Group by course key (title + course_id) so per-course expander state
+  // is per-course, not per-title. We track the title for display and the
+  // first row's course_id for the data attribute.
+  const groups = new Map();
+  rows.forEach(r => {
+    const key = _mpCourseKey(r);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        title: r.course_title || '(untitled course)',
+        archived: !!r.course_archived_at,
+        rows: []
+      });
+    }
+    groups.get(key).rows.push(r);
+  });
+  // Also surface any course that currently shows zero rows because the
+  // user collapsed older versions. We discover those by scanning _mp.rows
+  // for course keys not yet in groups but that would have matched filters
+  // ignoring is_current_version. This keeps the expander row reachable
+  // even when only older versions exist after filtering.
+  const candidateKeys = new Set();
+  _mp.rows.forEach(r => {
+    if (r.course_archived_at && !_mp.filters.includeArchived) return;
+    const cf = _mp.filters.course; if (cf && r.course_title !== cf) return;
+    const sf = _mp.filters.status; if (sf && _mpStatusOf(r) !== sf) return;
+    const q  = _mp.filters.q.trim().toLowerCase();
+    if (q) {
+      const hit = (r.module_title || '').toLowerCase().includes(q)
+               || (r.course_title || '').toLowerCase().includes(q)
+               || (r.module_slug  || '').toLowerCase().includes(q);
+      if (!hit) return;
+    }
+    candidateKeys.add(_mpCourseKey(r));
+  });
+  // Add empty groups for courses whose only matches are hidden old versions.
+  for (const key of candidateKeys) {
+    if (groups.has(key)) continue;
+    const ref = _mp.rows.find(r => _mpCourseKey(r) === key);
+    if (!ref) continue;
+    groups.set(key, {
+      title: ref.course_title || '(untitled course)',
+      archived: !!ref.course_archived_at,
+      rows: []
+    });
+  }
+
+  if (!groups.size) {
     host.innerHTML = '<div class="studio-empty-state"><p>No modules match.</p></div>';
     return;
   }
-  // Group by course_title.
-  const groups = new Map();
-  rows.forEach(r => {
-    const key = r.course_title || '(untitled course)';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
-  });
+
   const html = [];
-  for (const [courseTitle, list] of groups) {
-    html.push(`<div class="mp-group"><div class="mp-group-head">${escapeHtml(courseTitle)}</div>`);
-    list.forEach(r => {
+  for (const [courseKey, group] of groups) {
+    const archivedTag = group.archived
+      ? ' <span class="mp-group-archived-tag">archived</span>'
+      : '';
+    html.push(`<div class="mp-group" data-course-key="${escapeHtml(courseKey)}">`);
+    html.push(`<div class="mp-group-head">${escapeHtml(group.title)}${archivedTag}</div>`);
+    group.rows.forEach(r => {
       const sel = _mp.selected.some(s => s.module_id === r.module_id);
       const sameCourse = excludeCourseVersionId && r.course_version_id === excludeCourseVersionId;
       const disabled = !!sameCourse;
       const status = _mpStatusOf(r) || 'draft';
       const counts = `Lessons: ${r.lesson_count} · Pages: ${r.page_count} (ready: ${r.ready_page_count}) · Quiz: ${r.quiz_question_count} · Appendix: ${r.appendix_item_count}`;
+      const versionTag = r.is_current_version === false ? ' (older)' : '';
       html.push(`
         <label class="mp-row ${disabled ? 'is-disabled' : ''} ${sel ? 'is-selected' : ''}" data-mid="${escapeHtml(r.module_id)}">
           <input type="checkbox" class="mp-row-cb" ${sel ? 'checked' : ''} ${disabled ? 'disabled' : ''} />
@@ -298,11 +376,21 @@ function _mpRenderRows(host, excludeCourseVersionId) {
               <span class="mp-row-slug">${escapeHtml(r.module_slug || '')}</span>
               ${disabled ? '<span class="mp-row-tag">(already here)</span>' : ''}
             </div>
-            <div class="mp-row-meta">${escapeHtml(courseTitle)} · v${r.course_version_number} (${escapeHtml(status)})</div>
+            <div class="mp-row-meta">${escapeHtml(group.title)} · v${r.course_version_number}${versionTag} (${escapeHtml(status)})</div>
             <div class="mp-row-counts">${escapeHtml(counts)}</div>
           </div>
         </label>`);
     });
+    // Per-course expander row. Counts only non-current versions still
+    // hidden by the current filters.
+    const hidden = _mpHiddenOldCount(courseKey);
+    const isOpen = !!(_mp.filters.showOldVersions && _mp.filters.showOldVersions[courseKey]);
+    if (hidden > 0 || isOpen) {
+      const label = isOpen
+        ? 'Hide older versions ▴'
+        : 'Show ' + hidden + ' older version' + (hidden === 1 ? '' : 's') + ' ▾';
+      html.push(`<button type="button" class="mp-group-expand" data-course-key="${escapeHtml(courseKey)}">${escapeHtml(label)}</button>`);
+    }
     html.push(`</div>`);
   }
   host.innerHTML = html.join('');
@@ -322,6 +410,15 @@ function _mpRenderRows(host, excludeCourseVersionId) {
       _mpRenderSelected();
       _mpUpdateConfirm();
       rowEl.classList.toggle('is-selected', cb.checked);
+    });
+  });
+  // Wire per-course expanders.
+  host.querySelectorAll('.mp-group-expand').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.courseKey || '';
+      if (!_mp.filters.showOldVersions) _mp.filters.showOldVersions = {};
+      _mp.filters.showOldVersions[key] = !_mp.filters.showOldVersions[key];
+      _mpRenderRows(host, excludeCourseVersionId);
     });
   });
 }
@@ -392,7 +489,7 @@ function _mpUpdateConfirm() {
 async function openModulePicker({ excludeCourseVersionId = '', mode = 'add-to-version', onConfirm } = {}) {
   _mp.rows = [];
   _mp.selected = [];
-  _mp.filters = { q: '', course: '', status: '' };
+  _mp.filters = { q: '', course: '', status: '', includeArchived: false, showOldVersions: {} };
 
   const bodyHtml = `
     <div class="mp-wrap">
@@ -404,6 +501,10 @@ async function openModulePicker({ excludeCourseVersionId = '', mode = 'add-to-ve
           <option value="draft">Draft</option>
           <option value="published">Published</option>
         </select>
+        <label class="mp-toggle">
+          <input type="checkbox" id="mp-include-archived" />
+          <span>Include archived courses</span>
+        </label>
       </div>
       <div class="mp-cols">
         <div class="mp-list" id="mp-list" data-exclude="${escapeHtml(excludeCourseVersionId || '')}">
@@ -454,6 +555,13 @@ async function openModulePicker({ excludeCourseVersionId = '', mode = 'add-to-ve
         _mp.filters.status = statusSel.value || '';
         _mpRenderRows(listHost, excludeCourseVersionId);
       });
+      const archCb = host.querySelector('#mp-include-archived');
+      if (archCb) {
+        archCb.addEventListener('change', () => {
+          _mp.filters.includeArchived = !!archCb.checked;
+          _mpRenderRows(listHost, excludeCourseVersionId);
+        });
+      }
 
       host.querySelector('#mp-confirm').addEventListener('click', () => {
         if (!_mp.selected.length) return;
@@ -800,7 +908,12 @@ $('#studio-gate-form').addEventListener('submit', async (e) => {
 function parseRoute() {
   const p = window.location.pathname.replace(/\/+$/, '') || '/studio';
   if (p === '/studio')              return { name: 'dashboard' };
-  if (p === '/studio/courses')      return { name: 'courses' };
+  // v0.6.1: /studio/courses is consolidated into /studio. Redirect via
+  // history.replaceState so external bookmarks land on the canonical URL.
+  if (p === '/studio/courses') {
+    try { window.history.replaceState({}, '', '/studio'); } catch { /* noop */ }
+    return { name: 'dashboard' };
+  }
   if (p === '/studio/media')        return { name: 'media' };
   if (p === '/studio/users')        return { name: 'users' };
   if (p.startsWith('/studio/edit/')) {
@@ -835,23 +948,26 @@ async function router() {
   $('#btn-save').classList.add('hidden');
   setSaveState('ready', '● Ready');
 
-  // active nav highlight
-  const navMap = { dashboard:'/studio', courses:'/studio/courses', media:'/studio/media', users:'/studio/users', editor:'/studio/edit/' };
+  // active nav highlight. v0.6.1: /studio is the single canonical dashboard
+  // route. The legacy /studio/courses entry stays in the map only so any
+  // remaining external links highlight correctly during the deprecation tail.
+  const navMap = { dashboard:'/studio', media:'/studio/media', users:'/studio/users', editor:'/studio/edit/' };
   $$('.studio-nav-link').forEach(a => {
     const href = a.getAttribute('href');
     a.classList.toggle('is-active', !a.dataset.external && (
-      (route.name === 'dashboard' && href === '/studio') ||
-      (route.name === 'courses' && href === '/studio/courses') ||
+      (route.name === 'dashboard' && (href === '/studio' || href === '/studio/courses')) ||
       (route.name === 'media' && href === '/studio/media') ||
       (route.name === 'users' && href === '/studio/users') ||
-      (route.name === 'editor' && href === '/studio/courses')
+      (route.name === 'editor' && (href === '/studio' || href === '/studio/courses'))
     ));
   });
 
   const view = $('#studio-view');
   view.innerHTML = '';
 
-  if (route.name === 'dashboard' || route.name === 'courses') return renderDashboard(view, route.name === 'courses');
+  // v0.6.1: always pass coursesOnly=true so the New course from modules
+  // button is visible on the canonical /studio view.
+  if (route.name === 'dashboard') return renderDashboard(view, true);
   if (route.name === 'media')                                  return renderMedia(view);
   if (route.name === 'users')                                  return renderUsers(view);
   if (route.name === 'editor')                                 return renderEditor(view, route.params.slug);
@@ -1809,7 +1925,7 @@ async function loadCourse(courseId) {
     return;
   }
   $('#course-picker').value = courseId;
-  renderCrumbs({ label: 'Editor', href: '/studio/courses' }, { label: state.course.title });
+  renderCrumbs({ label: 'Editor', href: '/studio' }, { label: state.course.title });
 
   const versionId = state.course.current_version_id;
 
@@ -4942,7 +5058,7 @@ function runSoftDelete(c) {
         if (error) { toast('Soft-delete failed: ' + error.message, 'is-error'); btn.disabled = false; return; }
         closeModal();
         toast('Course soft-deleted');
-        navigate('/studio/courses');
+        navigate('/studio');
       });
       input.focus();
     }
@@ -4993,7 +5109,7 @@ function hardDeleteSecondConfirm(c) {
         if (error) { toast('Permanent delete failed: ' + error.message, 'is-error'); btn.disabled = false; return; }
         closeModal();
         toast('Course permanently deleted');
-        navigate('/studio/courses');
+        navigate('/studio');
       });
       input.focus();
     }
@@ -7148,8 +7264,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.6.0' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.6.0');
+console.log('[studio] boot v0.6.1' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.6.1');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);

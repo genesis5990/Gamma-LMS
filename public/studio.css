@@ -2160,3 +2160,36 @@ sup.cite-marker.cite-missing {
   cursor: pointer;
 }
 .studio-popmenu-item:hover { background: rgba(1,105,111,.08); }
+
+/* v0.6.1: module library picker additions */
+.mp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--ink-navy, #071727);
+  cursor: pointer;
+}
+.mp-toggle input[type="checkbox"] { margin: 0; }
+.mp-group-expand {
+  background: transparent;
+  border: none;
+  color: var(--ink-navy, #071727);
+  font: inherit;
+  padding: 6px 12px;
+  cursor: pointer;
+  opacity: 0.7;
+  text-align: left;
+  width: 100%;
+}
+.mp-group-expand:hover { opacity: 1; }
+.mp-group-archived-tag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.75em;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.7;
+}
