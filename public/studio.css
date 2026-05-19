@@ -2037,3 +2037,126 @@ sup.cite-marker.cite-missing {
   background: transparent;
   cursor: pointer;
 }
+
+/* =====================================================================
+   Module Library picker (v0.6.0)
+   ===================================================================== */
+.modal-card.is-wide { max-width: 960px; width: 95%; }
+
+.mp-wrap { display: flex; flex-direction: column; gap: 10px; min-height: 60vh; }
+.mp-topbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mp-topbar input[type="text"] { flex: 1; min-width: 200px; }
+.mp-topbar select {
+  padding: 7px 10px;
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 5px;
+  font: inherit; font-size: 13px;
+  background: white;
+}
+
+.mp-cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; min-height: 50vh; }
+@media (max-width: 720px) { .mp-cols { grid-template-columns: 1fr; } }
+
+.mp-list {
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 6px;
+  overflow-y: auto;
+  max-height: 55vh;
+  background: #fff;
+}
+.mp-group-head {
+  position: sticky; top: 0;
+  background: var(--st-paper, #F7F6F2);
+  padding: 6px 10px;
+  font-weight: 600; font-size: 12.5px;
+  color: var(--st-ink, #071727);
+  border-bottom: 1px solid var(--st-line, #d9dfee);
+}
+.mp-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--st-line, #eee);
+  cursor: pointer;
+}
+.mp-row.is-disabled { opacity: .55; cursor: not-allowed; }
+.mp-row.is-selected { background: rgba(1,105,111,.06); }
+.mp-row-main { flex: 1; min-width: 0; }
+.mp-row-title { font-weight: 600; font-size: 13px; }
+.mp-row-slug {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--st-muted, #6b7785);
+  margin-left: 6px;
+}
+.mp-row-tag {
+  font-size: 11px;
+  color: var(--st-muted, #6b7785);
+  margin-left: 6px;
+}
+.mp-row-meta { font-size: 12px; color: var(--st-muted, #6b7785); margin-top: 2px; }
+.mp-row-counts { font-size: 11.5px; color: var(--st-muted, #6b7785); margin-top: 2px; }
+
+.mp-sel {
+  display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--st-paper-2, #F8F5EF);
+  max-height: 55vh;
+}
+.mp-sel-head { font-weight: 600; font-size: 13px; }
+.mp-sel-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.mp-selected-empty { font-size: 12px; color: var(--st-muted, #6b7785); padding: 8px 0; }
+.mp-sel-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid var(--st-line, #eee);
+}
+.mp-sel-idx { font-size: 11px; color: var(--st-muted, #6b7785); text-align: center; }
+.mp-sel-main { min-width: 0; }
+.mp-sel-title {
+  font-size: 12.5px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mp-sel-sub  { font-size: 11px; color: var(--st-muted, #6b7785); }
+.mp-sel-btn {
+  font-size: 11px; padding: 2px 6px;
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 3px;
+  background: white;
+  cursor: pointer;
+}
+.mp-sel-btn:disabled { opacity: .4; cursor: default; }
+.mp-note { font-size: 11.5px; color: var(--st-muted, #6b7785); padding-top: 6px; border-top: 1px dashed var(--st-line, #eee); }
+.mp-error {
+  font-size: 12.5px;
+  color: #b42318;
+  background: #fde2e2;
+  border: 1px solid #f7c1c1;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* Small popover menu (used by the outline +M dropdown). */
+.studio-popmenu {
+  background: white;
+  border: 1px solid var(--st-line, #d9dfee);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.12);
+  padding: 4px 0;
+  min-width: 220px;
+}
+.studio-popmenu-item {
+  display: block; width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  font: inherit; font-size: 13px;
+  background: transparent; border: 0;
+  cursor: pointer;
+}
+.studio-popmenu-item:hover { background: rgba(1,105,111,.08); }

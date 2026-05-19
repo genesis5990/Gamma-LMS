@@ -234,9 +234,454 @@ function openModal({ title, bodyHtml, footHtml, onMount }) {
   onMount && onMount(host);
   return host;
 }
-function closeModal() { $('#modal-host').classList.add('hidden'); }
+function closeModal() {
+  $('#modal-host').classList.add('hidden');
+  const card = $('#modal-card');
+  if (card) card.classList.remove('is-wide');
+}
 $('#modal-close').addEventListener('click', closeModal);
 $('#modal-host').addEventListener('click', (e) => { if (e.target.id === 'modal-host') closeModal(); });
+
+// ---------- module library picker ----------------------------------
+// v0.6.0: open a modal that lets an author select one or more modules
+// from any course in the same tenant. Used by both the outline "+M"
+// dropdown (add-to-version) and the courses index "New course from
+// modules" wizard (new-course).
+const _mp = { rows: [], selected: [], filters: { q: '', course: '', status: '' } };
+
+function _mpStatusOf(row) {
+  return (row.course_version_status || '').toLowerCase();
+}
+
+function _mpFilteredRows() {
+  const q = _mp.filters.q.trim().toLowerCase();
+  const cf = _mp.filters.course;
+  const sf = _mp.filters.status;
+  return _mp.rows.filter(r => {
+    if (cf && r.course_title !== cf) return false;
+    if (sf && _mpStatusOf(r) !== sf) return false;
+    if (!q) return true;
+    return (r.module_title || '').toLowerCase().includes(q)
+        || (r.course_title || '').toLowerCase().includes(q)
+        || (r.module_slug  || '').toLowerCase().includes(q);
+  });
+}
+
+function _mpRenderRows(host, excludeCourseVersionId) {
+  const rows = _mpFilteredRows();
+  if (!rows.length) {
+    host.innerHTML = '<div class="studio-empty-state"><p>No modules match.</p></div>';
+    return;
+  }
+  // Group by course_title.
+  const groups = new Map();
+  rows.forEach(r => {
+    const key = r.course_title || '(untitled course)';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+  const html = [];
+  for (const [courseTitle, list] of groups) {
+    html.push(`<div class="mp-group"><div class="mp-group-head">${escapeHtml(courseTitle)}</div>`);
+    list.forEach(r => {
+      const sel = _mp.selected.some(s => s.module_id === r.module_id);
+      const sameCourse = excludeCourseVersionId && r.course_version_id === excludeCourseVersionId;
+      const disabled = !!sameCourse;
+      const status = _mpStatusOf(r) || 'draft';
+      const counts = `Lessons: ${r.lesson_count} · Pages: ${r.page_count} (ready: ${r.ready_page_count}) · Quiz: ${r.quiz_question_count} · Appendix: ${r.appendix_item_count}`;
+      html.push(`
+        <label class="mp-row ${disabled ? 'is-disabled' : ''} ${sel ? 'is-selected' : ''}" data-mid="${escapeHtml(r.module_id)}">
+          <input type="checkbox" class="mp-row-cb" ${sel ? 'checked' : ''} ${disabled ? 'disabled' : ''} />
+          <div class="mp-row-main">
+            <div class="mp-row-title">
+              ${escapeHtml(r.module_title || '(untitled)')}
+              <span class="mp-row-slug">${escapeHtml(r.module_slug || '')}</span>
+              ${disabled ? '<span class="mp-row-tag">(already here)</span>' : ''}
+            </div>
+            <div class="mp-row-meta">${escapeHtml(courseTitle)} · v${r.course_version_number} (${escapeHtml(status)})</div>
+            <div class="mp-row-counts">${escapeHtml(counts)}</div>
+          </div>
+        </label>`);
+    });
+    html.push(`</div>`);
+  }
+  host.innerHTML = html.join('');
+  // Wire row checkboxes.
+  host.querySelectorAll('.mp-row').forEach(rowEl => {
+    const cb = rowEl.querySelector('.mp-row-cb');
+    if (!cb || cb.disabled) return;
+    cb.addEventListener('change', () => {
+      const id = rowEl.dataset.mid;
+      const row = _mp.rows.find(r => r.module_id === id);
+      if (!row) return;
+      if (cb.checked) {
+        if (!_mp.selected.some(s => s.module_id === id)) _mp.selected.push(row);
+      } else {
+        _mp.selected = _mp.selected.filter(s => s.module_id !== id);
+      }
+      _mpRenderSelected();
+      _mpUpdateConfirm();
+      rowEl.classList.toggle('is-selected', cb.checked);
+    });
+  });
+}
+
+function _mpRenderSelected() {
+  const host = $('#mp-selected-list');
+  if (!host) return;
+  const count = _mp.selected.length;
+  const head = $('#mp-selected-head');
+  if (head) head.textContent = `Selected (${count})`;
+  if (!count) {
+    host.innerHTML = '<div class="mp-selected-empty">No modules selected yet. Pick from the list on the left.</div>';
+    return;
+  }
+  host.innerHTML = _mp.selected.map((s, i) => `
+    <div class="mp-sel-row" data-mid="${escapeHtml(s.module_id)}">
+      <span class="mp-sel-idx">${i + 1}</span>
+      <div class="mp-sel-main">
+        <div class="mp-sel-title">${escapeHtml(s.module_title || '(untitled)')}</div>
+        <div class="mp-sel-sub">${escapeHtml(s.course_title || '')}</div>
+      </div>
+      <button type="button" class="mp-sel-btn" data-act="up"   title="Move up"   ${i === 0 ? 'disabled' : ''}>▲</button>
+      <button type="button" class="mp-sel-btn" data-act="down" title="Move down" ${i === count - 1 ? 'disabled' : ''}>▼</button>
+      <button type="button" class="mp-sel-btn" data-act="rm"   title="Remove">✕</button>
+    </div>
+  `).join('');
+  host.querySelectorAll('.mp-sel-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rowEl = btn.closest('.mp-sel-row');
+      const id = rowEl.dataset.mid;
+      const idx = _mp.selected.findIndex(s => s.module_id === id);
+      if (idx < 0) return;
+      const act = btn.dataset.act;
+      if (act === 'rm') {
+        _mp.selected.splice(idx, 1);
+      } else if (act === 'up' && idx > 0) {
+        const [it] = _mp.selected.splice(idx, 1);
+        _mp.selected.splice(idx - 1, 0, it);
+      } else if (act === 'down' && idx < _mp.selected.length - 1) {
+        const [it] = _mp.selected.splice(idx, 1);
+        _mp.selected.splice(idx + 1, 0, it);
+      }
+      _mpRenderSelected();
+      _mpUpdateConfirm();
+      // Also refresh checkbox state in left list.
+      const listHost = $('#mp-list');
+      if (listHost) {
+        const excl = listHost.dataset.exclude || '';
+        _mpRenderRows(listHost, excl);
+      }
+    });
+  });
+}
+
+function _mpUpdateConfirm() {
+  const btn = $('#mp-confirm');
+  if (!btn) return;
+  const count = _mp.selected.length;
+  btn.disabled = count === 0;
+  const mode = btn.dataset.mode;
+  if (mode === 'new-course') {
+    btn.textContent = 'Continue';
+  } else {
+    btn.textContent = count === 1 ? 'Add 1 module' : `Add ${count} modules`;
+  }
+}
+
+async function openModulePicker({ excludeCourseVersionId = '', mode = 'add-to-version', onConfirm } = {}) {
+  _mp.rows = [];
+  _mp.selected = [];
+  _mp.filters = { q: '', course: '', status: '' };
+
+  const bodyHtml = `
+    <div class="mp-wrap">
+      <div class="mp-topbar">
+        <input type="text" id="mp-q" placeholder="Search by module, course, or slug…" />
+        <select id="mp-course"><option value="">All courses</option></select>
+        <select id="mp-status">
+          <option value="">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+      </div>
+      <div class="mp-cols">
+        <div class="mp-list" id="mp-list" data-exclude="${escapeHtml(excludeCourseVersionId || '')}">
+          <div class="studio-empty-state"><p>Loading modules…</p></div>
+        </div>
+        <div class="mp-sel">
+          <div class="mp-sel-head" id="mp-selected-head">Selected (0)</div>
+          <div class="mp-sel-list" id="mp-selected-list">
+            <div class="mp-selected-empty">No modules selected yet.</div>
+          </div>
+          <div class="mp-note">${mode === 'add-to-version'
+            ? 'This will copy each module (lessons, pages, quiz, appendix) into the current course version. Source modules are not changed.'
+            : 'This will copy each module into a new private draft course. Source modules are not changed.'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const footHtml = `
+    <button class="studio-btn" id="mp-cancel" type="button">Cancel</button>
+    <button class="studio-btn primary" id="mp-confirm" type="button" data-mode="${mode}" disabled>${mode === 'new-course' ? 'Continue' : 'Add module'}</button>
+  `;
+
+  openModal({
+    title: mode === 'new-course' ? 'Pick modules for new course' : 'Add module from library',
+    bodyHtml,
+    footHtml,
+    onMount: (host) => {
+      const card = host.querySelector('#modal-card');
+      if (card) card.classList.add('is-wide');
+
+      host.querySelector('#mp-cancel').addEventListener('click', closeModal);
+
+      const listHost  = host.querySelector('#mp-list');
+      const courseSel = host.querySelector('#mp-course');
+      const statusSel = host.querySelector('#mp-status');
+      const qInput    = host.querySelector('#mp-q');
+
+      qInput.addEventListener('input', () => {
+        _mp.filters.q = qInput.value || '';
+        _mpRenderRows(listHost, excludeCourseVersionId);
+      });
+      courseSel.addEventListener('change', () => {
+        _mp.filters.course = courseSel.value || '';
+        _mpRenderRows(listHost, excludeCourseVersionId);
+      });
+      statusSel.addEventListener('change', () => {
+        _mp.filters.status = statusSel.value || '';
+        _mpRenderRows(listHost, excludeCourseVersionId);
+      });
+
+      host.querySelector('#mp-confirm').addEventListener('click', () => {
+        if (!_mp.selected.length) return;
+        const sel = _mp.selected.map(s => ({
+          module_id: s.module_id,
+          source_course_title: s.course_title,
+          source_module_title: s.module_title,
+        }));
+        if (typeof onConfirm === 'function') onConfirm(sel);
+      });
+
+      _mpRenderSelected();
+      _mpUpdateConfirm();
+
+      // Fetch modules.
+      (async () => {
+        const { data, error } = await sb.rpc('list_pickable_modules');
+        if (error) {
+          listHost.innerHTML = `<div class="studio-empty-state"><p>Failed to load: ${escapeHtml(error.message || String(error))}</p></div>`;
+          return;
+        }
+        _mp.rows = Array.isArray(data) ? data : [];
+        // Populate course filter from distinct titles.
+        const titles = Array.from(new Set(_mp.rows.map(r => r.course_title).filter(Boolean))).sort();
+        courseSel.innerHTML = '<option value="">All courses</option>' +
+          titles.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+        _mpRenderRows(listHost, excludeCourseVersionId);
+      })();
+    },
+  });
+}
+
+// ---------- new course from modules wizard -------------------------
+function _slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+function openNewCourseFromModulesWizard() {
+  openModulePicker({
+    mode: 'new-course',
+    onConfirm: (selection) => {
+      _openNewCourseDetailsStep(selection);
+    },
+  });
+}
+
+function _openNewCourseDetailsStep(selection) {
+  if (!selection || !selection.length) return;
+  const titleList = selection.map(s => s.source_module_title).filter(Boolean).join(', ');
+  const bodyHtml = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="mp-note">Will compose ${selection.length} module${selection.length === 1 ? '' : 's'}: ${escapeHtml(titleList)}</div>
+      <label>Course title
+        <input type="text" id="nc-title" placeholder="My new course" />
+      </label>
+      <label>Slug
+        <div style="display:flex;gap:6px">
+          <input type="text" id="nc-slug" placeholder="my-new-course" style="flex:1" />
+          <button type="button" class="studio-btn ghost" id="nc-slug-regen" title="Regenerate from title">Regenerate</button>
+        </div>
+      </label>
+      <label>Description (optional)
+        <textarea id="nc-desc" rows="3" placeholder="What this course covers"></textarea>
+      </label>
+      <div id="nc-error" class="mp-error" hidden></div>
+    </div>`;
+  const footHtml = `
+    <button class="studio-btn" id="nc-back"   type="button">Back</button>
+    <button class="studio-btn" id="nc-cancel" type="button">Cancel</button>
+    <button class="studio-btn primary" id="nc-create" type="button" disabled>Create course</button>
+  `;
+  openModal({
+    title: 'New course details',
+    bodyHtml,
+    footHtml,
+    onMount: (host) => {
+      const titleEl = host.querySelector('#nc-title');
+      const slugEl  = host.querySelector('#nc-slug');
+      const descEl  = host.querySelector('#nc-desc');
+      const errEl   = host.querySelector('#nc-error');
+      const createBtn = host.querySelector('#nc-create');
+      let slugDirty = false;
+
+      function refreshCreate() {
+        const ok = titleEl.value.trim() && slugEl.value.trim();
+        createBtn.disabled = !ok;
+      }
+
+      titleEl.addEventListener('input', () => {
+        if (!slugDirty) slugEl.value = _slugify(titleEl.value);
+        refreshCreate();
+      });
+      slugEl.addEventListener('input', () => { slugDirty = true; refreshCreate(); });
+      host.querySelector('#nc-slug-regen').addEventListener('click', () => {
+        slugEl.value = _slugify(titleEl.value);
+        slugDirty = false;
+        refreshCreate();
+      });
+      host.querySelector('#nc-cancel').addEventListener('click', closeModal);
+      host.querySelector('#nc-back').addEventListener('click', () => {
+        closeModal();
+        // Re-open picker (selection is preserved in _mp.selected).
+        const ids = selection.map(s => s.module_id);
+        openModulePicker({
+          mode: 'new-course',
+          onConfirm: (sel) => _openNewCourseDetailsStep(sel),
+        });
+        // Restore prior selection on next render tick.
+        setTimeout(() => {
+          _mp.selected = _mp.rows.filter(r => ids.includes(r.module_id))
+            .sort((a, b) => ids.indexOf(a.module_id) - ids.indexOf(b.module_id));
+          const listHost = $('#mp-list');
+          if (listHost) _mpRenderRows(listHost, listHost.dataset.exclude || '');
+          _mpRenderSelected();
+          _mpUpdateConfirm();
+        }, 0);
+      });
+      createBtn.addEventListener('click', async () => {
+        const p_title = titleEl.value.trim();
+        const p_slug  = slugEl.value.trim();
+        const p_description = descEl.value.trim() || null;
+        if (!p_title || !p_slug) return;
+        createBtn.disabled = true;
+        errEl.hidden = true; errEl.textContent = '';
+        const { data, error } = await sb.rpc('create_course_from_modules', {
+          p_title,
+          p_slug,
+          p_description,
+          p_module_ids: selection.map(s => s.module_id),
+        });
+        if (error) {
+          errEl.textContent = error.message || String(error);
+          errEl.hidden = false;
+          createBtn.disabled = false;
+          return;
+        }
+        toast('Course created');
+        closeModal();
+        // Find the new course in state to redirect by slug; fall back to id-based URL.
+        try {
+          const { data: rows } = await sb.from('courses').select('slug').eq('id', data).limit(1);
+          const newSlug = rows && rows[0] ? rows[0].slug : p_slug;
+          window.location.href = '/studio/edit/' + encodeURIComponent(newSlug);
+        } catch (_) {
+          window.location.href = '/studio/edit/' + encodeURIComponent(p_slug);
+        }
+      });
+      refreshCreate();
+    },
+  });
+}
+
+// Outline +M dropdown: opens a small menu next to the button with
+// "Blank module" and "Add module from library…" entries.
+function openAddModuleMenu(anchorBtn) {
+  // Remove any existing menu.
+  const existing = document.getElementById('add-module-menu');
+  if (existing) { existing.remove(); return; }
+  const rect = anchorBtn.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.id = 'add-module-menu';
+  menu.className = 'studio-popmenu';
+  menu.style.position = 'fixed';
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  menu.style.zIndex = 200;
+  menu.innerHTML = `
+    <button type="button" class="studio-popmenu-item" data-act="blank">Blank module</button>
+    <button type="button" class="studio-popmenu-item" data-act="library">Add module from library…</button>
+  `;
+  document.body.appendChild(menu);
+
+  function cleanup() {
+    menu.remove();
+    document.removeEventListener('click', onDocClick, true);
+    document.removeEventListener('keydown', onKey, true);
+  }
+  function onDocClick(e) {
+    if (e.target.closest('#add-module-menu') || e.target === anchorBtn) return;
+    cleanup();
+  }
+  function onKey(e) { if (e.key === 'Escape') cleanup(); }
+  document.addEventListener('click', onDocClick, true);
+  document.addEventListener('keydown', onKey, true);
+
+  menu.querySelectorAll('.studio-popmenu-item').forEach(b => {
+    b.addEventListener('click', async () => {
+      const act = b.dataset.act;
+      cleanup();
+      if (act === 'blank') {
+        await onAddModule();
+      } else if (act === 'library') {
+        if (!state.version || !state.version.id) {
+          toast('Open a course first', 'is-error');
+          return;
+        }
+        openModulePicker({
+          excludeCourseVersionId: state.version.id,
+          mode: 'add-to-version',
+          onConfirm: async (selection) => {
+            closeModal();
+            let okCount = 0;
+            for (const s of selection) {
+              const { error } = await sb.rpc('clone_module_into_version', {
+                p_source_module_id: s.module_id,
+                p_target_course_version_id: state.version.id,
+                p_position: null,
+              });
+              if (error) {
+                toast('Clone failed: ' + (error.message || String(error)), 'is-error');
+                break;
+              }
+              okCount++;
+            }
+            if (okCount) {
+              toast(`Cloned ${okCount} module${okCount === 1 ? '' : 's'}`);
+              if (state.course) await loadCourse(state.course.id);
+            }
+          },
+        });
+      }
+    });
+  });
+}
 
 // ---------- auth gate ----------------------------------------------
 async function bootstrapAuth() {
@@ -822,6 +1267,18 @@ async function _renderDashboardInner(view, coursesOnly) {
     }
   }
 
+  // v0.6.0: "New course from modules" button on the /studio/courses index.
+  if (coursesOnly) {
+    const actions = $('#dash-course-filter')?.parentElement;
+    if (actions && !$('#dash-new-course-mods')) {
+      actions.insertAdjacentHTML('beforeend',
+        `<button id="dash-new-course-mods" class="studio-btn primary" type="button" style="margin-left:10px" title="Create a new course composed from existing modules">New course from modules</button>`);
+      $('#dash-new-course-mods').addEventListener('click', () => {
+        openNewCourseFromModulesWizard();
+      });
+    }
+  }
+
   function renderCourseGrid(filter) {
     if (coursesErr) {
       console.warn('[studio] dashboard courses panel error:', coursesErr);
@@ -1272,7 +1729,7 @@ async function renderEditor(view, slug) {
     refreshDirtyButtons();
     if (state.course) loadCourse(state.course.id);
   };
-  $('#btn-add-module').onclick  = onAddModule;
+  $('#btn-add-module').onclick  = (e) => openAddModuleMenu(e.currentTarget);
   $('#btn-validate').onclick    = runValidationModal;
 
   // wire find/replace bar
@@ -6691,8 +7148,8 @@ window.addEventListener('drop', (e) => {
 // =====================================================================
 // BOOTSTRAP
 // =====================================================================
-console.log('[studio] boot v0.4.86' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
-_debugLog('boot v0.4.86');
+console.log('[studio] boot v0.6.0' + (_STUDIO_DEBUG ? ' (debug=1)' : ''));
+_debugLog('boot v0.6.0');
 wireLessonWorkflowWidget();
 bootstrapAuth().catch(err => {
   console.error(err);
