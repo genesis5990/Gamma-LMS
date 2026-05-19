@@ -163,7 +163,7 @@ window.signOut = async () => {
 };
 
 window.signInWithEmail = async (email) => {
-  const redirect = window.location.origin + window.location.pathname;
+  const redirect = window.location.origin + window.location.pathname + '?preview=deconflict2026';
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: redirect }

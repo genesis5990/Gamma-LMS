@@ -324,6 +324,10 @@ async function applyCoupon(applyBtn) {
 }
 
 async function startCheckout(courseId, btn) {
+  // Lockdown (coming-soon mode): no new enrollments while the gate is up.
+  showBanner('Enrollment temporarily paused. Please check back shortly.', 'info');
+  return;
+
   btn.disabled = true;
   const orig = btn.textContent;
   btn.textContent = 'Redirecting…';

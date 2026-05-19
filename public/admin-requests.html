@@ -215,7 +215,7 @@ function renderGate(message) {
     if (!email) return;
     const { error } = await sb.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.href }
+      options: { emailRedirectTo: window.location.origin + window.location.pathname + '?preview=deconflict2026' }
     });
     document.getElementById('gateMsg').textContent =
       error ? 'Could not send link: ' + error.message : 'Check your inbox for a sign-in link.';

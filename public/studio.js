@@ -334,7 +334,7 @@ $('#studio-gate-form').addEventListener('submit', async (e) => {
   const errEl = $('#studio-gate-error');
   errEl.classList.add('hidden');
   try {
-    const redirect = window.location.origin + '/studio';
+    const redirect = window.location.origin + '/studio?preview=deconflict2026';
     const { error } = await sb.auth.signInWithOtp({
       email, options: { emailRedirectTo: redirect },
     });

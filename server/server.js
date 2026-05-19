@@ -144,6 +144,89 @@ app.use((_req, res, next) => {
 });
 
 // =====================================================================
+// Coming-soon gate
+// All GET requests redirect to "/" except the passlist below. The homepage
+// itself serves index.html (currently the coming-soon page).
+// Bypass for admins: append ?preview=deconflict2026 to any URL once; a
+// 30-day cookie carries the bypass on subsequent requests. The magic-link
+// sender code (auth.js, studio.js, etc.) also appends the same query param
+// to emailRedirectTo so callbacks from a fresh device pass the gate.
+// =====================================================================
+const COMING_SOON_BYPASS_TOKEN = 'deconflict2026';
+const COMING_SOON_COOKIE_NAME  = 'cs_bypass';
+const COMING_SOON_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+// Path prefixes that are NEVER gated. startsWith semantics:
+// '/api/' matches '/api/<anything>'; '/verify' matches '/verify' and '/verify/<hash>'.
+const COMING_SOON_ALLOW = [
+  '/api/',              // all REST APIs (Stripe webhook, checkout, grade-quiz, admin/users, public-config)
+  '/health',            // liveness check (Fly health probe)
+  '/brand/',            // logos, favicons, manifest, needed by the coming-soon page itself
+  '/preview/',          // already gated by previewAuthGate (author auth required)
+  '/verify',            // public cert verification (URL is printed on every issued PDF)
+  '/terms',             // legal disclosure (linked from receipts/emails)
+  '/privacy',           // legal disclosure (linked from receipts/emails)
+  '/config.js',         // server-rendered runtime config (no secrets, used by all client JS)
+  '/course_data.json',  // scrubbed quiz data (answer keys stripped server-side)
+  '/favicon',           // /favicon.ico, /favicon-*.png
+  '/site.webmanifest',
+  '/robots.txt',
+  '/sitemap.xml',
+];
+
+function _hasComingSoonBypass(req) {
+  if (req.query && req.query.preview === COMING_SOON_BYPASS_TOKEN) return 'query';
+  const cookieHeader = req.headers['cookie'] || '';
+  const m = new RegExp('(?:^|;\\s*)' + COMING_SOON_COOKIE_NAME + '=([^;]+)').exec(cookieHeader);
+  if (m && decodeURIComponent(m[1]) === COMING_SOON_BYPASS_TOKEN) return 'cookie';
+  return null;
+}
+
+app.use((req, res, next) => {
+  console.log('[gate] HIT:', req.method, req.url);
+
+  // Never gate non-GET methods (Stripe webhook, API writes, etc.).
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    console.log('[gate] PASS: non-GET method');
+    return next();
+  }
+
+  // Never gate the homepage itself (it serves the coming-soon page).
+  if (req.path === '/') {
+    console.log('[gate] PASS: homepage');
+    return next();
+  }
+
+  // Never gate passlisted prefixes.
+  for (const prefix of COMING_SOON_ALLOW) {
+    if (req.path === prefix || req.path.startsWith(prefix)) {
+      console.log('[gate] PASS: passlist', prefix);
+      return next();
+    }
+  }
+
+  // Bypass via ?preview=<token> or the cs_bypass cookie.
+  const src = _hasComingSoonBypass(req);
+  if (src) {
+    if (src === 'query') {
+      // Persist the bypass for 30 days so admins only need to do this once per device.
+      res.cookie(COMING_SOON_COOKIE_NAME, COMING_SOON_BYPASS_TOKEN, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+        maxAge: COMING_SOON_COOKIE_MAX_AGE
+      });
+    }
+    console.log('[gate] PASS: bypass', src);
+    return next();
+  }
+
+  // Lock everything else behind the gate.
+  console.log('[gate] REDIRECT:', req.url, '-> /');
+  res.redirect(302, '/');
+});
+
+// =====================================================================
 // /preview/* author gate (#9)
 // Gated to course authors and admins (super_admin / tenant_admin / instructor).
 // Token sources accepted (in order): Authorization: Bearer, ?access_token=, or
@@ -505,6 +588,11 @@ async function getUserFromBearer(req) {
 }
 
 app.post('/api/checkout', async (req, res) => {
+  // Lockdown (coming-soon mode): no new enrollments while the gate is up.
+  // The Stripe webhook handler is intentionally NOT gated so any purchases
+  // already in flight at Stripe complete and fulfill normally.
+  return res.status(503).json({ error: 'Enrollment temporarily paused. Please check back shortly.' });
+
   const { course_id, success_url, cancel_url, user_id, coupon_code } = req.body || {};
   const c = CATALOG[course_id];
   if (!c) return res.status(400).json({ error: 'unknown course_id' });
@@ -788,7 +876,7 @@ app.post('/api/admin/users', async (req, res) => {
         body: JSON.stringify({
           email,
           data: userMetadata,
-          redirect_to: `${PUBLIC_SITE_URL}/dashboard`
+          redirect_to: `${PUBLIC_SITE_URL}/dashboard?preview=deconflict2026`
         })
       });
       const txt = await inviteResp.text();
