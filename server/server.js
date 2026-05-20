@@ -163,6 +163,7 @@ const COMING_SOON_ALLOW = [
   '/api/',              // all REST APIs (Stripe webhook, checkout, grade-quiz, admin/users, public-config)
   '/health',            // liveness check (Fly health probe)
   '/courses',           // public marketing catalog + /courses/<slug> learner routes
+  '/assets/',           // public static media used by live landing/catalog pages
   '/brand/',            // logos, favicons, manifest, needed by the coming-soon page itself
   '/preview/',          // already gated by previewAuthGate (author auth required)
   '/verify',            // public cert verification (URL is printed on every issued PDF)
