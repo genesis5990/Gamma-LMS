@@ -9,91 +9,356 @@
 <title>Courses · Deconflict</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
-<script src="/admin-nav.js" defer></script>
-<meta name="description" content="Deconflict · Crypto Intelligence Sharing. Pay-per-course training in cryptocurrency, blockchain forensics, and digital asset compliance for investigators." />
-<link rel="stylesheet" href="/brand-header.css" />
+<meta name="description" content="Deconflict Academy course library for cryptocurrency investigation training." />
 <style>
   :root {
-    --ink: #071727; --ink-2: #051729;
-    --paper: #F8F5EF; --paper-2: #FCFAF6;
-    --line: rgba(7,23,39,0.14); --accent: #071727; --accent-2: #051729;
-    --gold: #071727; --muted: #434E5B; --good: #2a9355; --bad: #c94545;
-    --teal: #62B995; --red: #B32322; --signal: #0055A9;
-    --surface-1: #F1EEE7; --surface-2: #E8E4DC; --bone-soft: #DEE6EC;
+    --ink: #071727;
+    --ink-2: #051729;
+    --paper: #f8f5ef;
+    --card: #fcfaf6;
+    --line: rgba(7,23,39,0.14);
+    --muted: #434e5b;
+    --teal: #62b995;
+    --teal-dark: #4fa67f;
+    --surface-1: #f1eee7;
+    --surface-2: #e8e4dc;
+    --good: #2a9355;
+    --bad: #c94545;
+    --max: 1240px;
   }
-  * { box-sizing: border-box; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { margin:0; padding:0; }
   body {
-    font: 16px/1.6 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    color: var(--ink); background: var(--paper);
-    min-height: 100vh; display:flex; flex-direction:column;
+    font: 16px/1.6 'Public Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, h4, .page-title, .hero-title {
+  h1, h2, h3, h4 {
     font-family: 'Source Serif 4', Georgia, serif;
-    font-weight: 600;
     letter-spacing: -0.01em;
   }
-  .eyebrow, .label, .stat-label, .badge, code, kbd, samp, .mono {
+  .eyebrow, .chip, .meta, .pill, code, kbd, samp {
     font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
-  a { color: var(--accent-2); }
-  main { flex:1; max-width: 980px; margin: 0 auto; padding: 56px clamp(20px, 4vw, 40px); width: 100%; }
-  .hero h2 {
-    font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin: 0 0 14px;
-    font-weight: 700;
+  a { color: inherit; text-decoration: none; }
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: rgba(5, 23, 41, .95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(248, 245, 239, .12);
   }
-  .hero p.lede { font-size: 18px; color: var(--muted); margin: 0 0 28px; max-width: 720px; }
-  .catalog { display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-top: 32px; }
+  .header-inner {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 14px clamp(16px, 3vw, 32px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--paper);
+  }
+  .brand img { width: 34px; height: 34px; }
+  .brand span {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .header-actions { display: inline-flex; gap: 8px; }
+  .hbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1;
+    padding: 11px 14px;
+    transition: .2s ease;
+  }
+  .hbtn.light { background: var(--paper); color: var(--ink); }
+  .hbtn.dark { background: transparent; color: var(--paper); border-color: rgba(248,245,239,.3); }
+  .hbtn.dark:hover { background: rgba(248,245,239,.08); }
+
+  main {
+    flex: 1;
+    max-width: var(--max);
+    margin: 0 auto;
+    width: 100%;
+    padding: 42px clamp(16px, 3vw, 32px) 58px;
+  }
+  .hero { margin-bottom: 24px; }
+  .hero .eyebrow {
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 4vw, 56px);
+    line-height: 1.05;
+    margin-bottom: 6px;
+  }
+  .hero .sub {
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .toolbar {
+    margin-top: 18px;
+    display: grid;
+    gap: 12px;
+  }
+  .search-wrap input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--card);
+    color: var(--ink);
+    padding: 12px 14px;
+    font: inherit;
+  }
+  .search-wrap input:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 1px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+  .chip.active {
+    color: #0b5b45;
+    border-color: var(--teal-dark);
+    background: #e0f0e7;
+  }
+
+  .banner {
+    padding: 13px 16px;
+    border-radius: 10px;
+    margin: 16px 0 10px;
+    font-size: 14px;
+    border: 1px solid var(--line);
+    display: none;
+  }
+  .banner.ok { background: #d8f0e2; color: #1b6b3d; }
+  .banner.err { background: #fbe0e0; color: #8a1a1a; }
+  .banner.info { background: #e6efff; color: #0b457d; }
+
+  .results { margin-top: 16px; color: var(--muted); font-size: 14px; }
+  .catalog {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
   .card {
-    background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
-    padding: 28px; box-shadow: 0 1px 3px rgba(13,20,36,.06), 0 8px 28px rgba(13,20,36,.06);
-    display:flex; flex-direction:column;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 0 rgba(7,23,39,.04), 0 8px 24px -12px rgba(7,23,39,.18);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
-  .card h3 { margin:0 0 8px; font-size: 20px; }
-  .card .desc { color: var(--muted); font-size: 14px; flex: 1; margin: 0 0 18px; }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .course-code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .new-tag {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #0b5b45;
+    border: 1px solid #97d1b5;
+    background: #e0f0e7;
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .card h3 { margin: 0; font-size: 24px; line-height: 1.1; }
+  .card .desc { color: var(--muted); font-size: 14px; min-height: 64px; }
+  .meta {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chips-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .level-pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-1);
+    padding: 4px 8px;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  .topic {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  .price-wrap { margin-top: 2px; }
   .card .price { font-size: 28px; font-weight: 700; color: var(--ink); margin: 0 0 4px; }
   .card .price .currency { font-size: 16px; color: var(--muted); margin-left: 4px; }
-  .card .one-time { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
-  .card button {
-    padding: 12px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
-    background: var(--accent); color:#fff; border:0; border-radius: 8px;
+  .card .one-time { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+  .actions {
+    margin-top: auto;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .card button:hover { background: var(--accent-2); }
-  .card button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn {
+    padding: 11px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: .2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .btn-open {
+    background: var(--ink);
+    color:#fff;
+    border-color: var(--ink);
+  }
+  .btn-open:hover { background: var(--ink-2); }
+  .btn-buy {
+    background: #fff;
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .btn-buy:hover { border-color: var(--teal-dark); color: #0b5b45; }
+  .btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+  }
+
   .card .coupon-row {
-    display: flex; gap: 6px; margin: 0 0 12px; align-items: stretch;
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 8px;
+    align-items: stretch;
   }
   .card .coupon-row input {
-    flex: 1; min-width: 0; padding: 9px 11px; font: inherit;
-    border: 1px solid var(--line); border-radius: 6px;
-    text-transform: uppercase; letter-spacing: .5px;
+    flex: 1;
+    min-width: 0;
+    padding: 9px 11px;
+    font: inherit;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-1);
+    text-transform: uppercase;
+    letter-spacing: .5px;
   }
   .card .coupon-row input:focus {
-    outline: 2px solid var(--accent); outline-offset: -1px;
+    outline: 2px solid var(--teal); outline-offset: -1px;
   }
   .card .coupon-row button.apply {
-    padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
-    background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 6px;
   }
-  .card .coupon-row button.apply:hover { background: var(--paper); }
+  .card .coupon-row button.apply:hover { background: var(--surface-1); }
   .card .coupon-msg { font-size: 12.5px; margin: -6px 0 12px; min-height: 16px; }
   .card .coupon-msg.is-ok { color: var(--good); }
   .card .coupon-msg.is-err { color: var(--bad); }
+
   .card .price.has-discount {
     text-decoration: line-through; color: var(--muted); font-size: 18px; margin-bottom: 0;
   }
   .card .price.discounted { color: var(--good); margin-top: 2px; }
-  .badge-le {
-    display: inline-block; font-size: 10.5px; font-weight: 700;
-    background: #e6efff; color: var(--accent-2);
-    border: 1px solid #c5d6f6; padding: 3px 8px; border-radius: 999px;
-    letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px;
+
+  .empty {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--muted);
+    padding: 22px;
+    text-align: center;
+    margin-top: 14px;
   }
-  .banner { padding: 14px 18px; border-radius: 8px; margin: 18px 0; font-size: 14px; }
-  .banner.ok { background: #d8f0e2; color: #1b6b3d; }
-  .banner.err { background: #fbe0e0; color: #8a1a1a; }
-  .banner.info { background: #e6efff; color: var(--accent-2); }
-  footer.site { border-top: 1px solid var(--line); padding: 22px; color: var(--muted); font-size: 13px; text-align:center; }
+
+  footer.site {
+    border-top: 1px solid var(--line);
+    padding: 22px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align:center;
+  }
+
+  @media (max-width: 720px) {
+    .header-inner { padding: 12px 16px; flex-wrap: wrap; }
+    .brand span { font-size: 16px; }
+    .hbtn { padding: 10px 12px; font-size: 13px; }
+    .card h3 { font-size: 21px; }
+  }
 </style>
 <link rel="icon" type="image/png" href="/brand/favicon-96x96.png" sizes="96x96" />
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
@@ -105,36 +370,46 @@
 </head>
 <body>
 
-<header class="app-header">
-  <a class="brand" href="/" aria-label="Deconflict home">
-    <img class="brand-mark" src="/brand/logo-mark.svg" alt="Deconflict" width="36" height="36" />
-    <span class="brand-name">DECONFLICT</span>
-    <span class="page-title">Catalog</span>
-  </a>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="Deconflict Academy home">
+      <img src="/brand/logo-mark.svg" alt="Deconflict" width="34" height="34" />
+      <span>Deconflict Academy</span>
+    </a>
+    <div class="header-actions">
+      <a class="hbtn dark" href="https://deconflictacademy.com/deconflict">Register</a>
+      <a class="hbtn light" href="https://deconflictacademy.com/dashboard">Sign in</a>
+    </div>
+  </div>
 </header>
 
 <main>
   <section class="hero">
-    <h2>Train at your own pace.</h2>
-    <p class="lede">
-      Purchase individual courses without a partner agency. After payment, we'll email you a
-      sign-in link so you can start immediately. Certificates carry a SHA-256 hash and a
-      public verification page.
-    </p>
+    <div class="eyebrow">Course library</div>
+    <h1>Courses</h1>
+    <p class="sub" id="countLabel">Loading catalog…</p>
   </section>
 
-  <div id="banner" class="banner" style="display:none;"></div>
+  <section class="toolbar" aria-label="Catalog filters">
+    <div class="search-wrap">
+      <input id="searchInput" type="search" placeholder="Search courses..." aria-label="Search courses" />
+    </div>
+    <div class="chips" id="chips" role="tablist" aria-label="Course categories"></div>
+  </section>
+
+  <div id="banner" class="banner"></div>
+
+  <p class="results" id="resultMeta"></p>
 
   <div class="catalog" id="catalog">
     <noscript>
       <div class="card">
-        <h3>Crypto 101: Cryptocurrency Fundamentals</h3>
-        <p class="desc">Conceptual foundations + applied tracing for law-enforcement and compliance investigators.</p>
-        <div class="price">$299</div>
-        <div class="one-time">JavaScript is required to complete checkout.</div>
+        <h3>JavaScript required</h3>
+        <p class="desc">Enable JavaScript to browse, filter, and start courses from the catalog.</p>
       </div>
     </noscript>
   </div>
+  <div id="emptyState" class="empty" hidden>No courses matched your search and filter.</div>
 </main>
 
 <footer class="site">
@@ -150,7 +425,7 @@ const banner = document.getElementById('banner');
 function showBanner(text, kind) {
   banner.textContent = text;
   banner.className = 'banner ' + (kind || 'info');
-  banner.style.display = 'block';
+  banner.style.display = text ? 'block' : 'none';
 }
 
 const params = new URLSearchParams(window.location.search);
@@ -162,6 +437,17 @@ if (params.get('status') === 'success') {
   showBanner('Coupon applied. You are now enrolled at no cost. Visit your dashboard to start.', 'ok');
 }
 
+if (!window.supabaseClient && window.SUPABASE_URL && window.SUPABASE_PUBLISHABLE_KEY && window.supabase) {
+  window.supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'implicit'
+    }
+  });
+}
+
 function formatPrice(cents, currency) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: (currency || 'usd').toUpperCase() })
     .format(cents / 100);
@@ -170,6 +456,40 @@ function formatPrice(cents, currency) {
 function escapeAttr(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+const DEMO_COURSES = [
+  { course_id: 'crypto101', code: 'DC-110', name: 'Crypto Intelligence Sharing', description: 'A working investigator\'s introduction to on-chain evidence and case framing.', category: 'Investigations', level: 'Foundations', duration: '4 weeks', lessons: 16, is_new: true, cta: 'buy', open_url: '/courses/crypto101' },
+  { course_id: 'blockchain-fundamentals', code: 'DC-101', name: 'Blockchain Fundamentals', description: 'Distributed ledgers, consensus, and the architecture of public chains.', category: 'Foundations', level: 'Foundations', duration: '3 weeks', lessons: 12, is_new: true, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'wallet-tracing-techniques', code: 'DC-210', name: 'Wallet Tracing Techniques', description: 'Heuristics, clustering, and address attribution across UTXO and account chains.', category: 'Tracing', level: 'Intermediate', duration: '5 weeks', lessons: 18, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'bitcoin-utxo-deep-dive', code: 'DC-215', name: 'Bitcoin and the UTXO Model', description: 'Transaction structure, change detection, and forensic reading of Bitcoin.', category: 'Protocols', level: 'Intermediate', duration: '3 weeks', lessons: 14, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'ethereum-evm-forensics', code: 'DC-220', name: 'Ethereum and EVM Forensics', description: 'Account model mechanics, internal transactions, and smart contract evidence.', category: 'Protocols', level: 'Intermediate', duration: '4 weeks', lessons: 17, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'stablecoins-payment-rails', code: 'DC-230', name: 'Stablecoins and Payment Rails', description: 'USDT, USDC, issuer controls, freezes, and cross-chain settlement.', category: 'Markets', level: 'Intermediate', duration: '2 weeks', lessons: 10, is_new: true, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'defi-protocol-analysis', code: 'DC-310', name: 'DeFi Protocol Analysis', description: 'AMMs, lending markets, and liquidity evidence from an investigative lens.', category: 'DeFi', level: 'Advanced', duration: '5 weeks', lessons: 20, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'smart-contract-risk', code: 'DC-320', name: 'Smart Contract Risk and Exploits', description: 'Common vulnerability classes and post-mortem reconstruction of exploits.', category: 'DeFi', level: 'Advanced', duration: '4 weeks', lessons: 16, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'mixer-tumbler-analysis', code: 'DC-330', name: 'Mixer and Tumbler Analysis', description: 'Tornado Cash, CoinJoin, and demixing strategies for modern obfuscation.', category: 'Tracing', level: 'Advanced', duration: '3 weeks', lessons: 12, is_new: true, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'privacy-coins', code: 'DC-335', name: 'Privacy Coins: Monero and Zcash', description: 'Ring signatures, stealth addresses, and the limits of on-chain visibility.', category: 'Tracing', level: 'Advanced', duration: '3 weeks', lessons: 11, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'cross-chain-bridges', code: 'DC-340', name: 'Cross-Chain Bridges and Swaps', description: 'Following value across bridges, DEX aggregators, and swap routes.', category: 'Tracing', level: 'Advanced', duration: '3 weeks', lessons: 13, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'nft-marketplace-forensics', code: 'DC-250', name: 'NFT and Marketplace Forensics', description: 'Wash trading, royalty bypass, and provenance for digital collectibles.', category: 'Markets', level: 'Intermediate', duration: '2 weeks', lessons: 9, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'exchange-compliance', code: 'DC-410', name: 'Exchange Compliance and KYC', description: 'Travel rule, sanctions screening, and lawful process to centralized venues.', category: 'Compliance', level: 'Practitioner', duration: '4 weeks', lessons: 15, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'aml-cft-crypto', code: 'DC-420', name: 'AML and CFT for Crypto Assets', description: 'Typologies, SAR drafting, and regulator expectations for digital assets.', category: 'Compliance', level: 'Practitioner', duration: '5 weeks', lessons: 18, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'sanctions-and-ofac', code: 'DC-425', name: 'Sanctions, OFAC, and Designated Wallets', description: 'Operationalizing SDN checks and managing sanctioned-address exposure.', category: 'Compliance', level: 'Practitioner', duration: '2 weeks', lessons: 8, is_new: true, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'ransomware-payments', code: 'DC-510', name: 'Ransomware Payment Investigations', description: 'From ransom note to cash-out, mapping affiliate infrastructure end-to-end.', category: 'Investigations', level: 'Advanced', duration: '4 weeks', lessons: 15, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'darknet-markets', code: 'DC-520', name: 'Darknet Markets and Vendor Tracking', description: 'Vendor fingerprinting, escrow flows, and marketplace exit scams.', category: 'Investigations', level: 'Advanced', duration: '3 weeks', lessons: 12, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'scam-romance-pig-butchering', code: 'DC-530', name: 'Pig Butchering and Romance Scams', description: 'Victim recovery framing and laundering pathways used by syndicated fraud.', category: 'Investigations', level: 'Intermediate', duration: '3 weeks', lessons: 11, is_new: true, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'lightning-network', code: 'DC-240', name: 'The Lightning Network', description: 'Channels, routing, and investigative blind spots of off-chain payments.', category: 'Protocols', level: 'Intermediate', duration: '2 weeks', lessons: 9, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'node-operation-rpc', code: 'DC-260', name: 'Running Nodes and Reading RPC', description: 'Hands-on with Bitcoin Core and Geth for independent evidence collection.', category: 'Protocols', level: 'Intermediate', duration: '3 weeks', lessons: 12, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'open-source-intel-crypto', code: 'DC-270', name: 'OSINT for Crypto Investigators', description: 'Pivoting from wallets to people using public-source and social graph signals.', category: 'Investigations', level: 'Intermediate', duration: '3 weeks', lessons: 13, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'courtroom-testimony', code: 'DC-610', name: 'Courtroom Testimony and Reports', description: 'Writing and presenting investigative outputs that hold up under cross-examination.', category: 'Practice', level: 'Practitioner', duration: '2 weeks', lessons: 8, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'asset-seizure-recovery', code: 'DC-620', name: 'Asset Seizure and Recovery', description: 'Working with custodians, courts, and exchanges to recover digital assets.', category: 'Practice', level: 'Practitioner', duration: '3 weeks', lessons: 11, is_new: true, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'stablecoin-issuer-controls', code: 'DC-435', name: 'Issuer Controls and Freeze Authority', description: 'Engaging stablecoin issuers for freezes, blacklists, and lawful holds.', category: 'Compliance', level: 'Practitioner', duration: '1 week', lessons: 6, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' },
+  { course_id: 'advanced-clustering', code: 'DC-720', name: 'Advanced Clustering and Attribution', description: 'Probabilistic attribution, datasets, and entity resolution at scale.', category: 'Tracing', level: 'Advanced', duration: '5 weeks', lessons: 19, is_new: false, cta: 'open', open_url: '/courses/btc-investigations' }
+];
+
+const CATEGORIES = ['All', 'Foundations', 'Investigations', 'Tracing', 'Protocols', 'DeFi', 'Markets', 'Compliance', 'Practice'];
+let _activeCategory = 'All';
+let _activeSearch = '';
+let _mergedCatalog = [];
+let _freeCoursesMode = false;
 
 // Per-course coupon state: { [course_id]: { code, applied: bool, original, final, discount, is_free, coupon_id } }
 const _couponState = {};
@@ -187,6 +507,43 @@ const COUPON_REASON_MSG = {
   not_authenticated:   'Please sign in to apply a coupon.'
 };
 
+function buildChips() {
+  const root = document.getElementById('chips');
+  root.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (cat === _activeCategory ? ' active' : '');
+    b.textContent = cat;
+    b.addEventListener('click', () => {
+      _activeCategory = cat;
+      buildChips();
+      renderFiltered();
+    });
+    root.appendChild(b);
+  });
+}
+
+function getFiltered() {
+  const q = _activeSearch.trim().toLowerCase();
+  return _mergedCatalog.filter(c => {
+    const catOk = _activeCategory === 'All' || c.category === _activeCategory;
+    if (!catOk) return false;
+    if (!q) return true;
+    return [c.code, c.name, c.description, c.category, c.level].some(v => String(v || '').toLowerCase().includes(q));
+  });
+}
+
+function renderFiltered() {
+  const rows = getFiltered();
+  document.getElementById('countLabel').textContent = rows.length + ' of ' + _mergedCatalog.length + ' courses';
+  document.getElementById('resultMeta').textContent = rows.length === _mergedCatalog.length
+    ? 'Browse the full program below. Sign in to start, track progress, and claim your certificate.'
+    : 'Filtered results: ' + rows.length + ' course' + (rows.length === 1 ? '' : 's') + '.';
+  renderCatalog(rows);
+  document.getElementById('emptyState').hidden = rows.length !== 0;
+}
+
 function renderCatalog(catalog) {
   const root = document.getElementById('catalog');
   root.innerHTML = '';
@@ -194,18 +551,34 @@ function renderCatalog(catalog) {
     const card = document.createElement('div');
     card.className = 'card';
     card.setAttribute('data-course', c.course_id);
+
+    const canBuy = !_freeCoursesMode && c.cta === 'buy';
+    const canOpen = c.cta === 'open' || !!c.open_url || _freeCoursesMode;
+    const showCoupon = canBuy;
+
     card.innerHTML = `
+      <div class="card-head">
+        <div class="course-code">${escapeAttr(c.code || '')}</div>
+        ${c.is_new ? '<span class="new-tag">New</span>' : ''}
+      </div>
       <h3>${escapeAttr(c.name)}</h3>
       <p class="desc">${escapeAttr(c.description)}</p>
-      <div class="price" data-orig-price>${formatPrice(c.amount_cents, c.currency)}</div>
-      <div class="price discounted" data-final-price hidden></div>
-      <div class="one-time">One-time purchase &middot; lifetime access</div>
-      <div class="coupon-row">
+      <div class="meta"><span>${escapeAttr(c.duration || 'Self-paced')}</span><span>${escapeAttr(String(c.lessons || 0))} lessons</span></div>
+      <div class="chips-row"><span class="topic">${escapeAttr(c.category || 'General')}</span><span class="level-pill">${escapeAttr(c.level || 'Foundations')}</span></div>
+      <div class="price-wrap" ${canBuy ? '' : 'hidden'}>
+        <div class="price" data-orig-price>${formatPrice(c.amount_cents || 0, c.currency || 'usd')}</div>
+        <div class="price discounted" data-final-price hidden></div>
+        <div class="one-time">One-time purchase &middot; lifetime access</div>
+      </div>
+      <div class="coupon-row" ${showCoupon ? '' : 'hidden'}>
         <input type="text" data-coupon-input placeholder="Coupon code (optional)" autocomplete="off" maxlength="64" />
         <button type="button" class="apply" data-coupon-apply>Apply</button>
       </div>
-      <div class="coupon-msg" data-coupon-msg></div>
-      <button data-buy="${escapeAttr(c.course_id)}">Buy now</button>
+      <div class="coupon-msg" data-coupon-msg ${showCoupon ? '' : 'hidden'}></div>
+      <div class="actions">
+        ${canOpen ? `<a class="btn btn-open" data-open href="${escapeAttr(c.open_url || ('/courses/' + c.course_id))}">Open <span aria-hidden="true">→</span></a>` : ''}
+        ${canBuy ? `<button class="btn btn-buy" data-buy="${escapeAttr(c.course_id)}">Buy now</button>` : ''}
+      </div>
     `;
     root.appendChild(card);
   }
@@ -240,9 +613,9 @@ function clearCouponDisplay(card, courseId) {
   const fin  = card.querySelector('[data-final-price]');
   const msg  = card.querySelector('[data-coupon-msg]');
   const buy  = card.querySelector('button[data-buy]');
-  orig.classList.remove('has-discount');
-  fin.hidden = true; fin.textContent = '';
-  msg.className = 'coupon-msg'; msg.textContent = '';
+  if (orig) orig.classList.remove('has-discount');
+  if (fin) { fin.hidden = true; fin.textContent = ''; }
+  if (msg) { msg.className = 'coupon-msg'; msg.textContent = ''; }
   if (buy) buy.textContent = 'Buy now';
 }
 
@@ -324,10 +697,6 @@ async function applyCoupon(applyBtn) {
 }
 
 async function startCheckout(courseId, btn) {
-  // Lockdown (coming-soon mode): no new enrollments while the gate is up.
-  showBanner('Enrollment temporarily paused. Please check back shortly.', 'info');
-  return;
-
   btn.disabled = true;
   const orig = btn.textContent;
   btn.textContent = 'Redirecting…';
@@ -366,17 +735,65 @@ async function startCheckout(courseId, btn) {
   }
 }
 
+function mergeDemoWithRuntime(cfg) {
+  const runtime = {};
+  (cfg.catalog || []).forEach(c => {
+    runtime[c.course_id] = c;
+  });
+
+  return DEMO_COURSES.map(c => {
+    const r = runtime[c.course_id] || null;
+    const openUrl = '/courses/' + c.course_id;
+    return {
+      ...c,
+      open_url: openUrl,
+      amount_cents: r ? r.amount_cents : (c.course_id === 'crypto101' ? 29900 : 0),
+      currency: r ? r.currency : 'usd'
+    };
+  });
+}
+
+function applyLaunchPolicy(catalog, cfg) {
+  _freeCoursesMode = !!(cfg && cfg.launch && cfg.launch.free_courses_mode);
+  if (!_freeCoursesMode) return catalog;
+  return catalog.map(c => ({
+    ...c,
+    cta: 'open',
+    amount_cents: 0
+  }));
+}
+
+(function setupFilters() {
+  const search = document.getElementById('searchInput');
+  search.addEventListener('input', () => {
+    _activeSearch = search.value || '';
+    renderFiltered();
+  });
+})();
+
 (async () => {
+  buildChips();
   try {
     const resp = await fetch('/api/public-config');
     const cfg = await resp.json();
-    if (!cfg.stripe_publishable_key) {
-      showBanner('Online checkout is temporarily unavailable. Please check back shortly.', 'err');
+    _mergedCatalog = applyLaunchPolicy(mergeDemoWithRuntime(cfg), cfg);
+    if (cfg.launch && cfg.launch.free_courses_mode) {
+      showBanner('All courses are currently free during launch. Feel free to explore and open any course.', 'ok');
     }
-    renderCatalog(cfg.catalog || []);
-  } catch (err) {
-    showBanner('Could not load catalog: ' + err.message, 'err');
+    if (!cfg.stripe_publishable_key) {
+      showBanner('Online checkout is temporarily unavailable. You can still browse and open courses.', 'err');
+    }
+  } catch (_err) {
+    _mergedCatalog = DEMO_COURSES.map(c => ({
+      ...c,
+      open_url: '/courses/' + c.course_id,
+      cta: 'open',
+      amount_cents: c.course_id === 'crypto101' ? 29900 : 0,
+      currency: 'usd'
+    }));
+    showBanner('Catalog loaded in demo mode due to config fetch error.', 'info');
   }
+  renderFiltered();
 })();
 </script>
 

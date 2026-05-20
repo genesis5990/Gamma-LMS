@@ -4,9 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Deconflict Academy</title>
-  <meta name="description" content="Deconflict Academy. Cryptocurrency investigation training for law enforcement. Launching soon." />
+  <meta name="description" content="Cryptocurrency investigation training for law enforcement and investigative support teams." />
 
-  <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="96x96" href="/brand/favicon-96x96.png" />
@@ -14,182 +13,624 @@
   <link rel="manifest" href="/brand/site.webmanifest" />
   <meta name="theme-color" content="#071727" />
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <style>
     :root {
-      --bone: #F8F5EF;
       --ink: #071727;
-      --surface: #051729;
-      --card: #FCFAF6;
-      --hairline: rgba(7, 23, 39, 0.14);
-      --muted: #434E5B;
-      --teal: #62B995;
+      --ink-2: #051729;
+      --paper: #f8f5ef;
+      --card: #fcfaf6;
+      --line: rgba(7, 23, 39, 0.14);
+      --muted: #434e5b;
+      --teal: #62b995;
+      --teal-dark: #4fa67f;
+      --signal: #0055a9;
+      --surface-1: #f1eee7;
+      --surface-2: #e8e4dc;
+      --shadow: 0 1px 2px rgba(7, 23, 39, .06), 0 12px 30px rgba(7, 23, 39, .08);
+      --max: 1240px;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      min-height: 100vh;
-      background: var(--bone);
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font: 16px/1.6 'Public Sans', system-ui, -apple-system, Segoe UI, sans-serif;
       color: var(--ink);
-      font-family: 'Public Sans', system-ui, -apple-system, Segoe UI, sans-serif;
-      font-size: 16px;
-      line-height: 1.5;
+      background: var(--paper);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-
-    /* Top nav */
-    .nav {
-      background: var(--surface);
-      padding: 18px 32px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--bone);
-      text-decoration: none;
-    }
-
-    .nav-emblem {
-      height: 36px;
-      width: auto;
-      flex-shrink: 0;
-      display: block;
-    }
-
-    .nav-wordmark {
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, h4 {
       font-family: 'Source Serif 4', Georgia, serif;
-      font-weight: 600;
-      font-size: 18px;
-      letter-spacing: 0.04em;
-      color: var(--bone);
+      letter-spacing: -0.01em;
+      margin: 0;
     }
+    p { margin: 0; }
 
-    /* Main hero */
-    main {
-      flex: 1;
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(5, 23, 41, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(248, 245, 239, 0.12);
+    }
+    .header-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 14px clamp(16px, 3vw, 32px);
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--paper);
+    }
+    .brand img { width: 34px; height: 34px; }
+    .brand span {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .header-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: .2s ease;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 64px 32px;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: var(--paper);
+      color: var(--ink-2);
+    }
+    .btn-primary:hover { background: #fff; }
+    .btn-secondary {
+      color: var(--paper);
+      border-color: rgba(248, 245, 239, .3);
+      background: transparent;
+    }
+    .btn-secondary:hover { background: rgba(248, 245, 239, .08); }
+
+    .shell {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 clamp(16px, 3vw, 32px);
     }
 
     .hero {
-      max-width: 720px;
-      text-align: center;
+      padding: clamp(42px, 7vw, 92px) 0 42px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: clamp(24px, 3.5vw, 42px);
+      align-items: center;
     }
-
-    .hero-eyebrow {
+    .hero-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: var(--surface-1);
+      border-radius: 999px;
+      padding: 6px 10px;
       font-family: 'JetBrains Mono', ui-monospace, monospace;
-      font-size: 13px;
-      letter-spacing: 0.12em;
+      font-size: 11px;
+      letter-spacing: .12em;
       text-transform: uppercase;
       color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-size: clamp(34px, 5vw, 70px);
+      line-height: 1.05;
+      margin-bottom: 16px;
+      max-width: 16ch;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: clamp(16px, 1.6vw, 20px);
+      max-width: 60ch;
       margin-bottom: 24px;
     }
-
-    .hero-headline {
-      font-family: 'Source Serif 4', Georgia, serif;
-      font-size: clamp(48px, 8vw, 88px);
-      line-height: 1.05;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .hero-cta .btn {
+      padding: 13px 16px;
+      font-size: 15px;
+    }
+    .hero-cta .btn.main {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+    }
+    .hero-cta .btn.main:hover { background: #10243a; border-color: #10243a; }
+    .hero-cta .btn.alt {
+      border-color: var(--line);
+      background: var(--card);
       color: var(--ink);
-      margin-bottom: 32px;
     }
-
-    .hero-body {
-      font-size: 18px;
-      line-height: 1.6;
-      color: var(--muted);
-      max-width: 560px;
-      margin: 0 auto 40px;
+    .hero-cta .btn.alt:hover { border-color: var(--teal); color: #0b5b45; }
+    .hero-media {
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+      background: #e6e1d6;
+      min-height: 340px;
     }
+    .hero-media img { width: 100%; height: 100%; object-fit: cover; }
 
-    .hero-divider {
-      width: 64px;
-      height: 1px;
-      background: var(--hairline);
-      margin: 0 auto 40px;
+    .classroom {
+      margin: 6px 0 62px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+      align-items: stretch;
     }
-
-    .hero-meta {
+    .classroom img {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      min-height: 240px;
+    }
+    .classroom-card {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+    }
+    .eyebrow {
       font-family: 'JetBrains Mono', ui-monospace, monospace;
-      font-size: 12px;
-      letter-spacing: 0.1em;
+      font-size: 11px;
+      letter-spacing: .14em;
       text-transform: uppercase;
       color: var(--muted);
     }
+    .classroom-card p { color: var(--muted); }
 
-    .hero-meta-divider {
-      display: inline-block;
-      margin: 0 12px;
-      color: var(--hairline);
+    section { margin-bottom: 78px; }
+    .section-head {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .section-head h2 {
+      font-size: clamp(30px, 3.8vw, 52px);
+      line-height: 1.06;
     }
 
-    /* Footer */
-    footer {
-      padding: 24px 32px;
-      border-top: 1px solid var(--hairline);
+    .overview {
+      display: grid;
+      grid-template-columns: 1fr 1.05fr;
+      gap: 22px;
+      align-items: start;
+    }
+    .overview img {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .overview-copy {
+      display: grid;
+      gap: 14px;
+      color: var(--muted);
+    }
+
+    .instruction-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .instruction-list li {
+      list-style: none;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      background: var(--card);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .instruction-list .num {
       font-family: 'JetBrains Mono', ui-monospace, monospace;
       font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      text-align: center;
+      letter-spacing: .16em;
+      color: var(--signal);
+      font-weight: 600;
+      padding-top: 2px;
     }
 
-    /* Responsive */
-    @media (max-width: 640px) {
-      .nav { padding: 16px 20px; }
-      main { padding: 48px 20px; }
-      .hero-body { font-size: 16px; }
-      .hero-meta-divider { display: block; margin: 6px 0; }
-      .nav-emblem { height: 30px; }
+    .audience {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 22px;
+      align-items: start;
     }
+    .audience-list {
+      display: grid;
+      gap: 12px;
+    }
+    .audience-list li {
+      list-style: none;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      gap: 4px;
+    }
+    .audience-list strong { font-size: 15px; }
+    .audience-list span { color: var(--muted); font-size: 14px; }
+    .audience img {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      min-height: 320px;
+      object-fit: cover;
+      width: 100%;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      background: var(--card);
+      display: grid;
+      gap: 8px;
+    }
+    .step .tag {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--signal);
+    }
+    .step p { color: var(--muted); font-size: 14px; }
+
+    .catalog-callout {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(165deg, #fcfaf6, #f2ede3);
+      box-shadow: var(--shadow);
+      padding: clamp(20px, 2.5vw, 30px);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 14px;
+    }
+    .catalog-callout p { color: var(--muted); margin-top: 8px; }
+    .catalog-callout .btn {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--paper);
+      font-size: 15px;
+      padding: 12px 14px;
+    }
+
+    .certificate {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 22px;
+      align-items: center;
+    }
+    .certificate img {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      min-height: 320px;
+      object-fit: cover;
+      width: 100%;
+    }
+    .certificate ul {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 0;
+      color: var(--muted);
+    }
+    .certificate li {
+      list-style: none;
+      position: relative;
+      padding-left: 14px;
+    }
+    .certificate li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--teal-dark);
+    }
+
+    .final-cta {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--ink);
+      color: var(--paper);
+      padding: clamp(20px, 2.5vw, 30px);
+      display: grid;
+      gap: 12px;
+      margin-bottom: 58px;
+    }
+    .final-cta h2 { font-size: clamp(28px, 3.4vw, 46px); }
+    .final-cta p { color: #d2d9e7; max-width: 72ch; }
+    .final-cta .cta-row {
+      margin-top: 2px;
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .final-cta .btn.signin {
+      background: var(--paper);
+      color: var(--ink);
+    }
+    .final-cta .btn.register {
+      border-color: rgba(248, 245, 239, .36);
+      color: var(--paper);
+    }
+
+    .site-footer {
+      border-top: 1px solid var(--line);
+      padding: 22px 0 28px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .site-footer .foot-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 clamp(16px, 3vw, 32px);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .site-footer nav {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .site-footer a:hover { color: var(--ink); }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .classroom,
+      .overview,
+      .audience,
+      .certificate {
+        grid-template-columns: 1fr;
+      }
+      .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .catalog-callout { grid-template-columns: 1fr; align-items: start; }
+    }
+    @media (max-width: 700px) {
+      .header-inner { padding: 12px 16px; }
+      .brand span { font-size: 16px; }
+      .header-actions .btn { padding: 10px 12px; font-size: 13px; }
+      .hero { padding-top: 28px; }
+      section { margin-bottom: 58px; }
+      .steps { grid-template-columns: 1fr; }
+      .site-footer .foot-inner { align-items: flex-start; }
+    }
+
+      .schema-banner {
+        background: #f2ede3;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink);
+        font-size: 13px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        padding: 10px clamp(16px, 3vw, 32px);
+        text-align: center;
+      }
   </style>
 </head>
 <body>
 
-  <nav class="nav">
-    <a class="nav-brand" href="/">
-      <img class="nav-emblem" src="/brand/logo-mark.svg" alt="Deconflict" />
-      <span class="nav-wordmark">DECONFLICT</span>
-    </a>
-  </nav>
-
-  <main>
-    <div class="hero">
-      <div class="hero-eyebrow">Deconflict Academy</div>
-      <h1 class="hero-headline">Launching soon.</h1>
-      <p class="hero-body">Cryptocurrency investigation training for sworn law enforcement.</p>
-      <div class="hero-divider"></div>
-      <div class="hero-meta">
-        For program inquiries
-        <span class="hero-meta-divider">·</span>
-        contact@deconflict.com
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/" aria-label="Deconflict Academy home">
+        <img src="/brand/logo-mark.svg" alt="Deconflict Academy" width="34" height="34" />
+        <span>Deconflict Academy</span>
+      </a>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="https://deconflictacademy.com/deconflict">Register</a>
+        <a class="btn btn-primary" href="https://deconflictacademy.com/dashboard">Sign in</a>
       </div>
     </div>
+  </header>
+
+  <div class="schema-banner">Launching Soon, feel free to look around in the meantime.</div>
+
+  <main class="shell">
+    <section class="hero" id="top">
+      <div>
+        <div class="hero-flag"><span>Free</span><span>for sworn law enforcement</span></div>
+        <h1>Cryptocurrency investigation training for law enforcement.</h1>
+        <p>
+          Deconflict Academy provides structured, casework-oriented instruction for investigators and
+          direct investigative support teams handling cryptocurrency-related matters.
+        </p>
+        <div class="hero-cta">
+          <a class="btn main" href="https://deconflictacademy.com/dashboard">Sign in <span aria-hidden="true">→</span></a>
+          <a class="btn alt" href="https://deconflictacademy.com/deconflict">Register</a>
+        </div>
+      </div>
+      <div class="hero-media">
+        <img src="https://learn-ease-grid.lovable.app/assets/hero-detective-Bgb2OUZw.jpg" alt="Detective reviewing cryptocurrency investigation training material" loading="eager" />
+      </div>
+    </section>
+
+    <section class="classroom">
+      <img src="https://learn-ease-grid.lovable.app/assets/training-classroom-D32IO19G.jpg" alt="Officers in a training classroom reviewing course material on laptops" loading="lazy" />
+      <div class="classroom-card">
+        <div class="eyebrow">In the classroom</div>
+        <h3>Training delivered in the environments investigators already work in.</h3>
+        <p>
+          Content is designed for practical use in criminal investigations where digital assets appear in evidence,
+          records, victim reporting, and case strategy.
+        </p>
+      </div>
+    </section>
+
+    <section id="overview">
+      <div class="section-head">
+        <div class="eyebrow">Program overview</div>
+        <h2>Designed for casework.</h2>
+      </div>
+      <div class="overview">
+        <img src="https://learn-ease-grid.lovable.app/assets/officers-briefing-CFZCAguD.jpg" alt="Detectives reviewing case files and a laptop in a briefing room" loading="lazy" />
+        <div class="overview-copy">
+          <p>
+            The curriculum helps investigators identify and investigate cryptocurrency activity in criminal matters,
+            from foundational blockchain principles through investigative and evidentiary workflows.
+          </p>
+          <p>
+            Instruction is built around the needs of state, local, and federal teams responsible for preserving
+            evidence, evaluating records, and developing defensible case narratives.
+          </p>
+          <p>
+            Content is continuously updated with input from working investigators, prosecutors, technical
+            specialists, and subject-matter experts.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="curriculum">
+      <div class="section-head">
+        <div class="eyebrow">Areas of instruction</div>
+        <h2>What the curriculum covers.</h2>
+      </div>
+      <ul class="instruction-list">
+        <li><span class="num">01</span><span>Fundamental principles of cryptocurrency and blockchain systems.</span></li>
+        <li><span class="num">02</span><span>Legal and procedural considerations for records, seizure, and evidentiary handling.</span></li>
+        <li><span class="num">03</span><span>Investigative techniques for identifying cryptocurrency activity in criminal cases.</span></li>
+        <li><span class="num">04</span><span>Internet-based investigative methods relevant to cryptocurrency matters.</span></li>
+        <li><span class="num">05</span><span>Case studies and practical exercises based on current investigative patterns.</span></li>
+      </ul>
+    </section>
+
+    <section id="audience" class="audience">
+      <div>
+        <div class="section-head">
+          <div class="eyebrow">Who it is for</div>
+          <h2>Built around the people doing the work.</h2>
+        </div>
+        <ul class="audience-list">
+          <li><strong>Sworn law enforcement personnel</strong><span>Officers, deputies, agents, and other sworn agency members.</span></li>
+          <li><strong>Detectives and investigators</strong><span>Teams assigned to cyber, fraud, financial, narcotics, and organized-crime matters.</span></li>
+          <li><strong>Direct investigative support</strong><span>Analysts and support specialists working alongside investigative units.</span></li>
+          <li><strong>Agency supervisors</strong><span>Leaders responsible for building operational capability in crypto-related casework.</span></li>
+        </ul>
+      </div>
+      <img src="https://learn-ease-grid.lovable.app/assets/officer-notes-CAyXwhI6.jpg" alt="Officer taking notes beside a laptop with analytical charts" loading="lazy" />
+    </section>
+
+    <section id="how-it-works">
+      <div class="section-head">
+        <div class="eyebrow">How it works</div>
+        <h2>A straightforward path.</h2>
+      </div>
+      <div class="steps">
+        <article class="step"><span class="tag">Step 01</span><p>Review available courses and select your learning track.</p></article>
+        <article class="step"><span class="tag">Step 02</span><p>Sign in through your agency or individual magic-link access path.</p></article>
+        <article class="step"><span class="tag">Step 03</span><p>Complete lessons and exercises at your own pace.</p></article>
+        <article class="step"><span class="tag">Step 04</span><p>Receive a certificate after passing the final assessment.</p></article>
+      </div>
+    </section>
+
+    <section id="catalog">
+      <div class="catalog-callout">
+        <div>
+          <div class="eyebrow">The catalog</div>
+          <h2>Courses built for real investigations.</h2>
+          <p>Browse the full library, filter by topic, and jump directly into active course tracks.</p>
+        </div>
+        <a class="btn" href="/courses">Browse catalog</a>
+      </div>
+    </section>
+
+    <section id="certificate" class="certificate">
+      <img src="https://learn-ease-grid.lovable.app/assets/certificate-completion-RltaUHmv.jpg" alt="Sample Deconflict Academy certificate of completion" loading="lazy" />
+      <div>
+        <div class="section-head">
+          <div class="eyebrow">Certificate of completion</div>
+          <h2>Recognized proof of training for each course you finish.</h2>
+        </div>
+        <p style="color: var(--muted);">
+          Completed courses issue a dated certificate with verifiable credential details that can support
+          assignment qualification and continuing education reporting.
+        </p>
+        <ul>
+          <li>Unique credential IDs with public verification support.</li>
+          <li>Training-hour visibility for agency reporting workflows.</li>
+          <li>Issued immediately when final assessment requirements are met.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="final-cta" id="start-training">
+      <div class="eyebrow" style="color:#b8c1d6;">Start training</div>
+      <h2>Sign in to start a course and earn your certificate.</h2>
+      <p>
+        Free for sworn law-enforcement personnel and authorized investigative support staff.
+        Self-paced learning with certificates on completion.
+      </p>
+      <div class="cta-row">
+        <a class="btn signin" href="https://deconflictacademy.com/dashboard">Sign in</a>
+        <a class="btn register" href="https://deconflictacademy.com/deconflict">Register</a>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    Deconflict Academy &nbsp;·&nbsp; Cryptocurrency investigation training
+  <footer class="site-footer">
+    <div class="foot-inner">
+      <div>Deconflict Academy</div>
+      <nav aria-label="Additional links">
+        <a href="/terms">Terms of Service</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="mailto:support@mygenesis-training.com">Contact</a>
+      </nav>
+    </div>
   </footer>
 
 </body>

@@ -73,6 +73,22 @@
         border: 1px solid rgba(99,179,237,.35);
         text-transform: uppercase; letter-spacing: .08em;
       }
+      #admin-nav .launch-pill,
+      .app-header .admin-nav .launch-pill,
+      .studio-header .launch-pill {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 8px;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        background: rgba(98,185,149,.2);
+        color: #bfe9d7;
+        border: 1px solid rgba(98,185,149,.45);
+        white-space: nowrap;
+      }
       #admin-nav nav { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; flex: 1; }
       #admin-nav a {
         color: #d1dbe8; text-decoration: none;
@@ -204,16 +220,56 @@
     function hasInlineAdminNav() {
       return !!document.querySelector('.app-header .admin-nav');
     }
+
+    async function mountLaunchBadge() {
+      try {
+        const resp = await fetch('/api/public-config', { cache: 'no-cache' });
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        const freeMode = !!(cfg && cfg.launch && cfg.launch.free_courses_mode);
+        if (!freeMode) return;
+
+        if (document.querySelector('.launch-pill')) return;
+
+        const pill = document.createElement('span');
+        pill.className = 'launch-pill';
+        pill.textContent = 'Launch mode: courses free';
+
+        const injectedBar = document.getElementById('admin-nav');
+        if (injectedBar) {
+          injectedBar.appendChild(pill);
+          return;
+        }
+
+        const inlineAdminNav = document.querySelector('.app-header .admin-nav');
+        if (inlineAdminNav) {
+          inlineAdminNav.appendChild(pill);
+          return;
+        }
+
+        const studioHeadbar = document.querySelector('.studio-header .studio-headbar');
+        if (studioHeadbar) {
+          studioHeadbar.insertBefore(pill, studioHeadbar.firstChild);
+        }
+      } catch (_e) {
+        // Non-blocking: badge is informational only.
+      }
+    }
+
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        if (hasInlineAdminNav()) return;
         injectStyles();
-        buildBar(role, session.user.email);
+        if (!hasInlineAdminNav()) {
+          buildBar(role, session.user.email);
+        }
+        mountLaunchBadge();
       });
     } else {
-      if (hasInlineAdminNav()) return;
       injectStyles();
-      buildBar(role, session.user.email);
+      if (!hasInlineAdminNav()) {
+        buildBar(role, session.user.email);
+      }
+      mountLaunchBadge();
     }
   }
 

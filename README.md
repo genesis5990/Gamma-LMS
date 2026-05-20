@@ -39,6 +39,33 @@ npm start
 # → http://localhost:8080
 ```
 
+For local boot, the server requires runtime Supabase values:
+
+```powershell
+$env:SUPABASE_URL='https://fyacdyarcfgngqetmaoc.supabase.co'
+$env:SUPABASE_PUBLISHABLE_KEY='<publishable-key>'
+npm start
+```
+
+## Launch-safe payment mode
+
+The platform supports a launch-safe free mode while preserving Stripe rails
+for later paid rollout.
+
+- `FREE_COURSES_MODE=true` (default): catalog is open/free, `/api/checkout`
+  performs direct enrollment for signed-in users.
+- `FREE_COURSES_MODE=false`: paid checkout path is enabled again.
+
+### Free now -> mixed paid transition
+
+1. Set `FREE_COURSES_MODE=false` in environment secrets.
+2. Ensure Stripe secrets are set (`STRIPE_SECRET_KEY`,
+   `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`).
+3. Restart app instances.
+4. Verify `GET /api/public-config` reports `launch.free_courses_mode=false`.
+5. Verify catalog cards show buy actions for paid courses.
+6. Run smoke checks and a real Stripe test checkout in test mode.
+
 ## Deploy to fly.io
 
 You must run this yourself (the workspace doesn't have your fly auth):

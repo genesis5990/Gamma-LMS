@@ -50,6 +50,7 @@ const SUPABASE_SVC_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const PUBLIC_SITE_URL   = process.env.PUBLIC_SITE_URL || 'https://mygenesis-training.fly.dev';
 const RESEND_API_KEY    = process.env.RESEND_API_KEY || '';
 const RESEND_FROM       = process.env.RESEND_FROM || 'Deconflict <noreply@mygenesis-training.com>';
+const FREE_COURSES_MODE = process.env.FREE_COURSES_MODE !== 'false';
 
 let stripe = null;
 if (STRIPE_SECRET) {
@@ -161,6 +162,7 @@ const COMING_SOON_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 const COMING_SOON_ALLOW = [
   '/api/',              // all REST APIs (Stripe webhook, checkout, grade-quiz, admin/users, public-config)
   '/health',            // liveness check (Fly health probe)
+  '/courses',           // public marketing catalog + /courses/<slug> learner routes
   '/brand/',            // logos, favicons, manifest, needed by the coming-soon page itself
   '/preview/',          // already gated by previewAuthGate (author auth required)
   '/verify',            // public cert verification (URL is printed on every issued PDF)
@@ -340,7 +342,11 @@ app.get('/api/public-config', (_req, res) => {
       description:  c.description,
       amount_cents: c.amount_cents,
       currency:     c.currency
-    }))
+    })),
+    launch: {
+      free_courses_mode: FREE_COURSES_MODE,
+      checkout_enabled: !!stripe
+    }
   });
 });
 
@@ -588,14 +594,32 @@ async function getUserFromBearer(req) {
 }
 
 app.post('/api/checkout', async (req, res) => {
-  // Lockdown (coming-soon mode): no new enrollments while the gate is up.
-  // The Stripe webhook handler is intentionally NOT gated so any purchases
-  // already in flight at Stripe complete and fulfill normally.
-  return res.status(503).json({ error: 'Enrollment temporarily paused. Please check back shortly.' });
-
   const { course_id, success_url, cancel_url, user_id, coupon_code } = req.body || {};
   const c = CATALOG[course_id];
   if (!c) return res.status(400).json({ error: 'unknown course_id' });
+
+  // Launch-safe free mode: all courses are open at no charge while still
+  // preserving the Stripe code path for a future paid launch.
+  if (FREE_COURSES_MODE) {
+    const user = await getUserFromBearer(req);
+    if (!user) {
+      return res.status(401).json({ error: 'sign in required to enroll' });
+    }
+    try {
+      await supabaseWrite(
+        'enrollments?on_conflict=user_id,course_id',
+        'POST',
+        { user_id: user.id, course_id, status: 'active', tenant_id: null }
+      );
+      return res.json({
+        free: true,
+        redirect: `/dashboard?free=1&course=${encodeURIComponent(course_id)}`
+      });
+    } catch (err) {
+      console.error('[checkout] free-mode enrollment failed:', err);
+      return res.status(500).json({ error: err.message || 'enrollment failed' });
+    }
+  }
 
   // Coupons require an authenticated user (preview_coupon enforces this too,
   // but failing fast gives a clearer error).

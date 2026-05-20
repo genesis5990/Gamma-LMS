@@ -59,7 +59,7 @@ check() {
 
 # ---- Core endpoints --------------------------------------------------------
 check "health endpoint"            200 "/health"           '"ok"'
-check "root landing page"          200 "/"                'data-page="landing"'
+check "root landing page"          200 "/"                'Cryptocurrency investigation training for law enforcement'
 check "Genesis dashboard route"    200 "/dashboard"        'id="dashboardRoot"'
 check "tenant dashboard route"     200 "/deconflict/dashboard"  'id="dashboardRoot"'
 check "live course slug route"     200 "/courses/btc-investigations"  "Deconflict"
